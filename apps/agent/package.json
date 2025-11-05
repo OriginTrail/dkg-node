@@ -30,7 +30,6 @@
     "postinstall": "node fix-uuid.js"
   },
   "dependencies": {
-    "@dkg/plugin-dkg-publisher": "^1.0.0",
     "@dkg/expo-forcegraph": "^0.0.0",
     "@dkg/plugin-dkg-essentials": "^0.0.3",
     "@dkg/plugin-example": "^0.0.3",
