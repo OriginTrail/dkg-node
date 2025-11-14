@@ -43,6 +43,8 @@
 
 ## Contribute to the DKG&#x20;
 
+* [Hackathon: Scaling Trust in the Age of AI](contribute-to-the-dkg/hackathon-scaling-trust-in-the-age-of-ai/README.md)
+  * [DKG Social Graph Query Guide](contribute-to-the-dkg/hackathon-scaling-trust-in-the-age-of-ai/dkg-social-graph-query-guide.md)
 * [Delegated staking](contribute-to-the-dkg/delegated-staking/README.md)
   * [Step-by-step staking](contribute-to-the-dkg/delegated-staking/step-by-step-staking.md)
   * [Redelegating stake](contribute-to-the-dkg/delegated-staking/redelegating-stake.md)
