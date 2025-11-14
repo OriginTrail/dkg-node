@@ -17,7 +17,7 @@ The DKG Network is comprised of network nodes, running on different servers and 
 \
 The second is the **DKG Edge Node**, which runs on devices at the “edge” (e.g., laptops, phones, IoT, and even servers, if deployed that way) and enables local knowledge processing, private-graph handling, and integration with AI-pipelines (via APIs like dRAG), allowing owners to retain control of their data while still contributing to the global DKG.&#x20;
 
-Together, Core and Edge Nodes form the network and exchange knowledge, facilitated by the blockchain. They share the same codebas,e however, so **it is possible to turn a DKG Edge Node into a DKG Core node (more on that later in the docs)**.
+Together, Core and Edge Nodes form the network and exchange knowledge, facilitated by the blockchain. They share the same codebas,e however, so **it is possible to turn a DKG Edge Node into a DKG Core Node (more on that later in the docs)**.
 
 ## Knowledge Assets
 
