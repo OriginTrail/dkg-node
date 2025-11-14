@@ -179,7 +179,10 @@ Core metadata about a social media post:
       "schema:genre": "news",
       "schema:headline": "Notre Dame Notebook: Irish Defense...",
       "schema:description": "Notre Dame's defense dominated...",
-      "schema:keywords": "notre dame,north carolina",
+      "schema:keywords": [
+        "notre dame",
+        "north carolina"
+        ],
       "schema:about": [
         {
           "@type": "schema:Thing",
