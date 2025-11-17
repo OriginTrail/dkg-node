@@ -83,7 +83,7 @@
     * [Random Sampling & proofs explained](dkg-knowledge-hub/learn-more/introduction/random-sampling-dkg-proof-system/README.md)
       * [Random Sampling rollout](dkg-knowledge-hub/learn-more/introduction/random-sampling-dkg-proof-system/random-sampling-rollout.md)
       * [Random Sampling FAQ](dkg-knowledge-hub/learn-more/introduction/random-sampling-dkg-proof-system/random-sampling-faq.md)
-    * [Rules & token thresholds](dkg-knowledge-hub/learn-more/introduction/rules-and-token-thresholds.md)
+    * [Edge Vs. Core Node — Rules & token thresholds](dkg-knowledge-hub/learn-more/introduction/edge-vs.-core-node-rules-and-token-thresholds.md)
   * [Connected blockchains](dkg-knowledge-hub/learn-more/connected-blockchains/README.md)
     * [NeuroWeb Parachain](dkg-knowledge-hub/learn-more/connected-blockchains/neuroweb.md)
     * [Base Network (L2)](dkg-knowledge-hub/learn-more/connected-blockchains/base-blockchain/README.md)
