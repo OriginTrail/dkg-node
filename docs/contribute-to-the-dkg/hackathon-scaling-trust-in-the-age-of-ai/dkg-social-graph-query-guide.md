@@ -80,20 +80,26 @@ Represents a social media account's core identity:
   "@graph": [
     {
       "@type": ["schema:Person", "foaf:Person", "prov:Agent"],
-      "@id": "https://ca.investing.com",
+      "@id": "https://youtube.com/channel/UCY1kMZp36IQSyNx_9h4mpCg",
       "schema:identifier": [
         {
           "@type": "schema:PropertyValue",
           "schema:propertyID": "creatorId",
-          "schema:value": "news::ca.investing.com"
+          "schema:value": "youtube::UCY1kMZp36IQSyNx_9h4mpCg"
         },
         {
           "@type": "schema:PropertyValue",
           "schema:propertyID": "platform",
-          "schema:value": "news"
+          "schema:value": "youtube"
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:propertyID": "userId",
+          "schema:value": "UCY1kMZp36IQSyNx_9h4mpCg"
         }
       ],
-      "schema:dateCreated": "1970-01-21T09:19:38.440Z"
+      "schema:dateCreated": "2025-11-13T19:55:47.000Z",
+      "prov:generatedAtTime": "2025-11-13T19:55:47.000Z"
     }
   ]
 }
@@ -113,37 +119,76 @@ Captures time-series data about account activity and connections:
   "@graph": [
     {
       "@type": ["prov:Entity", "schema:Observation"],
-      "@id": "urn:uuid:25499e5d-7c9a-53d7-85c6-acc1cdac6ba8",
-      "prov:generatedAtTime": "1970-01-21T09:19:38.440Z",
+      "@id": "urn:uuid:d103990f-b092-5f73-952c-b7c3554add43",
+      "prov:generatedAtTime": "2025-11-13T19:55:47.000Z",
+      "schema:observationDate": "2025-11-13T19:55:47.000Z",
       "schema:about": {
-        "@id": "https://twitter.com/i/user/748244810692104192"
+        "@id": "https://youtube.com/channel/UCY1kMZp36IQSyNx_9h4mpCg"
+      },
+      "prov:specializationOf": {
+        "@id": "https://youtube.com/channel/UCY1kMZp36IQSyNx_9h4mpCg"
       },
       "foaf:knows": [
         {
           "@type": "foaf:Person",
-          "@id": "https://x.com/9to5mac",
-          "schema:name": "9to5mac",
+          "@id": "https://www.youtube.com/@pondermusic",
+          "schema:name": "pondermusic",
           "schema:additionalProperty": {
             "@type": "schema:PropertyValue",
             "schema:name": "connectionStrength",
-            "schema:value": 17
+            "schema:value": 60
           }
         }
       ],
+      "schema:expertise": [
+        {
+          "@type": "schema:Thing",
+          "@id": "https://lunarcrush.com/api4/public/topic/money/v1",
+          "schema:name": "money",
+          "schema:additionalProperty": [
+            {
+              "@type": "schema:PropertyValue",
+              "schema:name": "creatorRank",
+              "schema:value": 4572
+            },
+            {
+              "@type": "schema:PropertyValue",
+              "schema:name": "postCount",
+              "schema:value": 2
+            },
+            {
+              "@type": "schema:PropertyValue",
+              "schema:name": "percent",
+              "schema:value": 0.98
+            }
+          ]
+        }
+      ],
+      "prov:hadPrimarySource": {
+        "@type": "prov:Entity",
+        "@id": "https://lunarcrush.com/api4/public/creator/youtube/UCY1kMZp36IQSyNx_9h4mpCg/v1"
+      },
       "foaf:accountProfileInfo": {
         "@type": "schema:Person",
-        "schema:name": "Ryan Christoffel",
-        "schema:alternateName": "iryantldr",
+        "@id": "https://youtube.com/channel/UCY1kMZp36IQSyNx_9h4mpCg",
+        "schema:name": "Mark Rober",
+        "foaf:name": "Mark Rober",
+        "schema:alternateName": "markrober",
+        "foaf:nick": "markrober",
         "schema:image": {
           "@type": "schema:ImageObject",
-          "schema:url": "https://pbs.twimg.com/profile_images/..."
+          "schema:url": "https://yt3.ggpht.com/ytc/AIdro_ksXY2REjZ6gYKSgnWT5jC_zT9mX900vyFtVinR8KbHww=s88-c-k-c0x00ffffff-no-rj",
+          "foaf:depiction": "https://yt3.ggpht.com/ytc/AIdro_ksXY2REjZ6gYKSgnWT5jC_zT9mX900vyFtVinR8KbHww=s88-c-k-c0x00ffffff-no-rj"
         }
       },
+      "schema:rank": 2099,
       "schema:interactionStatistic": [
         {
           "@type": "schema:InteractionCounter",
-          "schema:interactionType": {"@type": "schema:FollowAction"},
-          "schema:userInteractionCount": 208065784
+          "schema:interactionType": {
+            "@type": "schema:FollowAction"
+          },
+          "schema:userInteractionCount": 71700000
         }
       ]
     }
@@ -165,28 +210,39 @@ Core metadata about a social media post:
   "@graph": [
     {
       "@type": ["schema:SocialMediaPosting", "sioc:Post", "prov:Entity"],
-      "@id": "https://247sports.com/college/notre-dame/article/...",
+      "@id": "https://youtube.com/watch?v=6zU2rLYHLhw",
       "schema:author": [
-        {"@id": "https://twitter.com/i/user/151595281"}
+        {
+          "@id": "https://youtube.com/channel/UCY1kMZp36IQSyNx_9h4mpCg",
+          "prov:agent": "https://youtube.com/channel/UCY1kMZp36IQSyNx_9h4mpCg"
+        }
       ],
+      "schema:image": [],
       "schema:identifier": {
         "@type": "schema:PropertyValue",
         "schema:propertyID": "postId",
-        "schema:value": "247sports.com-1025526375"
+        "schema:value": "6zU2rLYHLhw"
       },
-      "schema:datePublished": "1970-01-21T08:57:14.089Z",
-      "schema:url": "https://247sports.com/...",
-      "schema:genre": "news",
-      "schema:headline": "Notre Dame Notebook: Irish Defense...",
-      "schema:description": "Notre Dame's defense dominated...",
+      "prov:wasAttributedTo": {
+        "@id": "https://youtube.com/channel/UCY1kMZp36IQSyNx_9h4mpCg"
+      },
+      "schema:datePublished": "2025-01-23T16:08:11.000Z",
+      "prov:generatedAtTime": "2025-01-23T16:08:11.000Z",
+      "sioc:created_at": "2025-01-23T16:08:11.000Z",
+      "schema:dateCreated": "2025-10-30T13:40:03.000Z",
+      "schema:url": "https://youtube.com/watch?v=6zU2rLYHLhw",
+      "foaf:page": "https://youtube.com/watch?v=6zU2rLYHLhw",
+      "schema:genre": "youtube-video",
+      "sioc:post_type": "youtube-video",
+      "schema:headline": "The Fastest Way To Make A Salad!",
+      "schema:description": "The Fastest Way To Make A Salad! w/@NickDiGiovanni",
       "schema:keywords": [
-        "notre dame",
-        "north carolina"
-        ],
+        "make a"
+      ],
       "schema:about": [
         {
           "@type": "schema:Thing",
-          "@id": "https://lunarcrush.com/api4/public/topic/notre%20dame/v1"
+          "@id": "https://lunarcrush.com/api4/public/topic/make%20a/v1"
         }
       ]
     }
@@ -207,27 +263,49 @@ Engagement metrics tracked over time:
   "@graph": [
     {
       "@type": ["prov:Entity", "schema:Observation"],
-      "@id": "urn:uuid:de0e9046-5754-5a22-b5a9-1f3a520a846b",
-      "prov:generatedAtTime": "1970-01-21T09:19:38.340Z",
-      "schema:about": {
-        "@id": "https://9to5mac.com/2025/10/16/i-love-my-iphone-air..."
-      },
-      "prov:specializationOf": {
-        "@id": "https://9to5mac.com/2025/10/16/i-love-my-iphone-air..."
-      },
+      "@id": "urn:uuid:60330101-6002-59bf-a26b-97d1a8384766",
+      "prov:generatedAtTime": "2025-10-30T13:40:04.000Z",
+      "schema:observationDate": "2025-10-30T13:40:04.000Z",
       "schema:interactionStatistic": {
         "@type": "schema:InteractionCounter",
         "schema:interactionType": "schema:InteractAction",
-        "schema:userInteractionCount": 35921,
+        "schema:userInteractionCount": 62659943,
         "schema:description": "Total interactions"
+      },
+      "schema:reviewRating": {
+        "@type": "schema:Rating",
+        "schema:ratingValue": "3.00",
+        "schema:bestRating": 5,
+        "schema:worstRating": 1,
+        "schema:description": "Sentiment score"
       },
       "schema:variableMeasured": [
         {
           "@type": "schema:PropertyValue",
-          "schema:name": "detailedMetrics",
-          "schema:value": "{\"views\":35744,\"quotes\":2,\"replies\":20,\"retweets\":5,\"bookmarks\":13,\"favorites\":137}"
+          "schema:name": "likes",
+          "schema:value": 2129894
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "views",
+          "schema:value": 60527488
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "comments",
+          "schema:value": 2561
         }
-      ]
+      ],
+      "schema:about": {
+        "@id": "https://youtube.com/watch?v=6zU2rLYHLhw"
+      },
+      "prov:specializationOf": {
+        "@id": "https://youtube.com/watch?v=6zU2rLYHLhw"
+      },
+      "prov:hadPrimarySource": {
+        "@type": "prov:Entity",
+        "@id": "https://lunarcrush.com/api4/public/posts/youtube-video/6zU2rLYHLhw/v1"
+      }
     }
   ]
 }
@@ -247,15 +325,15 @@ Basic topic information:
   "@graph": [
     {
       "@type": ["schema:Thing", "skos:Concept", "foaf:Topic"],
-      "@id": "https://lunarcrush.com/api4/public/topic/%240992hk/v1",
-      "schema:name": "Lenovo Group Limited",
-      "foaf:name": "Lenovo Group Limited",
-      "schema:alternateName": "$0992hk",
-      "skos:notation": "$0992hk",
+      "@id": "https://lunarcrush.com/api4/public/topic/money/v1",
+      "schema:name": "Money",
+      "foaf:name": "Money",
+      "schema:alternateName": "money",
+      "skos:notation": "money",
       "schema:identifier": {
         "@type": "schema:PropertyValue",
         "schema:propertyID": "topicSlug",
-        "schema:value": "$0992hk"
+        "schema:value": "money"
       }
     }
   ]
@@ -275,48 +353,171 @@ Topic trends, rankings, and sentiment over time:
   "@graph": [
     {
       "@type": ["prov:Entity", "schema:Observation"],
-      "@id": "urn:uuid:42422e77-aef8-5621-8350-5175e64b929b",
-      "prov:generatedAtTime": "1970-01-21T09:19:53.508Z",
+      "@id": "urn:uuid:08ff5e69-85b9-5bba-80fb-dd76348a1043",
+      "prov:generatedAtTime": "2025-11-13T19:55:47.000Z",
+      "schema:observationDate": "2025-11-13T19:55:47.000Z",
       "schema:about": {
-        "@id": "https://lunarcrush.com/api4/public/topic/postgame/v1"
+        "@id": "https://lunarcrush.com/api4/public/topic/money/v1"
+      },
+      "prov:specializationOf": {
+        "@id": "https://lunarcrush.com/api4/public/topic/money/v1"
       },
       "schema:relatedLink": [
-        {"@id": "https://lunarcrush.com/api4/public/topic/blue%20jays/v1"},
-        {"@id": "https://lunarcrush.com/api4/public/topic/toronto/v1"}
+        {"@id": "https://lunarcrush.com/api4/public/topic/coins%20layer%201/v1"},
+        {"@id": "https://lunarcrush.com/api4/public/topic/investment/v1"},
+        {"@id": "https://lunarcrush.com/api4/public/topic/coins%20pow/v1"}
       ],
-      "schema:rank": 1223,
+      "schema:category": [
+        "Finance"
+      ],
+      "prov:hadPrimarySource": {
+        "@type": "prov:Entity",
+        "@id": "https://lunarcrush.com/api4/public/topic/money/v1"
+      },
+      "schema:rank": 5,
       "schema:additionalProperty": [
         {
           "@type": "schema:PropertyValue",
           "schema:name": "numContributors",
-          "schema:value": 1762
+          "schema:value": 225169
         },
         {
           "@type": "schema:PropertyValue",
           "schema:name": "numPosts",
-          "schema:value": 1762
+          "schema:value": 225169
         },
         {
           "@type": "schema:PropertyValue",
           "schema:name": "interactions24h",
-          "schema:value": 16461825
+          "schema:value": 803878895
         },
         {
           "@type": "schema:PropertyValue",
           "schema:name": "trend",
-          "schema:value": "up"
+          "schema:value": "down"
         }
       ],
+      "schema:genre": "Finance",
       "schema:variableMeasured": [
         {
           "@type": "schema:PropertyValue",
-          "schema:name": "postTypeDistribution",
-          "schema:value": "{\"news\":293,\"tweet\":17606,\"reddit-post\":10608}"
+          "schema:name": "postTypeDistribution:news",
+          "schema:value": 10737
         },
         {
           "@type": "schema:PropertyValue",
-          "schema:name": "sentimentByType",
-          "schema:value": "{\"news\":74,\"tweet\":59,\"reddit-post\":18}"
+          "schema:name": "postTypeDistribution:tweet",
+          "schema:value": 1030324
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "postTypeDistribution:reddit-post",
+          "schema:value": 68340
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "postTypeDistribution:tiktok-video",
+          "schema:value": 773815
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "postTypeDistribution:youtube-video",
+          "schema:value": 830036
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "interactionsByType:news",
+          "schema:value": 143137968
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "interactionsByType:tweet",
+          "schema:value": 159234882
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "interactionsByType:reddit-post",
+          "schema:value": 1045990
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "interactionsByType:tiktok-video",
+          "schema:value": 168630892
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "interactionsByType:youtube-video",
+          "schema:value": 331829163
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentByType:news",
+          "schema:value": 98
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentByType:tweet",
+          "schema:value": 64
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentByType:reddit-post",
+          "schema:value": 67
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentByType:tiktok-video",
+          "schema:value": 74
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentByType:youtube-video",
+          "schema:value": 76
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentDetail:news",
+          "schema:value": {
+            "neutral": 4229,
+            "negative": 2484,
+            "positive": 4024
+          }
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentDetail:tweet",
+          "schema:value": {
+            "neutral": 414100,
+            "negative": 219356,
+            "positive": 396868
+          }
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentDetail:reddit-post",
+          "schema:value": {
+            "neutral": 29674,
+            "negative": 12815,
+            "positive": 25851
+          }
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentDetail:tiktok-video",
+          "schema:value": {
+            "neutral": 346694,
+            "negative": 109220,
+            "positive": 317901
+          }
+        },
+        {
+          "@type": "schema:PropertyValue",
+          "schema:name": "sentimentDetail:youtube-video",
+          "schema:value": {
+            "neutral": 347658,
+            "negative": 118169,
+            "positive": 364209
+          }
         }
       ]
     }
