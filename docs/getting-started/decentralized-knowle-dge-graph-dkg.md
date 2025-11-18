@@ -190,7 +190,7 @@ All commands work from any directory and automatically detect your operating sys
 A `createUser` is also possible via the `dkg-cli` included to simplify the creation of additional user accounts.
 
 ```sh
-cd dkg-node/apps/agent
+cd dkg-node
 dkg-cli create-user
 # Enter: email, password, permissions (e.g., `mcp llm blob scope123`)
 ```
