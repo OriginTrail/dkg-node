@@ -188,9 +188,9 @@ class ChatbotPage {
     const allMessages = await this.page.getByTestId("chat-message-text").all();
     const lastMessage = allMessages[allMessages.length - 1];
 
-    // Ultra-flexible pattern to match almost any AI success response format
+    // Pattern with negative lookaheads to exclude error messages
     await expect(lastMessage).toHaveText(
-      /(Knowledge Asset|retrieved|summary|found|located|contains|information|data|asset|DKG|here|following|content|details|components)/i,
+      /(?!.*unable)(?!.*failed)(?!.*error)(?!.*cannot)(?!.*can't)(?!.*couldn't)(?!.*unavailable)(?!.*not found)(Knowledge Asset|retrieved|summary|found|located|contains|information|data|asset|DKG|here|following|content|details|components)/i,
     );
   }
 }
