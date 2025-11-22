@@ -7,7 +7,7 @@ description: >-
 
 # DKG Node Services
 
-## Run[^1]ning your DKG Node in development mode
+## Running your DKG Node in development mode
 
 You will be running your DKG Node in **development mode** while building, experimenting, and customizing your DKG Node, before deploying it in production. In this mode, the system automatically reloads on code changes, streams real-time logs, and gives you immediate feedback as you work.
 
@@ -24,7 +24,7 @@ This will:
 * Help you debug and iterate quickly in a local environment.
 
 {% hint style="info" %}
-## Troubleshooting
+### Troubleshooting
 
 If `npm install` fails, try:
 
@@ -40,7 +40,7 @@ Also confirm your Node.js version is **v22+**.
 
 Once your dev server is up (`npm run dev`), several powerful tools become available through your browser. These interfaces let you **manage, inspect, and debug** every part of your DKG Node.
 
-### **DKG Node & Agent UI**&#x20;
+### **DKG Node & Agent UI**
 
 [**http://localhost:8081/**](http://localhost:8081/)
 
@@ -67,7 +67,7 @@ It allows:
 
 If your DKG Node is the “brain,” the MCP server is the **communication layer** - it’s what lets AI systems talk to your node programmatically.
 
-### **Swagger UI (API Explorer)**&#x20;
+### **Swagger UI (API Explorer)**
 
 [**http://localhost:9200/swagger**](http://localhost:9200/swagger)
 
@@ -94,9 +94,3 @@ It allows you to:
 {% hint style="danger" %}
 If you’re using the Brave browser, please disable Shields when accessing Drizzle Studio - otherwise you may not be able to view the database records.
 {% endhint %}
-
-
-
-
-
-[^1]: 
