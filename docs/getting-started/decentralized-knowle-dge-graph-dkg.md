@@ -26,7 +26,6 @@ For now, you need to know the following:
 
 * A **macOS** or **Linux** machine with at least 8GB RAM and 20GB storage space (Windows version is on the way)
 * Node.js **v22.20.0** or higher installed
-* LLM API key (OpenAI, Groq, GenAI, other) and a model name&#x20;
 * About 15-30 minutes of your time to complete all the steps
 
 ### OK, let's go! <a href="#installation-steps" id="installation-steps"></a>
@@ -96,14 +95,14 @@ The installation can take a few minutes. It installs the DKG Node in the same di
 
 #### 5. Configure your DKG Agent <a href="#id-6-configure-agent" id="id-6-configure-agent"></a>
 
-Run the agent setup script to enable LLM features. You'll be prompted for your LLM provider, API key, model name, and DKG environment (must match your setup-config choice: testnet or mainnet). The agent supports multiple providers; examples are listed below.
+Run the agent setup script to enable LLM features. You'll be prompted for your LLM provider, API key, model name, and DKG environment (must match your setup-config choice: testnet or mainnet).&#x20;
 
 ```sh
 cd dkg-node
 dkg-cli agent-setup
 ```
 
-DKG Node supports various LLM providers. Some examples include:
+DKG Agent supports various LLM providers. Some examples include:
 
 | Provider                   | API Key Link                                                                         |
 | -------------------------- | ------------------------------------------------------------------------------------ |
