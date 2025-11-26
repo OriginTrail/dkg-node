@@ -1,7 +1,7 @@
 # Installation
 
 {% hint style="info" %}
-If you are new to OriginTrail, DKG, knowledge graphs, or blockchains, we highly recommend becoming familiar with the [DKG—Key concepts](../dkg-key-concepts.md) before proceeding.&#x20;
+If you are new to OriginTrail, DKG, knowledge graphs, or blockchains, we highly recommend becoming familiar with the [DKG—Key concepts](../dkg-key-concepts.md) before proceeding.
 {% endhint %}
 
 ### What are we installing today?
@@ -12,7 +12,7 @@ To install the **DKG Edge Node**, we will be using the DKG CLI (`dkg-cli`) - a s
 
 ### The DKG utilizes blockchain
 
-The DKG Network utilizes blockchains as a trusted environment for incentivisation and securing data exchanges. It's a multichain network, so DKG Nodes support 3 blockchains, but can currently be deployed on a **single blockchain at a time** (multichain deployment support is on the way).&#x20;
+The DKG Network utilizes blockchains as a trusted environment for incentivisation and securing data exchanges. It's a multichain network, so DKG Nodes support 3 blockchains, but can currently be deployed on a **single blockchain at a time** (multichain deployment support is on the way).
 
 If you're not too familiar with blockchain technology, and not sure which blockchain to pick to get started with the DKG Node, which one is better for you etc - don't worry, a default blockchain will be chosen for you and you will be able to learn as you go (the DKG Node abstracts a lot of the complexities of blockchain for you). You shouldn't notice a big difference between blockchains while you are in development — this choice matters most when you are ready for your DKG Node deployment to mainnet.
 
@@ -26,6 +26,7 @@ For now, you need to know the following:
 
 * A **macOS** or **Linux** machine with at least 8GB RAM and 20GB storage space (Windows version is on the way)
 * Node.js **v22.20.0** or higher installed
+* LLM API key (OpenAI, Groq, GenAI, other) and a model name&#x20;
 * About 15-30 minutes of your time to complete all the steps
 
 ### OK, let's go! <a href="#installation-steps" id="installation-steps"></a>
@@ -38,7 +39,7 @@ npm install -g dkg-cli
 
 #### 2. Generate the DKG Node Configuration <a href="#id-2-generate-configuration" id="id-2-generate-configuration"></a>
 
-Your DKG Node allows for rich configuration (more on that in the **Configuration** section later), however this setup focuses on a minimal default configuration.&#x20;
+Your DKG Node allows for rich configuration (more on that in the **Configuration** section later), however this setup focuses on a minimal default configuration.
 
 We recommend setting up your project folder and starting with the default development setup on DKG testnet.
 
@@ -67,12 +68,12 @@ All DKG node wallets require native blockchain tokens, while the publishing wall
 
 #### 3. Funding wallets <a href="#id-4-fund-wallets" id="id-4-fund-wallets"></a>
 
-As mentioned previously, your DKG Node requires tokens to be able to create Knowledge Assets. &#x20;
+As mentioned previously, your DKG Node requires tokens to be able to create Knowledge Assets.
 
 **To get tokens for the DKG testnet, use the** [**testnet token faucet**](../dkg-knowledge-hub/useful-resources/test-token-faucet.md)**.** For DKG Mainnet deployments, we suggest visiting the [TRAC token](https://origintrail.io/technology/trac-token) page to check for its availability.
 
 {% hint style="warning" %}
-Make sure to fund your node keys with tokens before running the `dkg-cli install` command; otherwise, your DKG node might not function correctly.  &#x20;
+Make sure to fund your node keys with tokens before running the `dkg-cli install` command; otherwise, your DKG node might not function correctly.
 {% endhint %}
 
 Here's an overview of supported blockchains and the required tokens per key type.
