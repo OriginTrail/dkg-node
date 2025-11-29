@@ -214,4 +214,4 @@ The following list provides an overview of which services are running locally an
 
 * 📖 [Documentation](https://docs.origintrail.io/)
 * 🐛 [Report issues](https://github.com/OriginTrail/dkg-node-installer/issues)
-* 💬 [Discord community](https://discord.gg/aNpBjf97)
+* 💬 [Discord community](https://discord.com/invite/xCaY7hvNwD)

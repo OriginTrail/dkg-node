@@ -150,7 +150,7 @@ Learn more in Turborepo docs.
 
 ### Further resources
 
-👥 OriginTrail Discord server
+👥 OriginTrail [Discord](https://discord.com/invite/xCaY7hvNwD) server
 
 📖 **Expo framework:**
 
@@ -165,4 +165,3 @@ Learn more in Turborepo docs.
 * [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
 * [Configuration Options](https://turborepo.com/docs/reference/configuration)
 * [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
-
