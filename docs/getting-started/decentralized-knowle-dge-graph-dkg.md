@@ -25,7 +25,7 @@ For now, you need to know the following:
 ### What do you need for the installation?
 
 * A **macOS** or **Linux** machine with at least 8GB RAM and 20GB storage space (Windows version is on the way)
-* Node.js **v22.20.0** or higher installed
+* NVM and Node.js **v22.20.0** or higher installed
 * About 15-30 minutes of your time to complete all the steps
 
 ### OK, let's go! <a href="#installation-steps" id="installation-steps"></a>
