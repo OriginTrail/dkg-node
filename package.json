@@ -18,7 +18,7 @@
     "test:ui:report": "node apps/agent/tests/e2e/utils/report-UI-Tests-config.js",
     "ragas:insert:guardian": "RAGAS_SOURCE=guardian node apps/agent/tests/ragas/scripts/insert_ragas_to_db.js",
     "ragas:insert:dkg_node": "RAGAS_SOURCE=dkg_node node apps/agent/tests/ragas/scripts/insert_ragas_to_db.js",
-    "ragas:insert:azerbaijan": "RAGAS_SOURCE=dkg_node node apps/agent/tests/ragas/scripts/insert_ragas_to_db.js",
+    "ragas:insert:azerbaijan": "RAGAS_SOURCE=azerbaijan node apps/agent/tests/ragas/scripts/insert_ragas_to_db.js",
     "ragas": "cd apps/agent && npm run ragas"
   },
   "devDependencies": {
