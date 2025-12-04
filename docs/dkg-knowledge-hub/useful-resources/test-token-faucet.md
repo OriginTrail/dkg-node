@@ -6,7 +6,7 @@ description: Learn how to get testnet tokens from the OriginTrail Discord faucet
 
 The OriginTrail Decentralized Knowledge Graph (DKG) provides a testing environment on the NeuroWeb testnet, Gnosis Chiado, and Base Sepolia blockchains. To perform various blockchain operations on these testnets, users need both **test TRAC on the chosen network** and the **test utility token** of their chosen blockchain for gas.
 
-The **OriginTrail faucet service**, which provides test tokens, is deployed on the [**OriginTrail Discord server**](https://discord.com/invite/WaeSb5Mxj6) and located in the [**#faucet-bot**](https://discord.com/invite/WaeSb5Mxj6) channel.
+The **OriginTrail faucet service**, which provides test tokens, is deployed on the [**OriginTrail Discord server**](https://discord.gg/D9n4TeTaKG) and located in the [**#faucet-bot**](https://discord.gg/c8NSEmND) channel.
 
 To view the available faucet options, run the following command in the chat of the **#faucet-bot** channel:
 
@@ -31,4 +31,3 @@ Currently, depending on your requirements, you can request tokens for the follow
 {% endhint %}
 
 If you experience any issues with the Faucet Bot, please tag the core developers in one of the Discord channels.
-
