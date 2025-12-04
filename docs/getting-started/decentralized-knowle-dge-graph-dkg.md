@@ -65,6 +65,12 @@ All DKG node wallets require native blockchain tokens, while the publishing wall
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-10-31 at 17.02.59.png" alt="" width="563"><figcaption></figcaption></figure>
 
+**MySQL configuration:**
+
+If you have an existing MySQL database already configured on your environment, please make sure to pass your root password to `DB_PASSWORD` parameter in the setup .env file.&#x20;
+
+If you do not have MySQL installed, password passed this parameter will be set as your root password.&#x20;
+
 #### 3. Funding wallets <a href="#id-4-fund-wallets" id="id-4-fund-wallets"></a>
 
 As mentioned previously, your DKG Node requires tokens to be able to create Knowledge Assets.
