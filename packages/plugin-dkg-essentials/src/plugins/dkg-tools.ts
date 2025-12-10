@@ -7,9 +7,10 @@ import {
 } from "@modelcontextprotocol/sdk/server/mcp.js";
 // @ts-expect-error dkg.js
 import { BLOCKCHAIN_IDS } from "dkg.js/constants";
-import { getExplorerUrl } from "../utils";
+import { getExplorerUrl, validateSparqlQuery } from "../utils";
 
 export default defineDkgPlugin((ctx, mcp) => {
+  
   async function publishJsonLdAsset(
     jsonldRaw: string,
     privacy: "private" | "public",
@@ -29,24 +30,6 @@ export default defineDkgPlugin((ctx, mcp) => {
       return { ual: null, error };
     }
   }
-
-  mcp.registerTool(
-    "dkg-get",
-    {
-      title: "DKG Knowledge Asset get tool",
-      description:
-        "A tool for running a GET operation on OriginTrail Decentralized Knowledge Graph (DKG) and retrieving a specific Knowledge Asset by its UAL (Unique Asset Locator), taking the UAL as input.",
-      inputSchema: { ual: z.string() },
-    },
-    async ({ ual }) => {
-      const getAssetResult = await ctx.dkg.asset.get(ual);
-      return {
-        content: [
-          { type: "text", text: JSON.stringify(getAssetResult, null, 2) },
-        ],
-      };
-    },
-  );
 
   const ualCompleteOptions: Record<string, CompleteResourceTemplateCallback> = {
     blockchainName: (val) =>
@@ -77,8 +60,6 @@ export default defineDkgPlugin((ctx, mcp) => {
         },
         [],
       ),
-    // TODO: List possible blockchain contract addresses for v8 and v6
-    // blockchainAddress: (val, ctx) =>...
   };
 
   mcp.registerResource(
@@ -179,4 +160,86 @@ export default defineDkgPlugin((ctx, mcp) => {
       };
     },
   );
+
+  mcp.registerTool(
+    "dkg-sparql-query",
+    {
+      title: "DKG SPARQL Query Tool",
+      description:
+        "Execute SPARQL queries on the OriginTrail Decentralized Knowledge Graph (DKG). " +
+        "Takes a SPARQL query as input and returns the query results from the DKG. " +
+        "Supports SELECT and CONSTRUCT queries.",
+      inputSchema: {
+        query: z
+          .string()
+          .describe("SPARQL query to execute on the DKG (SELECT or CONSTRUCT)"),
+      },
+    },
+    async ({ query }) => {
+      // Validate query syntax
+      const validation = validateSparqlQuery(query);
+
+      if (!validation.valid) {
+        console.error("Invalid SPARQL query:", validation.error);
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ Invalid SPARQL query: ${validation.error}\n\nPlease check your query syntax and try again.`,
+            },
+          ],
+        };
+      }
+
+      // Use validated query type
+      const queryType = validation.queryType || "SELECT";
+
+      try {
+        console.log(`Executing SPARQL ${queryType} query...`);
+        const queryResult = await ctx.dkg.graph.query(query, queryType);
+
+        const resultText = JSON.stringify(queryResult, null, 2);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `✅ Query executed successfully\n\n**Results:**\n\`\`\`json\n${resultText}\n\`\`\``,
+            },
+          ],
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.error("Error executing SPARQL query:", errorMessage);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: `❌ Error executing SPARQL query:\n\n${errorMessage}\n\nPlease check your query and try again.`,
+            },
+          ],
+        };
+      }
+    },
+  );
+
+  mcp.registerTool(
+    "dkg-get",
+    {
+      title: "DKG Knowledge Asset get tool",
+      description:
+        "A tool for running a GET operation on OriginTrail Decentralized Knowledge Graph (DKG) and retrieving a specific Knowledge Asset by its UAL (Unique Asset Locator), taking the UAL as input.",
+      inputSchema: { ual: z.string() },
+    },
+    async ({ ual }) => {
+      const getAssetResult = await ctx.dkg.asset.get(ual);
+      return {
+        content: [
+          { type: "text", text: JSON.stringify(getAssetResult, null, 2) },
+        ],
+      };
+    },
+  );
+
 });
