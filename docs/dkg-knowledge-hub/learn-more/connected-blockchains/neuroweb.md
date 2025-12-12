@@ -17,7 +17,7 @@ More information on NEURO can be found in the [official NeuroWeb documentation](
 To use TRAC tokens on NeuroWeb for powering your nodes, staking, or other activities, you need to bridge TRAC to NeuroWeb.
 
 You can transfer TRAC tokens from Ethereum to NeuroWeb and vice versa via [Snowbridge](https://app.snowbridge.network/). \
-Bridging instructions are available in the [NeuroWeb official docs.](https://docs.neuroweb.ai/ethereum-neuroweb-trac-bridge)
+Bridging instructions are available in the [NeuroWeb official documentation](https://docs.neuroweb.ai/ethereum-neuroweb-trac-bridge)[.](https://docs.neuroweb.ai/ethereum-neuroweb-trac-bridge)
 
 ## Adding TRAC on NeuroWeb to your wallet
 
