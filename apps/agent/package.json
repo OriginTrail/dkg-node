@@ -55,7 +55,6 @@
     "better-sqlite3": "^12.2.0",
     "dkg.js": "^8.0.14",
     "dotenv": "^16.3.1",
-    "mysql2": "^3.6.5",
     "drizzle-orm": "^0.44.7",
     "expo": "53.0.20",
     "expo-blur": "~14.1.5",
@@ -77,6 +76,7 @@
     "expo-three": "^8.0.0",
     "expo-web-browser": "~14.2.0",
     "js-sha256": "^0.11.1",
+    "mysql2": "^3.6.5",
     "nodemailer": "^7.0.6",
     "prompts": "^2.4.2",
     "react": "19.0.0",
@@ -93,7 +93,8 @@
     "react-native-webview": "13.13.5",
     "react-tiny-popover": "^8.1.6",
     "three-spritetext": "^1.10.0",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
