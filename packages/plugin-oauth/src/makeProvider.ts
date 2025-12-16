@@ -193,7 +193,7 @@ export default function makeProvider({
 
       return createAndSaveOAuthTokens(
         codeData.client.client_id,
-        codeData.params.scopes ?? [],
+        codeData.confirmation.scopes ?? [],
         codeData.params.resource,
         codeData.confirmation.includeRefreshToken,
         codeData.confirmation.extra,
@@ -290,10 +290,10 @@ export type OAuthStorageProvider = {
   confirmCode: (code: string, data: CodeConfirmationData) => Promise<void>;
   getCodeData: (code: string) => Promise<
     | {
-        client: OAuthClientInformationFull;
-        params: AuthorizationParams;
-        confirmation: false | CodeConfirmationData;
-      }
+      client: OAuthClientInformationFull;
+      params: AuthorizationParams;
+      confirmation: false | CodeConfirmationData;
+    }
     | undefined
     | null
   >;
