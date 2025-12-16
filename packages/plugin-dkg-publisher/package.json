@@ -31,7 +31,7 @@
     "bull-board": "^2.1.3",
     "bullmq": "^4.15.0",
     "crypto-js": "^4.2.0",
-    "dkg.js": "^8.0.14",
+    "dkg.js": "^8.2.1",
     "dotenv": "^16.0.0",
     "drizzle-orm": "^0.44.7",
     "ethers": "^6.13.0",
