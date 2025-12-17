@@ -1,6 +1,8 @@
 import Button from "@/components/Button";
+import Container from "@/components/layout/Container";
 import { useChatStore } from "@/stores/chatStore";
 import { StyleSheet, View } from "react-native";
+import ChatTextInput from "./TextInput";
 
 export default function ChatInputRowWrapper() {
   const { messages, isGenerating, addMessage, clearMessages, setIsGenerating } =
@@ -19,15 +21,25 @@ export default function ChatInputRowWrapper() {
   };
 
   return (
-    <View style={styles.actions}>
-      <Button color="primary" text="Add Message" onPress={handleAddMessage} />
-      <Button
-        color="secondary"
-        text={isGenerating ? "Stop" : "Start Generating"}
-        onPress={handleToggleGenerating}
-      />
-      <Button color="primary" text="Clear" onPress={clearMessages} />
-    </View>
+    <Container
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <ChatTextInput />
+      <View style={styles.actions}>
+        <Button color="primary" text="Add Message" onPress={handleAddMessage} />
+        <Button
+          color="secondary"
+          text={isGenerating ? "Stop" : "Start Generating"}
+          onPress={handleToggleGenerating}
+        />
+        <Button color="primary" text="Clear" onPress={clearMessages} />
+      </View>
+    </Container>
   );
 }
 

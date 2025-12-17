@@ -1,9 +1,12 @@
+import { useMcpClient } from "@/client";
 import useColors from "@/hooks/useColors";
 import usePlatform from "@/hooks/usePlatform";
 import { useChatStore } from "@/stores";
+import { Image } from "expo-image";
 import { KeyboardAvoidingView, Platform, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Container from "../layout/Container";
+import Header from "../layout/Header";
 import ChatContainer from "./ChatContainer";
 import ChatInputRowWrapper from "./InputRow";
 
@@ -12,8 +15,9 @@ export default function ChatWrapper() {
   const safeAreaInsets = useSafeAreaInsets();
 
   // HOOKS - Custom
-  const { isNativeMobile, isWeb, width } = usePlatform();
+  const { isNativeMobile } = usePlatform();
   const colors = useColors();
+  const mcp = useMcpClient();
 
   // ZUSTAND Stores
   const hasMessages = useChatStore((state) => state.messages.length > 0);
@@ -40,13 +44,32 @@ export default function ChatWrapper() {
             isLandingScreen && { flex: null as any },
           ]}
         >
-          <ChatContainer />
+          <Header handleLogout={() => mcp.disconnect()} />
+
+          {!hasMessages ? (
+            <View
+              style={{
+                flex: 1,
+                justifyContent: "center",
+                alignItems: "center",
+                marginTop: 100,
+                marginBottom: 10,
+              }}
+            >
+              <Image
+                source={require("@/assets/logo.svg")}
+                style={{ width: 100, height: 100 }}
+                testID="app-logo"
+              />
+            </View>
+          ) : (
+            <ChatContainer />
+          )}
         </Container>
 
         <View
           style={[
             { width: "100%" },
-            isLandingScreen && { marginTop: 60 },
             isNativeMobile && {
               backgroundColor: colors.backgroundFlat,
               paddingBottom: safeAreaInsets.bottom,
@@ -54,16 +77,7 @@ export default function ChatWrapper() {
             },
           ]}
         >
-          <Container
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <ChatInputRowWrapper />
-          </Container>
+          <ChatInputRowWrapper />
         </View>
       </KeyboardAvoidingView>
     </>
