@@ -37,7 +37,7 @@
     "@modelcontextprotocol/sdk": "^1.17.1",
     "compression": "^1.8.0",
     "cors": "^2.8.5",
-    "dkg.js": "^8.2.1",
+    "dkg.js": "^8.2.2",
     "express": "^5.1.0",
     "mime-types": "^3.0.1",
     "morgan": "^1.10.0",
