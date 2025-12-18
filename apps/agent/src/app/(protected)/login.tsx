@@ -1,5 +1,5 @@
 import { Redirect, router, useLocalSearchParams } from "expo-router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { View } from "react-native";
 import * as Linking from "expo-linking";
 import * as SplashScreen from "expo-splash-screen";
@@ -14,8 +14,12 @@ import Footer from "@/components/layout/Footer";
 import FormTitle from "@/components/forms/FormTitle";
 import LoginForm from "@/components/forms/LoginForm";
 
-const getErrorMessage = (err: any) => {
-  if (!(err instanceof AuthError)) return "Unknown error occurred!";
+const getErrorMessage = (err: any): string => {
+  if (!(err instanceof AuthError)) {
+    // Check for OAuth-related errors in raw error messages
+    const rawMessage = err?.message || String(err);
+    return rawMessage;
+  }
   switch (err.code) {
     case AuthError.Code.INVALID_CREDENTIALS:
       return "Invalid username or password";
@@ -28,9 +32,22 @@ const getErrorMessage = (err: any) => {
   }
 };
 
+// Check if error indicates a stale/invalid authorization code
+const isStaleCodeError = (errorMessage: string): boolean => {
+  const lowerMessage = errorMessage.toLowerCase();
+  return (
+    /invalid.*(grant|code|authorization)/i.test(errorMessage) ||
+    /authorization.*code/i.test(errorMessage) ||
+    /oauth.*client/i.test(errorMessage) ||
+    lowerMessage.includes("invalid_grant") ||
+    lowerMessage.includes("expired")
+  );
+};
+
 export default function Login() {
   SplashScreen.hide();
   const { code } = useLocalSearchParams<{ code?: string }>();
+  const [validCode, setValidCode] = useState<string | undefined>(code);
 
   const tryLogin = useCallback(
     async ({
@@ -44,7 +61,7 @@ export default function Login() {
     }) => {
       try {
         const url = await login({
-          code: code ?? "",
+          code: validCode ?? "",
           credentials: { email, password },
           rememberMe,
           fetch: (url, opts) => fetch(url.toString(), opts as any),
@@ -56,10 +73,19 @@ export default function Login() {
         else Linking.openURL(url);
       } catch (error) {
         const errorMessage = getErrorMessage(error);
+
+        // Detect stale authorization code errors
+        if (isStaleCodeError(errorMessage)) {
+          router.setParams({ code: undefined });
+          setValidCode(undefined);
+          // Generic message - don't expose OAuth internals
+          throw new Error("Your session has expired. Please log in again.");
+        }
+
         throw new Error(errorMessage);
       }
     },
-    [code],
+    [validCode],
   );
 
   const { connected } = useMcpClient();
