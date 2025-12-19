@@ -1,3 +1,4 @@
+import { sendUserMessge } from "@/actions/chat";
 import useColors from "@/hooks/useColors";
 import { useChatStore } from "@/stores/chatStore";
 import { TextInput, View } from "react-native";
@@ -6,6 +7,7 @@ import SendButton from "./SendButton";
 export default function ChatTextInput() {
   const colors = useColors();
   const { message, setMessage } = useChatStore();
+  console.log("COMPONENT - ChatTextInput rendered", message);
 
   return (
     <View
@@ -31,12 +33,12 @@ export default function ChatTextInput() {
         placeholder="Ask anything..."
         placeholderTextColor={colors.placeholder}
         onChangeText={setMessage}
-        value={message ?? undefined}
+        value={message ?? ""}
         multiline={false}
         testID="chat-text-input"
         onKeyPress={({ nativeEvent }) => {
           if (nativeEvent.key === "Enter") {
-            console.log("Enter key pressed");
+            sendUserMessge();
           }
         }}
       />

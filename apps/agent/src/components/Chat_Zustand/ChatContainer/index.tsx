@@ -8,7 +8,7 @@ export default function ChatContainer() {
 
   return (
     <ScrollView
-      style={[styles.messagesList, { borderColor: "red" }]}
+      style={[{ marginHorizontal: 60 }]}
       contentContainerStyle={styles.messagesContent}
     >
       {messages.length === 0 ? (
@@ -56,11 +56,6 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontFamily: "monospace",
-  },
-  messagesList: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 8,
   },
   messagesContent: {
     padding: 12,

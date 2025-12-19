@@ -38,12 +38,7 @@ export default function ChatWrapper() {
             : { justifyContent: "flex-end" },
         ]}
       >
-        <Container
-          style={[
-            { paddingBottom: 0 },
-            isLandingScreen && { flex: null as any },
-          ]}
-        >
+        <Container style={[isLandingScreen && { flex: null as any }]}>
           <Header handleLogout={() => mcp.disconnect()} />
 
           {!hasMessages ? (

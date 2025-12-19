@@ -1,26 +1,21 @@
+import { ChatMessage_I } from "@/models/chat";
 import { create } from "zustand";
 
-interface ChatMessage {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
-
-interface ChatState {
+interface ChatState_I {
   // State
-  messages: ChatMessage[];
+  messages: ChatMessage_I[];
   isGenerating: boolean;
   message: string | null;
 
   // Actions
-  setMessage: (message: string) => void;
-  addMessage: (message: ChatMessage) => void;
-  setMessages: (messages: ChatMessage[]) => void;
+  setMessage: (message: string | null) => void;
+  addMessage: (message: ChatMessage_I) => void;
+  setMessages: (messages: ChatMessage_I[]) => void;
   clearMessages: () => void;
   setIsGenerating: (isGenerating: boolean) => void;
 }
 
-export const useChatStore = create<ChatState>((set) => ({
+export const useChatStore = create<ChatState_I>((set) => ({
   // Initial state
   messages: [],
   isGenerating: false,
