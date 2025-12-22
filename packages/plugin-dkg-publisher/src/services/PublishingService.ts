@@ -121,11 +121,11 @@ export class PublishingService {
         [asset.privacy || "private"]: content,
       };
 
-      // Create DKG client for this wallet
-      const dkgClient = this.dkgService.createWalletDKGClient(wallet);
+      // Create phased DKG client for this wallet
+      const phasedClient = this.dkgService.createWalletPhasedClient(wallet);
 
-      // Publish to DKG
-      console.log(`🚀 Publishing to DKG:`, {
+      // Publish to DKG (publish phase)
+      logger.info(`🚀 Publishing (phase 1) to DKG`, {
         assetId,
         epochs: asset.epochs,
         replications: asset.replications || 1,
@@ -133,78 +133,50 @@ export class PublishingService {
         privacy: asset.privacy,
       });
 
-      console.log(`📡 Making DKG API call...`);
-
-      const result = await dkgClient.asset.create(wrappedContent, {
+      const publishResult = await phasedClient.publishPhase(wrappedContent, {
         epochsNum: asset.epochs,
         minimumNumberOfFinalizationConfirmations: 3,
         minimumNumberOfNodeReplications: asset.replications || 1,
       });
 
-      // Log the complete DKG asset.create result
-      logger.info(`📡 DKG asset.create RESULT for asset ${assetId}`, {
-        assetId,
-        result: JSON.stringify(result, null, 2),
-      });
-
-      // Check for DKG API errors first
-      if (
-        result?.operation?.publish?.errorType ||
-        result?.operation?.publish?.errorMessage
-      ) {
-        const errorType = result.operation.publish.errorType;
-        const errorMessage = result.operation.publish.errorMessage;
-
-        logger.error(`❌ DKG API ERROR for asset ${assetId}`, {
-          assetId,
-          errorType,
-          errorMessage,
-          operationId: result.operation.publish.operationId,
-          status: result.operation.publish.status,
-        });
-
-        throw new Error(`DKG API Error: ${errorType} - ${errorMessage}`);
+      if (!publishResult?.readyForMint) {
+        throw new Error(
+          `Publish phase did not complete (operationId=${publishResult?.publishOperationId})`,
+        );
       }
 
-      // ONLY update as published if we actually have a UAL
-      if (!result.UAL) {
-        logger.error(`❌ DKG API SUCCESS BUT NO UAL for asset ${assetId}`, {
-          assetId,
-          resultStructure: result ? Object.keys(result) : "null",
-          resultJson: JSON.stringify(result),
-          UALValue: result?.UAL,
-          UALType: typeof result?.UAL,
-        });
-        throw new Error("DKG API returned success but no UAL was provided");
+      // Mint phase
+      const mintResult = await phasedClient.mintPhase(publishResult);
+
+      if (!mintResult?.UAL) {
+        throw new Error("Mint phase did not return a UAL");
       }
 
-      logger.info(`✅ DKG API SUCCESS WITH UAL for asset ${assetId}`, {
+      logger.info(`✅ DKG mint SUCCESS WITH UAL for asset ${assetId}`, {
         assetId,
-        ual: result.UAL,
+        ual: mintResult.UAL,
         transactionHash:
-          result.operation?.mintKnowledgeCollection?.transactionHash,
+          mintResult.mintKnowledgeCollectionReceipt?.transactionHash,
       });
 
-      // Update asset with success
+      // Update asset: mint submitted, store tx/hash/ual, keep publishedAt null
       await this.db
         .update(assets)
         .set({
-          status: "published",
-          ual: result.UAL,
+          status: "mint_submitted",
+          ual: mintResult.UAL,
           transactionHash:
-            result.operation?.mintKnowledgeCollection?.transactionHash || null,
+            mintResult.mintKnowledgeCollectionReceipt?.transactionHash || null,
           blockchain: wallet.blockchain,
-          publishedAt: sql`NOW()`,
+          publishingStartedAt: sql`NOW()`,
         })
         .where(eq(assets.id, assetId));
 
-      // Attempt record updating is handled by the worker
-
       return {
         success: true,
-        ual: result.UAL,
+        ual: mintResult.UAL,
         transactionHash:
-          result.operation?.mintKnowledgeCollection?.transactionHash,
+          mintResult.mintKnowledgeCollectionReceipt?.transactionHash,
       };
     } catch (error: any) {
       console.error(`Publishing failed for asset ${assetId}:`, error);

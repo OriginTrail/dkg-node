@@ -812,7 +812,7 @@ volumes:
           max_attempts INTEGER DEFAULT 3,
           
           -- Status and attempts
-          status ENUM('pending', 'queued', 'assigned', 'publishing', 'published', 'failed') NOT NULL DEFAULT 'pending',
+          status ENUM('pending', 'queued', 'assigned', 'publishing', 'mint_submitted', 'published', 'failed') NOT NULL DEFAULT 'pending',
           status_message TEXT,
           attempt_count INTEGER DEFAULT 0,
           retry_count INTEGER DEFAULT 0,

@@ -91,6 +91,7 @@ export class AssetService extends EventEmitter {
       | "queued"
       | "assigned"
       | "publishing"
+      | "mint_submitted"
       | "published"
       | "failed",
     additionalFields?: Partial<{
@@ -116,6 +117,9 @@ export class AssetService extends EventEmitter {
         break;
       case "publishing":
         updates.publishingStartedAt = sql`NOW()`;
+        break;
+      case "mint_submitted":
+        updates.publishingStartedAt = updates.publishingStartedAt || sql`NOW()`;
         break;
       case "published":
         updates.publishedAt = sql`NOW()`;
@@ -453,6 +457,7 @@ export class AssetService extends EventEmitter {
       | "queued"
       | "assigned"
       | "publishing"
+      | "mint_submitted"
       | "published"
       | "failed",
   ): Promise<any[]> {

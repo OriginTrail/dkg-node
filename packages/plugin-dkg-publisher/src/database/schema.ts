@@ -44,6 +44,7 @@ export const assets = mysqlTable(
       "queued",
       "assigned",
       "publishing",
+      "mint_submitted",
       "published",
       "failed",
     ])

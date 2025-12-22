@@ -10,6 +10,7 @@ import { MetricsService } from "./MetricsService";
 import { HealthMonitor } from "./HealthMonitor";
 import { QueuePoller } from "./QueuePoller";
 import { DkgService } from "./DkgService";
+import { RealDkgPhasedClient, DkgPhasedClient } from "./DkgClientAdapter";
 import type { KnowledgeAssetManagerConfig } from "../types";
 
 export type ServiceConfig = KnowledgeAssetManagerConfig;
@@ -58,6 +59,7 @@ export async function initializeServices(
     publishingService,
     walletService,
     assetService,
+    dkgService,
   );
   container.register("queueService", queueService);
 
@@ -159,3 +161,4 @@ export { MetricsService } from "./MetricsService";
 export { HealthMonitor } from "./HealthMonitor";
 export { QueuePoller } from "./QueuePoller";
 export { DkgService } from "./DkgService";
+export { RealDkgPhasedClient, DkgPhasedClient } from "./DkgClientAdapter";

@@ -1,5 +1,5 @@
 import { EventEmitter } from "events";
-import { Queue, Worker, QueueEvents } from "bullmq";
+import { Queue, Worker, QueueEvents, Job } from "bullmq";
 import IORedis from "ioredis";
 import { createBullBoard } from "@bull-board/api";
 import { BullMQAdapter } from "@bull-board/api/bullMQAdapter";
@@ -8,6 +8,7 @@ import { PublishingService } from "./PublishingService";
 import { WalletService } from "./WalletService";
 import { AssetService } from "./AssetService";
 import { queueLogger as logger } from "./Logger";
+import { DkgService } from "./DkgService";
 
 export interface QueueStats {
   waiting: number;
@@ -24,13 +25,18 @@ export class QueueService {
   private serverAdapter: ExpressAdapter;
   private currentWalletCount: number = 0;
   private walletCheckInterval: NodeJS.Timeout | null = null;
+  private jobDefaults: Record<string, Record<string, any>>;
 
   constructor(
     private redis: IORedis,
     private publishingService: PublishingService,
     private walletService: WalletService,
     private assetService: AssetService,
+    private dkgService?: DkgService,
     private healthMonitor?: EventEmitter, // Will be set later to avoid circular dependency
+    queueOptions?: {
+      jobDefaults?: Record<string, Record<string, any>>;
+    },
   ) {
     // Initialize queue
     this.publishQueue = new Queue("knowledge-asset-publishing", {
@@ -66,6 +72,22 @@ export class QueueService {
       serverAdapter: this.serverAdapter,
     });
 
+    // Job-specific defaults (timeouts, backoff) keyed by job name
+    this.jobDefaults = {
+      "publish-asset": {
+        timeout: parseInt(process.env.PUBLISH_JOB_TIMEOUT_MS || `${3 * 60 * 1000}`), // 3 minutes default
+      },
+      "finality-check": {
+        timeout: parseInt(
+          process.env.FINALITY_JOB_TIMEOUT_MS || `${15 * 60 * 1000}`,
+        ), // 15 minutes default
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+        removeOnComplete: true,
+      },
+      ...(queueOptions?.jobDefaults || {}),
+    };
+
     // No event listeners needed - QueuePoller handles all scheduling
   }
 
@@ -81,8 +103,14 @@ export class QueueService {
   /**
    * Add asset to publishing queue (prevents duplicates)
    */
-  async addToQueue(assetId: number, priority?: number): Promise<void> {
-    const jobId = `asset-${assetId}`;
+  async addToQueue(
+    assetId: number,
+    priority?: number,
+    jobName: "publish-asset" | "finality-check" = "publish-asset",
+    payload: Record<string, any> = {},
+    jobOptions: Record<string, any> = {},
+  ): Promise<void> {
+    const jobId = `${jobName}-${assetId}`;
 
     try {
       // Check if job already exists in Redis
@@ -106,12 +134,14 @@ export class QueueService {
 
       // Now add the job (either fresh or after cleanup)
       await this.publishQueue.add(
-        "publish-asset",
-        { assetId },
+        jobName,
+        { assetId, ...payload },
         {
           priority: priority || 50,
           delay: 0,
           jobId: jobId,
+          ...(this.jobDefaults[jobName] || {}),
+          ...jobOptions,
         },
       );
       console.log(`✅ Asset ${assetId} added to BullMQ queue`);
@@ -121,6 +151,199 @@ export class QueueService {
       } else {
         throw error;
       }
+    }
+  }
+
+  /**
+   * Enqueue a finality-check job with defaults merged in.
+   */
+  async enqueueFinalityJob(
+    assetId: number,
+    priority: number | undefined,
+    ual: string,
+    transactionHash?: string | null,
+  ): Promise<void> {
+    const defaults = this.jobDefaults["finality-check"] || {};
+    await this.addToQueue(
+      assetId,
+      priority,
+      "finality-check",
+      { ual, transactionHash },
+      defaults,
+    );
+  }
+
+  /**
+   * Handle publish-asset jobs (publish+mint, then enqueue finality).
+   */
+  private async processPublishJob(job: Job, workerId: number): Promise<any> {
+    const { assetId } = job.data;
+    logger.info(
+      `\n=== WORKER ${workerId} STARTED PROCESSING ASSET ${assetId} ===`,
+      { workerId: workerId, jobId: job.id, assetId },
+    );
+
+    let attemptId: number | null = null;
+    let wallet: any = null;
+
+    try {
+      // First, atomically claim the asset for processing
+      logger.info(`Worker ${workerId} attempting to claim asset ${assetId}`, {
+        workerId: workerId,
+        assetId,
+      });
+      const claimed = await this.assetService.claimAssetForProcessing(assetId);
+      if (!claimed) {
+        logger.warn(
+          `Asset ${assetId} already being processed by another worker - job will exit`,
+          { workerId: workerId, assetId },
+        );
+        return; // Another worker is handling it
+      }
+
+      logger.info(
+        `✅ Asset ${assetId} SUCCESSFULLY CLAIMED by worker ${workerId}`,
+        { workerId: workerId, assetId },
+      );
+
+      // Update job progress
+      await job.updateProgress(10);
+
+      // Get wallet from pool
+      logger.info(
+        `Worker ${workerId} requesting available wallet for asset ${assetId}`,
+        { workerId: workerId, assetId },
+      );
+      wallet = await this.walletService.assignWalletToAsset(assetId);
+      if (!wallet) {
+        logger.error(`❌ NO AVAILABLE WALLETS for asset ${assetId}`, {
+          workerId: workerId,
+          assetId,
+        });
+        throw new Error("No available wallets");
+      }
+      logger.info(`✅ Got wallet ${wallet.id} for asset ${assetId}`, {
+        workerId: workerId,
+        assetId,
+        walletId: wallet.id,
+      });
+
+      await job.updateProgress(20);
+
+      // Create publishing attempt record BEFORE attempting to publish
+      logger.info(
+        `Worker ${workerId} creating publishing attempt for asset ${assetId}`,
+        { workerId: workerId, assetId },
+      );
+      attemptId = await this.assetService.createPublishingAttempt(
+        assetId,
+        wallet,
+      );
+      logger.info(
+        `✅ Created publishing attempt ${attemptId} for asset ${assetId}`,
+        { attemptId, workerId: workerId, assetId },
+      );
+
+      // Publish asset
+      logger.info(
+        `🚀 STARTING PUBLISH for asset ${assetId} with wallet ${wallet.id}`,
+        { workerId: workerId, assetId, walletId: wallet.id },
+      );
+      const result = await this.publishingService.publishAsset(assetId, wallet);
+
+      await job.updateProgress(100);
+
+      logger.info(`📡 Publishing result for asset ${assetId}`, {
+        workerId: workerId,
+        assetId,
+        success: result.success,
+        error: result.error,
+      });
+
+      if (!result.success) {
+        logger.error(
+          `❌ PUBLISHING FAILED for asset ${assetId}: ${result.error}`,
+          { workerId: workerId, assetId, error: result.error },
+        );
+        throw new Error(result.error || "Publishing failed");
+      }
+
+      logger.info(`🎉 PUBLISHING SUCCESSFUL for asset ${assetId}`, {
+        workerId: workerId,
+        assetId,
+        ual: result.ual,
+      });
+
+      // Update publishing attempt record as successful
+      if (attemptId && result.success) {
+        await this.assetService.updatePublishingAttempt(attemptId, {
+          status: "success",
+          ual: result.ual,
+          transactionHash: result.transactionHash,
+          durationSeconds: Math.floor((Date.now() - job.timestamp) / 1000),
+        });
+      }
+
+      // Enqueue finality job with defaults
+      try {
+        await this.enqueueFinalityJob(
+          assetId,
+          job.opts.priority,
+          result.ual!,
+          result.transactionHash,
+        );
+        logger.info(
+          `📬 Enqueued finality-check job for asset ${assetId} (UAL ${result.ual})`,
+          { workerId: workerId, assetId },
+        );
+      } catch (enqueueError: any) {
+        logger.error(
+          `⚠️ Failed to enqueue finality-check for asset ${assetId}: ${enqueueError.message}`,
+          { workerId: workerId, assetId },
+        );
+      }
+
+      // Release wallet on success
+      await this.walletService.releaseWallet(wallet.id, true);
+
+      logger.info(
+        `=== WORKER ${workerId} COMPLETED ASSET ${assetId} SUCCESSFULLY ===\n`,
+        { workerId: workerId, assetId },
+      );
+      return result;
+    } catch (error: any) {
+      logger.error(
+        `💥 WORKER ${workerId} ERROR processing asset ${assetId}: ${error.message}`,
+        {
+          workerId: workerId,
+          assetId,
+          error: error.message,
+          stack: error.stack,
+        },
+      );
+      // Release wallet on failure if we had one
+      if (wallet) {
+        await this.walletService.releaseWallet(wallet.id, false);
+      }
+
+      // Update publishing attempt record as failed
+      if (attemptId) {
+        await this.assetService.updatePublishingAttempt(attemptId, {
+          status: "failed",
+          errorType: error.name || "Error",
+          errorMessage: error.message,
+          durationSeconds: Math.floor((Date.now() - job.timestamp) / 1000),
+        });
+      }
+
+      // Handle failure with retry logic
+      await this.assetService.handleAssetFailure(assetId, error.message);
+
+      logger.info(`=== WORKER ${workerId} FAILED ASSET ${assetId} ===\n`, {
+        workerId: workerId,
+        assetId,
+      });
+      throw error;
     }
   }
 
@@ -183,163 +406,10 @@ export class QueueService {
       const worker = new Worker(
         "knowledge-asset-publishing",
         async (job) => {
-          const { assetId } = job.data;
-          logger.info(
-            `\n=== WORKER ${i} STARTED PROCESSING ASSET ${assetId} ===`,
-            { workerId: i, jobId: job.id, assetId },
-          );
-
-          let attemptId: number | null = null;
-          let wallet: any = null;
-
-          try {
-            // First, atomically claim the asset for processing
-            logger.info(`Worker ${i} attempting to claim asset ${assetId}`, {
-              workerId: i,
-              assetId,
-            });
-            const claimed =
-              await this.assetService.claimAssetForProcessing(assetId);
-            if (!claimed) {
-              logger.warn(
-                `Asset ${assetId} already being processed by another worker - job will exit`,
-                { workerId: i, assetId },
-              );
-              return; // Another worker is handling it
-            }
-
-            logger.info(
-              `✅ Asset ${assetId} SUCCESSFULLY CLAIMED by worker ${i}`,
-              { workerId: i, assetId },
-            );
-
-            // Update job progress
-            await job.updateProgress(10);
-
-            // Get wallet from pool
-            logger.info(
-              `Worker ${i} requesting available wallet for asset ${assetId}`,
-              { workerId: i, assetId },
-            );
-            wallet = await this.walletService.assignWalletToAsset(assetId);
-            if (!wallet) {
-              logger.error(`❌ NO AVAILABLE WALLETS for asset ${assetId}`, {
-                workerId: i,
-                assetId,
-              });
-              throw new Error("No available wallets");
-            }
-            logger.info(`✅ Got wallet ${wallet.id} for asset ${assetId}`, {
-              workerId: i,
-              assetId,
-              walletId: wallet.id,
-            });
-
-            await job.updateProgress(20);
-
-            // Create publishing attempt record BEFORE attempting to publish
-            logger.info(
-              `Worker ${i} creating publishing attempt for asset ${assetId}`,
-              { workerId: i, assetId },
-            );
-            attemptId = await this.assetService.createPublishingAttempt(
-              assetId,
-              wallet,
-            );
-            logger.info(
-              `✅ Created publishing attempt ${attemptId} for asset ${assetId}`,
-              { attemptId, workerId: i, assetId },
-            );
-
-            // Publish asset
-            logger.info(
-              `🚀 STARTING PUBLISH for asset ${assetId} with wallet ${wallet.id}`,
-              { workerId: i, assetId, walletId: wallet.id },
-            );
-            const result = await this.publishingService.publishAsset(
-              assetId,
-              wallet,
-            );
-
-            await job.updateProgress(100);
-
-            logger.info(`📡 Publishing result for asset ${assetId}`, {
-              workerId: i,
-              assetId,
-              success: result.success,
-              error: result.error,
-            });
-
-            if (!result.success) {
-              logger.error(
-                `❌ PUBLISHING FAILED for asset ${assetId}: ${result.error}`,
-                { workerId: i, assetId, error: result.error },
-              );
-              throw new Error(result.error || "Publishing failed");
-            }
-
-            logger.info(`🎉 PUBLISHING SUCCESSFUL for asset ${assetId}`, {
-              workerId: i,
-              assetId,
-              ual: result.ual,
-            });
-
-            // Update publishing attempt record as successful
-            if (attemptId && result.success) {
-              await this.assetService.updatePublishingAttempt(attemptId, {
-                status: "success",
-                ual: result.ual,
-                transactionHash: result.transactionHash,
-                durationSeconds: Math.floor(
-                  (Date.now() - job.timestamp) / 1000,
-                ),
-              });
-            }
-
-            // Release wallet on success
-            await this.walletService.releaseWallet(wallet.id, true);
-
-            logger.info(
-              `=== WORKER ${i} COMPLETED ASSET ${assetId} SUCCESSFULLY ===\n`,
-              { workerId: i, assetId },
-            );
-            return result;
-          } catch (error: any) {
-            logger.error(
-              `💥 WORKER ${i} ERROR processing asset ${assetId}: ${error.message}`,
-              {
-                workerId: i,
-                assetId,
-                error: error.message,
-                stack: error.stack,
-              },
-            );
-            // Release wallet on failure if we had one
-            if (wallet) {
-              await this.walletService.releaseWallet(wallet.id, false);
-            }
-
-            // Update publishing attempt record as failed
-            if (attemptId) {
-              await this.assetService.updatePublishingAttempt(attemptId, {
-                status: "failed",
-                errorType: error.name || "Error",
-                errorMessage: error.message,
-                durationSeconds: Math.floor(
-                  (Date.now() - job.timestamp) / 1000,
-                ),
-              });
-            }
-
-            // Handle failure with retry logic
-            await this.assetService.handleAssetFailure(assetId, error.message);
-
-            logger.info(`=== WORKER ${i} FAILED ASSET ${assetId} ===\n`, {
-              workerId: i,
-              assetId,
-            });
-            throw error;
+          if (job.name === "finality-check") {
+            return this.processFinalityJob(job, i);
           }
+          return this.processPublishJob(job, i);
         },
         {
           connection: this.redis,
@@ -417,6 +487,82 @@ export class QueueService {
     }
 
     logger.info(`All ${workerCount} workers started successfully`);
+  }
+
+  /**
+   * Handle finality-check jobs (no wallet lock required)
+   */
+  private async processFinalityJob(job: Job, workerId: number): Promise<any> {
+    const { assetId, ual: ualFromJob } = job.data || {};
+    const assetIdNum = Number(assetId);
+
+    logger.info(
+      `\n=== WORKER ${workerId} STARTED FINALITY FOR ASSET ${assetIdNum} ===`,
+      { workerId, jobId: job.id, assetId: assetIdNum },
+    );
+
+    const asset = await this.assetService.getAsset(assetIdNum);
+    const ual = ualFromJob || asset?.ual;
+
+    if (!ual) {
+      throw new Error(
+        `Finality job missing UAL for asset ${assetIdNum} (job payload and DB empty)`,
+      );
+    }
+
+    // Use any available wallet for read-only finality checks
+    const wallet = await this.walletService.getWalletForQueries();
+    if (!wallet) {
+      throw new Error("No wallet available for finality check");
+    }
+
+    if (!this.dkgService) {
+      throw new Error("DKG service not initialized");
+    }
+
+    const phasedClient = this.dkgService.createWalletPhasedClient(wallet);
+
+    try {
+      await job.updateProgress(20);
+      const finalityResult = await phasedClient.finalityPhase(ual, {
+        minimumNumberOfFinalizationConfirmations: 3,
+        maxNumberOfRetries: 60,
+        frequency: 1,
+      });
+      await job.updateProgress(80);
+
+      const isFinalized =
+        finalityResult?.finality?.status === "FINALIZED" ||
+        finalityResult?.numberOfConfirmations >=
+          finalityResult?.requiredConfirmations;
+
+      if (!isFinalized) {
+        throw new Error(
+          `Finality not reached for ${ual} (confirmations=${finalityResult?.numberOfConfirmations}/${finalityResult?.requiredConfirmations})`,
+        );
+      }
+
+      await this.assetService.updateAssetStatus(assetIdNum, "published", {
+        ual,
+      });
+      await job.updateProgress(100);
+
+      logger.info(
+        `✅ Finality reached for asset ${assetIdNum} (UAL ${ual})`,
+        { workerId, assetId: assetIdNum },
+      );
+      return {
+        success: true,
+        assetId: assetIdNum,
+        ual,
+      };
+    } catch (error: any) {
+      logger.error(
+        `❌ Finality check failed for asset ${assetIdNum}: ${error.message}`,
+        { workerId, assetId: assetIdNum, error: error.message },
+      );
+      throw error;
+    }
   }
 
   /**

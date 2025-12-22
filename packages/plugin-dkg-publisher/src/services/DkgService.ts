@@ -1,5 +1,9 @@
 import DKG from "dkg.js";
 import { WalletService } from "./WalletService";
+import {
+  DkgPhasedClient,
+  RealDkgPhasedClient,
+} from "./DkgClientAdapter";
 
 export interface SparqlQueryResult {
   success: boolean;
@@ -194,6 +198,15 @@ export class DkgService {
 
     console.log(`✅ Wallet DKG client created successfully`);
     return walletDkgClient;
+  }
+
+  /**
+   * Create a phased DKG client adapter for publish/mint/finality operations.
+   * This wraps the real dkg.js client so tests can swap in a mock.
+   */
+  createWalletPhasedClient(wallet: any): DkgPhasedClient {
+    const client = this.createWalletDKGClient(wallet);
+    return new RealDkgPhasedClient(client);
   }
 
   /**
