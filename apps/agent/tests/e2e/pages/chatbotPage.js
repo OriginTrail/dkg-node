@@ -117,12 +117,15 @@ class ChatbotPage {
     const publishMessage = `Create this Knowledge Asset on the DKG for me:
 
 {
-  "@context": "https://schema.org/",
+  "@context": {
+    "@vocab": "https://schema.org/"
+  },
   "@type": "CreativeWork",
   "@id": "urn:first-dkg-ka:info:hello-dkg",
   "name": "Hello DKG",
   "description": "My first Knowledge Asset on the Decentralized Knowledge Graph!"
-}`;
+}
+ `;
 
     await this.sendMessage(publishMessage);
 
