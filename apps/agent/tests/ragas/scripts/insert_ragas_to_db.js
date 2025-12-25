@@ -20,9 +20,9 @@ if (missingEnvVars.length > 0) {
 
 // Determine table name based on source (default to dkg_node)
 const source = process.env.RAGAS_SOURCE || "dkg_node";
-if (!["guardian", "dkg_node", "azerfit"].includes(source)) {
+if (!["guardian", "dkg_node", "azerfit", "pharmagenesis"].includes(source)) {
   console.error(
-    `❌ Invalid RAGAS_SOURCE: ${source}. Must be 'guardian', 'dkg_node', or 'azerfit'`,
+    `❌ Invalid RAGAS_SOURCE: ${source}. Must be 'guardian', 'dkg_node', 'azerfit', or 'pharmagenesis'`,
   );
   process.exit(1);
 }
