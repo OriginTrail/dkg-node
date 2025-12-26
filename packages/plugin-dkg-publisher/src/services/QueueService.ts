@@ -495,6 +495,8 @@ export class QueueService {
   private async processFinalityJob(job: Job, workerId: number): Promise<any> {
     const { assetId, ual: ualFromJob } = job.data || {};
     const assetIdNum = Number(assetId);
+    const startedAt = Date.now();
+    let finalityAttemptId: number | null = null;
 
     logger.info(
       `\n=== WORKER ${workerId} STARTED FINALITY FOR ASSET ${assetIdNum} ===`,
@@ -523,6 +525,13 @@ export class QueueService {
     const phasedClient = this.dkgService.createWalletPhasedClient(wallet);
 
     try {
+      // Create finality attempt record
+      finalityAttemptId = await this.assetService.createFinalityAttempt(
+        assetIdNum,
+        ual,
+        job.data?.transactionHash || null,
+      );
+
       await job.updateProgress(20);
       const finalityResult = await phasedClient.finalityPhase(ual, {
         minimumNumberOfFinalizationConfirmations: 3,
@@ -542,6 +551,16 @@ export class QueueService {
         );
       }
 
+      // Update finality attempt
+      if (finalityAttemptId) {
+        await this.assetService.updateFinalityAttempt(finalityAttemptId, {
+          status: "success",
+          confirmations: finalityResult?.numberOfConfirmations,
+          requiredConfirmations: finalityResult?.requiredConfirmations,
+          durationSeconds: Math.floor((Date.now() - startedAt) / 1000),
+        });
+      }
+
       await this.assetService.updateAssetStatus(assetIdNum, "published", {
         ual,
       });
@@ -557,6 +576,14 @@ export class QueueService {
         ual,
       };
     } catch (error: any) {
+      if (finalityAttemptId) {
+        await this.assetService.updateFinalityAttempt(finalityAttemptId, {
+          status: "failed",
+          errorType: error?.name || "Error",
+          errorMessage: error?.message,
+          durationSeconds: Math.floor((Date.now() - startedAt) / 1000),
+        });
+      }
       logger.error(
         `❌ Finality check failed for asset ${assetIdNum}: ${error.message}`,
         { workerId, assetId: assetIdNum, error: error.message },

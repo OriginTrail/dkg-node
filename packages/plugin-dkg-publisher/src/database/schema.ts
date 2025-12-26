@@ -147,6 +147,41 @@ export const publishingAttempts = mysqlTable(
   }),
 );
 
+// Finality attempts table: Track finality checks separately
+export const finalityAttempts = mysqlTable(
+  "finality_attempts",
+  {
+    id: serial("id").primaryKey(),
+    assetId: int("asset_id")
+      .notNull()
+      .references(() => assets.id, { onDelete: "cascade" }),
+    attemptNumber: int("attempt_number").notNull(),
+    workerId: varchar("worker_id", { length: 100 }),
+    ual: varchar("ual", { length: 255 }).notNull(),
+    transactionHash: varchar("transaction_hash", { length: 66 }),
+    confirmations: int("confirmations"),
+    requiredConfirmations: int("required_confirmations"),
+    status: mysqlEnum("status", [
+      "started",
+      "success",
+      "failed",
+      "timeout",
+    ]).notNull(),
+    errorType: varchar("error_type", { length: 50 }),
+    errorMessage: text("error_message"),
+    startedAt: timestamp("started_at").notNull(),
+    completedAt: timestamp("completed_at"),
+    durationSeconds: int("duration_seconds"),
+    createdAt: timestamp("created_at").defaultNow(),
+  },
+  (table) => ({
+    assetAttemptsIdx: index("idx_finality_asset_attempts").on(
+      table.assetId,
+      table.attemptNumber,
+    ),
+  }),
+);
+
 // Batch table: Track batch operations
 export const batches = mysqlTable(
   "batches",
@@ -213,6 +248,7 @@ export const assetsRelations = relations(assets, ({ one, many }) => ({
     references: [batches.id],
   }),
   publishingAttempts: many(publishingAttempts),
+  finalityAttempts: many(finalityAttempts),
 }));
 
 export const walletsRelations = relations(wallets, ({ many }) => ({
@@ -230,6 +266,16 @@ export const publishingAttemptsRelations = relations(
     wallet: one(wallets, {
       fields: [publishingAttempts.walletId],
       references: [wallets.id],
+    }),
+  }),
+);
+
+export const finalityAttemptsRelations = relations(
+  finalityAttempts,
+  ({ one }) => ({
+    asset: one(assets, {
+      fields: [finalityAttempts.assetId],
+      references: [assets.id],
     }),
   }),
 );
@@ -252,5 +298,7 @@ export type Wallet = typeof wallets.$inferSelect;
 export type NewWallet = typeof wallets.$inferInsert;
 export type PublishingAttempt = typeof publishingAttempts.$inferSelect;
 export type NewPublishingAttempt = typeof publishingAttempts.$inferInsert;
+export type FinalityAttempt = typeof finalityAttempts.$inferSelect;
+export type NewFinalityAttempt = typeof finalityAttempts.$inferInsert;
 export type Batch = typeof batches.$inferSelect;
 export type NewBatch = typeof batches.$inferInsert;

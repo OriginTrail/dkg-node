@@ -73,11 +73,15 @@ export class RealDkgPhasedClient implements DkgPhasedClient {
     publishContext: PublishPhaseResult,
     stepHooks: Record<string, any> = {},
   ): Promise<MintPhaseResult> {
-    return this.client.asset.mintKnowledgeCollectionPhase(
-      publishContext,
-      {},
-      stepHooks,
-    );
+    const hasHooks = stepHooks && Object.keys(stepHooks).length > 0;
+    if (hasHooks) {
+      return this.client.asset.mintKnowledgeCollectionPhase(
+        publishContext,
+        {},
+        stepHooks,
+      );
+    }
+    return this.client.asset.mintKnowledgeCollectionPhase(publishContext);
   }
 
   async finalityPhase(

@@ -125,7 +125,7 @@ export class PublishingService {
       const phasedClient = this.dkgService.createWalletPhasedClient(wallet);
 
       // Publish to DKG (publish phase)
-      logger.info(`🚀 Publishing (phase 1) to DKG`, {
+      logger.info(`Publishing (phase 1) to DKG`, {
         assetId,
         epochs: asset.epochs,
         replications: asset.replications || 1,
@@ -133,26 +133,73 @@ export class PublishingService {
         privacy: asset.privacy,
       });
 
-      const publishResult = await phasedClient.publishPhase(wrappedContent, {
-        epochsNum: asset.epochs,
-        minimumNumberOfFinalizationConfirmations: 3,
-        minimumNumberOfNodeReplications: asset.replications || 1,
+      let publishResult;
+      try {
+        publishResult = await phasedClient.publishPhase(wrappedContent, {
+          epochsNum: asset.epochs,
+          minimumNumberOfFinalizationConfirmations: 3,
+          minimumNumberOfNodeReplications: asset.replications || 1,
+        });
+      } catch (pubError: any) {
+        logger.error(`Publish phase threw`, {
+          assetId,
+          error: pubError?.message,
+          stack: pubError?.stack,
+        });
+        throw pubError;
+      }
+      logger.debug(`Publish phase returned`, {
+        assetId,
+        publishOperationId: publishResult?.publishOperationId,
+        readyForMint: publishResult?.readyForMint,
       });
 
-      if (!publishResult?.readyForMint) {
+      const publishStatus =
+        publishResult?.publishOperationResult?.status ?? "unknown";
+      const minAcksReached =
+        publishResult?.publishOperationResult?.data?.minAcksReached;
+      // If dkg.js didn't set readyForMint, infer it from status/minAcks
+      const readyForMint =
+        publishResult?.readyForMint ??
+        (publishStatus === "COMPLETED" || minAcksReached === true);
+      publishResult.readyForMint = readyForMint;
+
+      if (!readyForMint) {
+        const publishData = publishResult?.publishOperationResult?.data;
+        const publishErrorMessage =
+          publishResult?.publishOperationResult?.errorMessage ||
+          publishResult?.publishOperationResult?.data?.errorMessage;
+
+        logger.error("❌ Publish phase incomplete", {
+          assetId,
+          publishOperationId: publishResult?.publishOperationId,
+          status: publishStatus,
+          minAcksReached,
+          errorMessage: publishErrorMessage,
+          data: publishData,
+        });
         throw new Error(
-          `Publish phase did not complete (operationId=${publishResult?.publishOperationId})`,
+          `Publish phase did not complete (operationId=${publishResult?.publishOperationId}, status=${publishStatus}, minAcks=${minAcksReached})`,
         );
       }
 
       // Mint phase
+      logger.debug(`Mint phase starting`, {
+        assetId,
+        publishOperationId: publishResult?.publishOperationId,
+      });
       const mintResult = await phasedClient.mintPhase(publishResult);
+      logger.debug(`Mint phase returned`, {
+        assetId,
+        ual: mintResult?.UAL,
+        tx: mintResult?.mintKnowledgeCollectionReceipt?.transactionHash,
+      });
 
       if (!mintResult?.UAL) {
         throw new Error("Mint phase did not return a UAL");
       }
 
-      logger.info(`✅ DKG mint SUCCESS WITH UAL for asset ${assetId}`, {
+      logger.info(`DKG mint SUCCESS WITH UAL for asset ${assetId}`, {
         assetId,
         ual: mintResult.UAL,
         transactionHash:
