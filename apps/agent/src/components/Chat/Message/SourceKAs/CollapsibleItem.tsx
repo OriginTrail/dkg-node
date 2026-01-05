@@ -33,12 +33,16 @@ export default function ChatMessageSourceKAsCollapsibleItem({
   resolver: SourceKAResolver;
   onPress?: () => void;
 } & ViewProps) {
+  const originalResolver = resolver;
+
   const colors = useColors();
 
   const [resolvedData, setResolvedData] = useState<SourceKAResolved>();
   useEffect(() => {
-    resolver(ual).then(setResolvedData);
-  }, [resolver, ual]);
+    if (!collapsed) {
+      originalResolver(ual).then(setResolvedData);
+    }
+  }, [collapsed, ual]);
 
   return (
     <View

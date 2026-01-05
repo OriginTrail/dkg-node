@@ -50,6 +50,9 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
 
+  const pendingToolCalls = useRef<Set<string>>(new Set()); // Track tool calls that need responses before calling LLM
+  const toolKAContents = useRef<Map<string, any[]>>(new Map()); // Track KAs across tool calls in a single request
+
   const chatMessagesRef = useRef<ScrollView>(null);
 
   async function callTool(tc: ToolCall & { id: string }) {
@@ -67,7 +70,7 @@ export default function ChatPage() {
           output: result.content,
         });
 
-        return sendMessage({
+        addToolResultAndCheckCompletion({
           role: "tool",
           tool_call_id: tc.id,
           content: result.content as ToolCallResultContent,
@@ -80,7 +83,7 @@ export default function ChatPage() {
           error: err.message,
         });
 
-        return sendMessage({
+        addToolResultAndCheckCompletion({
           role: "tool",
           tool_call_id: tc.id,
           content: "Error occurred while calling tool: " + err.message,
@@ -89,10 +92,84 @@ export default function ChatPage() {
       });
   }
 
+  function addToolResultAndCheckCompletion(toolResult: ChatMessage) {
+    const kaContents: any[] = [];
+    const otherContents: any[] = [];
+
+    for (const c of toContents(toolResult.content) as ToolCallResultContent) {
+      const kas = parseSourceKAContent(c);
+      if (kas) kaContents.push(c);
+      else otherContents.push(c);
+    }
+    toolResult.content = otherContents;
+
+    const toolCallId = (toolResult as any).tool_call_id;
+    if (kaContents.length > 0) {
+      toolKAContents.current.set(toolCallId, kaContents);
+    }
+
+    setMessages((prevMessages) => [...prevMessages, toolResult]);
+    pendingToolCalls.current.delete(toolCallId);
+
+    if (pendingToolCalls.current.size === 0) {
+      requestCompletion(); // If all tool calls are complete, only then hit the LLM
+    }
+  }
+
+  async function requestCompletion() {
+    if (!mcp.token) throw new Error("Unauthorized");
+
+    setIsGenerating(true);
+    try {
+      let currentMessages: ChatMessage[] = [];
+      await new Promise<void>((resolve) => {
+        setMessages((prevMessages) => {
+          currentMessages = prevMessages;
+          resolve();
+          return prevMessages;
+        });
+      });
+
+      const completion = await makeCompletionRequest(
+        {
+          messages: currentMessages,
+          tools: tools.enabled,
+        },
+        {
+          fetch: (url, opts) => fetch(url.toString(), opts as any) as any,
+          bearerToken: mcp.token,
+        },
+      );
+
+      const allKAContents: any[] = [];
+      toolKAContents.current.forEach((kaContents) => {
+        allKAContents.push(...kaContents);
+      });
+
+      if (allKAContents.length > 0) {
+        completion.content = toContents(completion.content);
+        completion.content.push(...allKAContents);
+      }
+
+      toolKAContents.current.clear();
+
+      setMessages((prevMessages) => [...prevMessages, completion]);
+
+      if (completion.tool_calls && completion.tool_calls.length > 0) {
+        completion.tool_calls.forEach((tc: any) => {
+          pendingToolCalls.current.add(tc.id);
+        });
+      }
+    } finally {
+      setIsGenerating(false);
+      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
+    }
+  }
+
   async function cancelToolCall(tc: ToolCall & { id: string }) {
     tools.saveCallInfo(tc.id, { input: tc.args, status: "cancelled" });
 
-    return sendMessage({
+    addToolResultAndCheckCompletion({
       role: "tool",
       tool_call_id: tc.id,
       content: "Tool call was cancelled by user",
@@ -100,41 +177,34 @@ export default function ChatPage() {
   }
 
   async function sendMessage(newMessage: ChatMessage) {
-    const kaContents: any[] = [];
-    if (newMessage.role === "tool") {
-      const otherContents: any[] = [];
-      for (const c of toContents(newMessage.content) as ToolCallResultContent) {
-        const kas = parseSourceKAContent(c);
-        if (kas) kaContents.push(c);
-        else otherContents.push(c);
-      }
-      newMessage.content = otherContents;
-    }
-
     setMessages((prevMessages) => [...prevMessages, newMessage]);
 
     if (!mcp.token) throw new Error("Unauthorized");
 
     setIsGenerating(true);
-    const completion = await makeCompletionRequest(
-      {
-        messages: [...messages, newMessage],
-        tools: tools.enabled,
-      },
-      {
-        fetch: (url, opts) => fetch(url.toString(), opts as any) as any,
-        bearerToken: mcp.token,
-      },
-    );
+    try {
+      const completion = await makeCompletionRequest(
+        {
+          messages: [...messages, newMessage],
+          tools: tools.enabled,
+        },
+        {
+          fetch: (url, opts) => fetch(url.toString(), opts as any) as any,
+          bearerToken: mcp.token,
+        },
+      );
 
-    if (newMessage.role === "tool") {
-      completion.content = toContents(completion.content);
-      completion.content.push(...kaContents);
+      setMessages((prevMessages) => [...prevMessages, completion]);
+
+      if (completion.tool_calls && completion.tool_calls.length > 0) {
+        completion.tool_calls.forEach((tc: any) => {
+          pendingToolCalls.current.add(tc.id);
+        });
+      }
+    } finally {
+      setIsGenerating(false);
+      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
     }
-
-    setMessages((prevMessages) => [...prevMessages, completion]);
-    setIsGenerating(false);
-    setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
   }
 
   const kaResolver = useCallback<SourceKAResolver>(
@@ -151,8 +221,8 @@ export default function ChatPage() {
             parsedContent.metadata
               .at(0)
               ?.[
-                "https://ontology.origintrail.io/dkg/1.0#publishTime"
-              ]?.at(0)?.["@value"] ?? Date.now(),
+              "https://ontology.origintrail.io/dkg/1.0#publishTime"
+            ]?.at(0)?.["@value"] ?? Date.now(),
           ).getTime(),
           txHash: parsedContent.metadata
             .at(0)
@@ -184,7 +254,7 @@ export default function ChatPage() {
             parsedContent.metadata
               .at(0)
               ?.["https://ontology.origintrail.io/dkg/1.0#publishTx"]?.at(0)?.[
-              "@value"
+            "@value"
             ] ?? "unknown";
           resolved.publisher =
             parsedContent.metadata
@@ -360,6 +430,8 @@ export default function ChatPage() {
                         onStartAgain={() => {
                           setMessages([]);
                           tools.reset();
+                          pendingToolCalls.current.clear();
+                          toolKAContents.current.clear();
                         }}
                       />
                     )}
