@@ -1,7 +1,3 @@
--- Migration: Add user_id column to assets table for per-user asset tracking
--- Date: 2025-01-06
--- Description: Adds user_id column and indexes to support per-account asset filtering
-
 -- Add user_id column
 ALTER TABLE `assets` ADD `user_id` varchar(255);
 
