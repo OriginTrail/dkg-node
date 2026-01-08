@@ -12,6 +12,8 @@ import {
   DkgService,
 } from "./services";
 import { openAPIRoute } from "@dkg/plugin-swagger";
+import { assets } from "./database/schema";
+import { eq } from "drizzle-orm";
 
 import express from "express";
 
@@ -388,7 +390,7 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
     "knowledge-asset-publish",
     {
       title: "Publish Knowledge Asset",
-      description: "Register a JSON-LD asset for publishing to the DKG",
+      description: "Register a JSON-LD asset for publishing to the DKG. The asset will be tracked per-user so you can query your published assets later.",
       inputSchema: {
         content: z.object({}).passthrough(),
         metadata: z
@@ -400,10 +402,13 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
         privacy: z.enum(["private", "public"]).optional(),
       },
     },
-    async (input) => {
+    async (input, req) => {
       if (!serviceContainer) {
         throw new Error("DKG Publisher Plugin not configured");
       }
+
+      // Extract userId from authenticated request
+      const userId = req?.authInfo?.extra?.userId as string | undefined;
 
       const assetService = serviceContainer.get<AssetService>("assetService");
 
@@ -415,14 +420,323 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
         },
       };
 
-      const result = await assetService.registerAsset(assetInput);
+      const result = await assetService.registerAsset(assetInput, userId);
       // Asset registration emits 'asset-queued' event which triggers queue addition
+
+      // Extract content @id for user reference
+      let contentId = "Unknown";
+      try {
+        if (input.content?.["@id"]) {
+          contentId = input.content["@id"] as string;
+        }
+      } catch (e) {
+        // Ignore
+      }
 
       return {
         content: [
           {
             type: "text",
-            text: `Asset registered for publishing: ${result.id} (Status: ${result.status})`,
+            text: `Asset registered for publishing (ID: ${result.id}, Status: ${result.status})\n\n` +
+                 `Content ID: ${contentId}\n\n` +
+                 `To check the publishing status later, ask:\n` +
+                 `• "What's the status of asset '${contentId}'?"\n` +
+                 `• "Show me my recent published assets"\n` +
+                 `• "Show me my published assets"`,
+          },
+        ],
+      };
+    },
+  );
+
+  // MCP tool for querying asset status by content ID
+  mcp.registerTool(
+    "knowledge-asset-status-by-content-id",
+    {
+      title: "Get Knowledge Asset Information by Content ID",
+      description: "Check, lookup, show, or query a knowledge asset by its JSON-LD @id (URN). Use this when the user provides a URN like 'urn:test:asset:...' or asks about a specific asset ID. Returns status, UAL, transaction hash, and publishing details. Only shows assets created by the current user.",
+      inputSchema: {
+        contentId: z.string().describe("The @id from the JSON-LD content (e.g., 'urn:test:asset:manual-test-1')"),
+      },
+    },
+    async (input, req) => {
+      if (!serviceContainer) {
+        throw new Error("DKG Publisher Plugin not configured");
+      }
+
+      const userId = req?.authInfo?.extra?.userId as string | undefined;
+      const assetService = serviceContainer.get<AssetService>("assetService");
+
+      const asset = await assetService.getAssetByContentId(input.contentId, userId);
+
+      if (!asset) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No asset found with content ID: ${input.contentId}\n\n` +
+                   `Make sure you're using the exact @id from your published content.`,
+            },
+          ],
+        };
+      }
+
+      let statusText = `**Asset Status**: ${asset.status.toUpperCase()}\n\n`;
+      statusText += `**Asset ID**: ${asset.id}\n`;
+      statusText += `**Content ID**: ${input.contentId}\n`;
+      
+      if (asset.ual) {
+        statusText += `\n**Published!**\n`;
+        statusText += `**UAL**: ${asset.ual}\n`;
+        if (asset.transactionHash) {
+          statusText += `**Transaction**: ${asset.transactionHash}\n`;
+        }
+        if (asset.publishedAt) {
+          statusText += `**Published At**: ${asset.publishedAt}\n`;
+        }
+      } else if (asset.status === "failed") {
+        statusText += `\n**Publishing Failed**\n`;
+        if (asset.lastError) {
+          statusText += `**Error**: ${asset.lastError}\n`;
+        }
+        statusText += `**Attempts**: ${asset.attemptCount}\n`;
+      } else if (asset.status === "publishing") {
+        statusText += `\n**Currently Publishing...**\n`;
+        statusText += `Please check again in a moment.\n`;
+      } else {
+        statusText += `\n**Status**: ${asset.status}\n`;
+        statusText += `The asset is still being processed.\n`;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: statusText,
+          },
+        ],
+      };
+    },
+  );
+
+  // MCP tool for listing recent assets
+  mcp.registerTool(
+    "knowledge-asset-list-recent",
+    {
+      title: "List Recent Knowledge Assets",
+      description: "Show, list, or display recent knowledge assets created by the user. Use when user asks 'show me my recent assets', 'what did I publish', 'my last X assets', etc. Can filter by status (published, failed, publishing, queued). Returns up to 20 most recent assets.",
+      inputSchema: {
+        limit: z.number().min(1).max(20).default(5).optional().describe("Number of assets to return (1-20, default: 5)"),
+        status: z.enum(["published", "failed", "publishing", "queued"]).optional().describe("Filter by status (optional)"),
+      },
+    },
+    async (input, req) => {
+      if (!serviceContainer) {
+        throw new Error("DKG Publisher Plugin not configured");
+      }
+
+      const userId = req?.authInfo?.extra?.userId as string | undefined;
+      
+      if (!userId) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Unable to identify user. Please ensure you're logged in.",
+            },
+          ],
+        };
+      }
+
+      const assetService = serviceContainer.get<AssetService>("assetService");
+      const assetsList = await assetService.getRecentAssetsByUser(
+        userId,
+        input.limit || 5,
+        input.status,
+      );
+
+      if (assetsList.length === 0) {
+        const statusFilter = input.status ? ` with status '${input.status}'` : '';
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No assets found${statusFilter}.\n\nYou haven't published any knowledge assets yet.`,
+            },
+          ],
+        };
+      }
+
+      const requestedLimit = input.limit || 5;
+      const statusFilter = input.status ? ` ${input.status}` : '';
+      let resultText = `**Your Last ${assetsList.length}${statusFilter} Assets** (showing most recent, max ${requestedLimit})\n\n`;
+      
+      const db = serviceContainer.get<any>("db");
+      
+      // Fetch content IDs for each asset
+      for (let idx = 0; idx < assetsList.length; idx++) {
+        const asset = assetsList[idx];
+        resultText += `**${idx + 1}. Asset ID ${asset.id}**\n`;
+        
+        // Try to extract Content ID from stored content
+        let contentId = "Unknown";
+        try {
+          const [dbAsset] = await db
+            .select()
+            .from(assets)
+            .where(eq(assets.id, asset.id))
+            .limit(1);
+          
+          if (dbAsset?.contentUrl) {
+            const response = await fetch(dbAsset.contentUrl).catch(() => null);
+            if (response?.ok) {
+              const content = await response.json();
+              const actualContent = content.private || content.public || content;
+              if (actualContent?.["@id"]) {
+                contentId = actualContent["@id"] as string;
+              }
+            }
+          }
+        } catch (e) {
+          // Keep as "Unknown"
+        }
+        
+        resultText += `   Content ID: ${contentId}\n`;
+        resultText += `   Status: ${asset.status.toUpperCase()}\n`;
+        
+        if (asset.ual) {
+          resultText += `   UAL: ${asset.ual}\n`;
+        }
+        
+        if (asset.lastError && asset.status === "failed") {
+          resultText += `   Error: ${asset.lastError.substring(0, 100)}...\n`;
+        }
+        
+        if (asset.publishedAt) {
+          resultText += `   Published: ${asset.publishedAt}\n`;
+        }
+        
+        resultText += `\n`;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: resultText,
+          },
+        ],
+      };
+    },
+  );
+
+  // MCP tool for querying assets by status
+  mcp.registerTool(
+    "knowledge-asset-query-by-status",
+    {
+      title: "Find Knowledge Assets by Status",
+      description: "Find, show, list, or query knowledge assets by publishing status. Use when user asks 'show me all published', 'my failed assets', 'what's publishing', etc. Supports statuses: published (successfully published), failed (publishing failed), publishing (currently being published), queued (waiting to publish). Returns up to 20 most recent assets matching the status.",
+      inputSchema: {
+        status: z.enum(["published", "failed", "publishing", "queued"]).describe("The status to filter by"),
+        limit: z.number().min(1).max(20).default(10).optional().describe("Maximum number of results (1-20, default: 10)"),
+      },
+    },
+    async (input, req) => {
+      if (!serviceContainer) {
+        throw new Error("DKG Publisher Plugin not configured");
+      }
+
+      const userId = req?.authInfo?.extra?.userId as string | undefined;
+      
+      if (!userId) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: "Unable to identify user. Please ensure you're logged in.",
+            },
+          ],
+        };
+      }
+
+      const assetService = serviceContainer.get<AssetService>("assetService");
+      const assetsList = await assetService.getAssetsByStatusForUser(
+        userId,
+        input.status,
+        input.limit || 10,
+      );
+
+      if (assetsList.length === 0) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `No assets found with status: ${input.status}\n\n` +
+                   `You don't have any ${input.status} knowledge assets.`,
+            },
+          ],
+        };
+      }
+
+      const requestedLimit = input.limit || 10;
+      let resultText = `**Last ${assetsList.length} ${input.status.toUpperCase()} Assets** (showing most recent, max ${requestedLimit})\n\n`;
+      
+      const db = serviceContainer.get<any>("db");
+      
+      // Fetch content IDs for each asset
+      for (let idx = 0; idx < assetsList.length; idx++) {
+        const asset = assetsList[idx];
+        resultText += `**${idx + 1}. Asset ID ${asset.id}**\n`;
+        
+        // Try to extract Content ID from stored content
+        let contentId = "Unknown";
+        try {
+          const [dbAsset] = await db
+            .select()
+            .from(assets)
+            .where(eq(assets.id, asset.id))
+            .limit(1);
+          
+          if (dbAsset?.contentUrl) {
+            const response = await fetch(dbAsset.contentUrl).catch(() => null);
+            if (response?.ok) {
+              const content = await response.json();
+              const actualContent = content.private || content.public || content;
+              if (actualContent?.["@id"]) {
+                contentId = actualContent["@id"] as string;
+              }
+            }
+          }
+        } catch (e) {
+          // Keep as "Unknown"
+        }
+        
+        resultText += `   Content ID: ${contentId}\n`;
+        
+        if (asset.ual) {
+          resultText += `   UAL: ${asset.ual}\n`;
+          if (asset.transactionHash) {
+            resultText += `   TX: ${asset.transactionHash}\n`;
+          }
+        }
+        
+        if (asset.lastError && input.status === "failed") {
+          resultText += `   Error: ${asset.lastError.substring(0, 150)}...\n`;
+          resultText += `   Attempts: ${asset.attemptCount}\n`;
+        }
+        
+        if (asset.publishedAt) {
+          resultText += `   Date: ${asset.publishedAt}\n`;
+        }
+        
+        resultText += `\n`;
+      }
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: resultText,
           },
         ],
       };

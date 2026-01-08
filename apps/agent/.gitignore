@@ -50,3 +50,7 @@ playwright/.cache/
 data/
 tests/ragas/reports/
 ragas-results.json
+.env.publisher
+logs
+storage
+docker-compose.knowledge-manager.yml

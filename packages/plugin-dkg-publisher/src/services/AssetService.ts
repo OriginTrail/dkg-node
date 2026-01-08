@@ -16,7 +16,7 @@ export class AssetService extends EventEmitter {
   /**
    * Register an asset for publishing
    */
-  async registerAsset(input: AssetInput): Promise<AssetStatus> {
+  async registerAsset(input: AssetInput, userId?: string): Promise<AssetStatus> {
     // Save content as file
     const { url: contentUrl, size: contentSize } =
       await this.storageService.saveContent(input.content);
@@ -25,6 +25,7 @@ export class AssetService extends EventEmitter {
     const result = await this.db.insert(assets).values({
       contentUrl,
       contentSize,
+      userId: userId || null,
       source: input.metadata?.source || null,
       sourceId: input.metadata?.sourceId || null,
       priority: input.publishOptions?.priority || 50,
@@ -542,5 +543,120 @@ export class AssetService extends EventEmitter {
       published: Number(publishedResult?.count || 0),
       failed: Number(failedResult?.count || 0),
     };
+  }
+
+  /**
+   * Get asset by content ID (@id from JSON-LD) for a specific user
+   */
+  async getAssetByContentId(
+    contentId: string,
+    userId?: string,
+  ): Promise<AssetStatus | null> {
+    // We need to search in the stored content files
+    // This requires reading contentUrl and parsing JSON
+    const assetsToSearch = userId
+      ? await this.db
+          .select()
+          .from(assets)
+          .where(eq(assets.userId, userId))
+          .orderBy(desc(assets.createdAt))
+      : await this.db.select().from(assets).orderBy(desc(assets.createdAt));
+
+    for (const asset of assetsToSearch) {
+      try {
+        // Fetch and parse the content
+        const response = await fetch(asset.contentUrl);
+        if (!response.ok) continue;
+
+        const content = await response.json();
+        
+        // Check if content has the matching @id
+        // Content might be wrapped in {private: {...}} or {public: {...}}
+        let actualContent = content;
+        if (content.private) actualContent = content.private;
+        if (content.public) actualContent = content.public;
+
+        if (actualContent["@id"] === contentId) {
+          return {
+            id: asset.id,
+            status: asset.status,
+            ual: asset.ual,
+            transactionHash: asset.transactionHash,
+            publishedAt: asset.publishedAt,
+            attemptCount: asset.attemptCount || 0,
+            lastError: asset.lastError,
+            metadata: { source: asset.source, sourceId: asset.sourceId },
+          };
+        }
+      } catch (error) {
+        // Skip assets with invalid or inaccessible content
+        continue;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get recent assets for a specific user
+   */
+  async getRecentAssetsByUser(
+    userId: string,
+    limit: number = 5,
+    statusFilter?: "published" | "failed" | "publishing" | "queued",
+  ): Promise<AssetStatus[]> {
+    let whereClause = eq(assets.userId, userId);
+
+    if (statusFilter) {
+      whereClause = and(
+        eq(assets.userId, userId),
+        eq(assets.status, statusFilter),
+      );
+    }
+
+    const results = await this.db
+      .select()
+      .from(assets)
+      .where(whereClause)
+      .orderBy(desc(assets.createdAt))
+      .limit(limit);
+
+    return results.map((asset) => ({
+      id: asset.id,
+      status: asset.status,
+      ual: asset.ual,
+      transactionHash: asset.transactionHash,
+      publishedAt: asset.publishedAt,
+      attemptCount: asset.attemptCount || 0,
+      lastError: asset.lastError,
+      metadata: { source: asset.source, sourceId: asset.sourceId },
+    }));
+  }
+
+  /**
+   * Get assets by status for a specific user
+   */
+  async getAssetsByStatusForUser(
+    userId: string,
+    status: "published" | "failed" | "publishing" | "queued",
+    limit: number = 10,
+  ): Promise<AssetStatus[]> {
+    const results = await this.db
+      .select()
+      .from(assets)
+      .where(and(eq(assets.userId, userId), eq(assets.status, status)))
+      .orderBy(desc(assets.createdAt))
+      .limit(limit);
+
+    return results.map((asset) => ({
+      id: asset.id,
+      status: asset.status,
+      ual: asset.ual,
+      transactionHash: asset.transactionHash,
+      publishedAt: asset.publishedAt,
+      attemptCount: asset.attemptCount || 0,
+      lastError: asset.lastError,
+      metadata: { source: asset.source, sourceId: asset.sourceId },
+    }));
   }
 }

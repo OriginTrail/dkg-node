@@ -28,6 +28,7 @@ export const assets = mysqlTable(
     // Content and metadata
     contentUrl: text("content_url").notNull(),
     contentSize: bigint("content_size", { mode: "number" }).notNull(),
+    userId: varchar("user_id", { length: 255 }),
     source: varchar("source", { length: 100 }),
     sourceId: varchar("source_id", { length: 255 }),
 
@@ -74,6 +75,8 @@ export const assets = mysqlTable(
     sourceIdx: index("idx_source").on(table.source, table.sourceId),
     pendingIdx: index("idx_pending").on(table.status, table.createdAt),
     batchIdx: index("idx_batch").on(table.batchId),
+    userIdx: index("idx_user_id").on(table.userId),
+    userStatusIdx: index("idx_user_status").on(table.userId, table.status, table.createdAt),
   }),
 );
 

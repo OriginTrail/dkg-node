@@ -47,3 +47,4 @@ dkg-engine
 # RAGAS Reports
 apps/agent/tests/ragas/reports/
 tests/ragas/reports/
+docker-compose.knowledge-manager.yml
