@@ -8,11 +8,13 @@ import {
   shutdownServices,
   ServiceContainer,
   AssetService,
+  WalletService,
   QueueService,
   DkgService,
 } from "./services";
 import { openAPIRoute } from "@dkg/plugin-swagger";
 import { assets } from "./database/schema";
+import { Database } from "./database";
 import { eq } from "drizzle-orm";
 
 import express from "express";
@@ -32,6 +34,84 @@ import express from "express";
 let serviceContainer: ServiceContainer | null = null;
 
 // No intervals needed anymore
+
+/**
+ * Helper function to format asset status information
+ */
+interface FormatAssetStatusOptions {
+  asset: any;
+  contentId?: string;
+  includeHeader?: boolean;
+  numbered?: boolean;
+  index?: number;
+}
+
+function formatAssetStatus(options: FormatAssetStatusOptions): string {
+  const { asset, contentId, includeHeader = false, numbered = false, index } = options;
+  let text = "";
+
+  if (includeHeader) {
+    text += `**Asset Status**: ${asset.status.toUpperCase()}\n\n`;
+  }
+
+  if (numbered && index !== undefined) {
+    text += `**${index}. Asset ID ${asset.id}**\n`;
+  } else {
+    text += `**Asset ID**: ${asset.id}\n`;
+  }
+
+  if (contentId) {
+    text += numbered ? `   Content ID: ${contentId}\n` : `**Content ID**: ${contentId}\n`;
+  }
+
+  if (!includeHeader && !numbered) {
+    // For single asset status view
+    if (asset.ual) {
+      text += `\n**Published!**\n`;
+      text += `**UAL**: ${asset.ual}\n`;
+      if (asset.transactionHash) {
+        text += `**Transaction**: ${asset.transactionHash}\n`;
+      }
+      if (asset.publishedAt) {
+        text += `**Published At**: ${asset.publishedAt}\n`;
+      }
+    } else if (asset.status === "failed") {
+      text += `\n**Publishing Failed**\n`;
+      if (asset.lastError) {
+        text += `**Error**: ${asset.lastError}\n`;
+      }
+      text += `**Attempts**: ${asset.attemptCount}\n`;
+    } else if (asset.status === "publishing") {
+      text += `\n**Currently Publishing...**\n`;
+      text += `Please check again in a moment.\n`;
+    } else {
+      text += `\n**Status**: ${asset.status.toUpperCase()}\n`;
+    }
+  } else {
+    // For list views
+    if (!numbered) {
+      text += `   Status: ${asset.status.toUpperCase()}\n`;
+    } else {
+      text += `   Status: ${asset.status.toUpperCase()}\n`;
+    }
+
+    if (asset.ual) {
+      text += numbered ? `   UAL: ${asset.ual}\n` : `**UAL**: ${asset.ual}\n`;
+    }
+
+    if (asset.lastError && asset.status === "failed") {
+      text += numbered
+        ? `   Error: ${asset.lastError.substring(0, 100)}...\n`
+        : `**Error**: ${asset.lastError}\n`;
+    }
+
+    if (asset.publishedAt) {
+      text += numbered ? `   Published: ${asset.publishedAt}\n` : `**Published**: ${asset.publishedAt}\n`;
+    }
+  }
+
+  return text;
+}
 
 // Plugin definition for DKG integration
 export default defineDkgPlugin((_ctx, mcp, api) => {
@@ -234,8 +314,8 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
 
     try {
       const queueService = serviceContainer.get<QueueService>("queueService");
-      const assetService = serviceContainer.get<any>("assetService");
-      const walletService = serviceContainer.get<any>("walletService");
+      const assetService = serviceContainer.get<AssetService>("assetService");
+      const walletService = serviceContainer.get<WalletService>("walletService");
 
       // Get Redis queue stats
       const queueStats = await queueService.getQueueStats();
@@ -262,7 +342,7 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
         capacity: {
           totalWallets: walletStats.total,
           availableWallets: walletStats.available,
-          lockedWallets: walletStats.locked,
+          lockedWallets: walletStats.inUse,
           availableSlots: availableSlots, // Slots available for new jobs
         },
       });
@@ -277,7 +357,7 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
     }
 
     try {
-      const walletService = serviceContainer.get<any>("walletService");
+      const walletService = serviceContainer.get<WalletService>("walletService");
       const stats = await walletService.getWalletStats();
       res.json(stats);
     } catch (error: any) {
@@ -430,7 +510,7 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
           contentId = input.content["@id"] as string;
         }
       } catch (e) {
-        // Ignore
+        console.warn("⚠️ Failed to extract @id from content:", e);
       }
 
       return {
@@ -481,32 +561,11 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
         };
       }
 
-      let statusText = `**Asset Status**: ${asset.status.toUpperCase()}\n\n`;
-      statusText += `**Asset ID**: ${asset.id}\n`;
-      statusText += `**Content ID**: ${input.contentId}\n`;
-      
-      if (asset.ual) {
-        statusText += `\n**Published!**\n`;
-        statusText += `**UAL**: ${asset.ual}\n`;
-        if (asset.transactionHash) {
-          statusText += `**Transaction**: ${asset.transactionHash}\n`;
-        }
-        if (asset.publishedAt) {
-          statusText += `**Published At**: ${asset.publishedAt}\n`;
-        }
-      } else if (asset.status === "failed") {
-        statusText += `\n**Publishing Failed**\n`;
-        if (asset.lastError) {
-          statusText += `**Error**: ${asset.lastError}\n`;
-        }
-        statusText += `**Attempts**: ${asset.attemptCount}\n`;
-      } else if (asset.status === "publishing") {
-        statusText += `\n**Currently Publishing...**\n`;
-        statusText += `Please check again in a moment.\n`;
-      } else {
-        statusText += `\n**Status**: ${asset.status}\n`;
-        statusText += `The asset is still being processed.\n`;
-      }
+      const statusText = formatAssetStatus({
+        asset,
+        contentId: input.contentId,
+        includeHeader: true,
+      });
 
       return {
         content: [
@@ -571,12 +630,11 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
       const statusFilter = input.status ? ` ${input.status}` : '';
       let resultText = `**Your Last ${assetsList.length}${statusFilter} Assets** (showing most recent, max ${requestedLimit})\n\n`;
       
-      const db = serviceContainer.get<any>("db");
+      const db = serviceContainer.get<Database>("db");
       
       // Fetch content IDs for each asset
       for (let idx = 0; idx < assetsList.length; idx++) {
         const asset = assetsList[idx];
-        resultText += `**${idx + 1}. Asset ID ${asset.id}**\n`;
         
         // Try to extract Content ID from stored content
         let contentId = "Unknown";
@@ -601,21 +659,12 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
           // Keep as "Unknown"
         }
         
-        resultText += `   Content ID: ${contentId}\n`;
-        resultText += `   Status: ${asset.status.toUpperCase()}\n`;
-        
-        if (asset.ual) {
-          resultText += `   UAL: ${asset.ual}\n`;
-        }
-        
-        if (asset.lastError && asset.status === "failed") {
-          resultText += `   Error: ${asset.lastError.substring(0, 100)}...\n`;
-        }
-        
-        if (asset.publishedAt) {
-          resultText += `   Published: ${asset.publishedAt}\n`;
-        }
-        
+        resultText += formatAssetStatus({
+          asset,
+          contentId,
+          numbered: true,
+          index: idx + 1,
+        });
         resultText += `\n`;
       }
 
@@ -681,12 +730,11 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
       const requestedLimit = input.limit || 10;
       let resultText = `**Last ${assetsList.length} ${input.status.toUpperCase()} Assets** (showing most recent, max ${requestedLimit})\n\n`;
       
-      const db = serviceContainer.get<any>("db");
+      const db = serviceContainer.get<Database>("db");
       
       // Fetch content IDs for each asset
       for (let idx = 0; idx < assetsList.length; idx++) {
         const asset = assetsList[idx];
-        resultText += `**${idx + 1}. Asset ID ${asset.id}**\n`;
         
         // Try to extract Content ID from stored content
         let contentId = "Unknown";
@@ -711,22 +759,20 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
           // Keep as "Unknown"
         }
         
-        resultText += `   Content ID: ${contentId}\n`;
+        resultText += formatAssetStatus({
+          asset,
+          contentId,
+          numbered: true,
+          index: idx + 1,
+        });
         
-        if (asset.ual) {
-          resultText += `   UAL: ${asset.ual}\n`;
-          if (asset.transactionHash) {
-            resultText += `   TX: ${asset.transactionHash}\n`;
-          }
+        // Additional details for this view
+        if (asset.transactionHash) {
+          resultText += `   TX: ${asset.transactionHash}\n`;
         }
         
         if (asset.lastError && input.status === "failed") {
-          resultText += `   Error: ${asset.lastError.substring(0, 150)}...\n`;
           resultText += `   Attempts: ${asset.attemptCount}\n`;
-        }
-        
-        if (asset.publishedAt) {
-          resultText += `   Date: ${asset.publishedAt}\n`;
         }
         
         resultText += `\n`;
