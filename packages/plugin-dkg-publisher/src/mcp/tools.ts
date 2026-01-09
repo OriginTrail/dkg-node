@@ -123,9 +123,10 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
     "knowledge-asset-list-recent",
     {
       title: "List Recent Knowledge Assets",
-      description: "Show, list, or display recent knowledge assets. Use when user asks 'show me recent assets', 'what was published', 'last X assets', etc. Can filter by status (published, failed, publishing, queued). Always returns up to 20 most recent assets (capped at 20).",
+      description: "Show, list, or display recent knowledge assets. Use when user asks 'show me recent assets', 'what was published', 'last X assets', 'publishes 200-500', etc. Can filter by status (published, failed, publishing, queued). Supports pagination with offset for large queries.",
       inputSchema: {
-        limit: z.number().min(1).max(20).default(5).optional().describe("Number of assets to return (1-20, default: 5)"),
+        limit: z.number().min(1).default(20).optional().describe("Number of assets to return (default: 20)"),
+        offset: z.number().min(0).default(0).optional().describe("Number of assets to skip (for pagination, default: 0)"),
         status: z.enum(["published", "failed", "publishing", "queued"]).optional().describe("Filter by status (optional)"),
       },
     },
@@ -135,26 +136,31 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
       }
 
       const assetService = serviceContainer.get<AssetService>("assetService");
+      
       const assetsList = await assetService.getRecentAssets(
-        input.limit || 5,
+        input.limit,
         input.status,
+        input.offset,
       );
 
       if (assetsList.length === 0) {
         const statusFilter = input.status ? ` with status '${input.status}'` : '';
+        const rangeText = input.offset > 0 ? ` (range ${input.offset + 1}-${input.offset + input.limit})` : '';
         return {
           content: [
             {
               type: "text",
-              text: `No assets found${statusFilter}.\n\nNo knowledge assets have been published yet.`,
+              text: `No assets found${statusFilter}${rangeText}.\n\nNo knowledge assets in this range.`,
             },
           ],
         };
       }
 
-      const requestedLimit = input.limit || 5;
       const statusFilter = input.status ? ` ${input.status}` : '';
-      let resultText = `**Last ${assetsList.length}${statusFilter} Assets** (showing most recent, max ${requestedLimit})\n\n`;
+      const rangeStart = input.offset + 1;
+      const rangeEnd = input.offset + assetsList.length;
+      const rangeText = input.offset > 0 ? ` (${rangeStart}-${rangeEnd})` : '';
+      let resultText = `**${assetsList.length}${statusFilter} Assets${rangeText}**\n\n`;
       
       const db = serviceContainer.get<Database>("db");
       
@@ -210,10 +216,11 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
     "knowledge-asset-query-by-status",
     {
       title: "Find Knowledge Assets by Status",
-      description: "Find, show, list, or query knowledge assets by publishing status. Use when user asks 'show me all published', 'failed assets', 'what's publishing', etc. Supports statuses: published (successfully published), failed (publishing failed), publishing (currently being published), queued (waiting to publish). Always returns up to 20 most recent assets matching the status (capped at 20).",
+      description: "Find, show, list, or query knowledge assets by publishing status. Use when user asks 'show me all published', 'failed assets', 'what's publishing', 'publishes 100-200', etc. Supports statuses: published (successfully published), failed (publishing failed), publishing (currently being published), queued (waiting to publish). Supports pagination with offset for large queries.",
       inputSchema: {
         status: z.enum(["published", "failed", "publishing", "queued"]).describe("The status to filter by"),
-        limit: z.number().min(1).max(20).default(10).optional().describe("Maximum number of results (1-20, default: 10)"),
+        limit: z.number().min(1).default(20).optional().describe("Maximum number of results (default: 20)"),
+        offset: z.number().min(0).default(0).optional().describe("Number of assets to skip (for pagination, default: 0)"),
       },
     },
     async (input: any, req: any) => {
@@ -222,25 +229,30 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
       }
 
       const assetService = serviceContainer.get<AssetService>("assetService");
+      
       const assetsList = await assetService.getAssetsByStatusForDisplay(
         input.status,
-        input.limit || 10,
+        input.limit,
+        input.offset,
       );
 
       if (assetsList.length === 0) {
+        const rangeText = input.offset > 0 ? ` (range ${input.offset + 1}-${input.offset + input.limit})` : '';
         return {
           content: [
             {
               type: "text",
-              text: `No assets found with status: ${input.status}\n\n` +
-                   `No ${input.status} knowledge assets found.`,
+              text: `No assets found with status: ${input.status}${rangeText}\n\n` +
+                   `No ${input.status} knowledge assets in this range.`,
             },
           ],
         };
       }
 
-      const requestedLimit = input.limit || 10;
-      let resultText = `**Last ${assetsList.length} ${input.status.toUpperCase()} Assets** (showing most recent, max ${requestedLimit})\n\n`;
+      const rangeStart = input.offset + 1;
+      const rangeEnd = input.offset + assetsList.length;
+      const rangeText = input.offset > 0 ? ` (${rangeStart}-${rangeEnd})` : '';
+      let resultText = `**${assetsList.length} ${input.status.toUpperCase()} Assets${rangeText}**\n\n`;
       
       const db = serviceContainer.get<Database>("db");
       

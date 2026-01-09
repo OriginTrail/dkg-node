@@ -54,3 +54,4 @@ ragas-results.json
 logs
 storage
 docker-compose.knowledge-manager.yml
+DKG_Node_Publisher_Tests.xml

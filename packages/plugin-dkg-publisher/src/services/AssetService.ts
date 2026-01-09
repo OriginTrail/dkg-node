@@ -596,16 +596,16 @@ export class AssetService extends EventEmitter {
    * Get recent assets for display (all users, no filtering by userId)
    */
   async getRecentAssets(
-    limit: number = 5,
+    limit: number = 20,
     statusFilter?: "published" | "failed" | "publishing" | "queued",
+    offset: number = 0,
   ): Promise<AssetStatus[]> {
-    const cappedLimit = Math.min(limit, 20); // Cap at 20
-
     let query = this.db
       .select()
       .from(assets)
       .orderBy(desc(assets.createdAt))
-      .limit(cappedLimit);
+      .limit(limit)
+      .offset(offset);
 
     if (statusFilter) {
       const results = await this.db
@@ -613,7 +613,8 @@ export class AssetService extends EventEmitter {
         .from(assets)
         .where(eq(assets.status, statusFilter))
         .orderBy(desc(assets.createdAt))
-        .limit(cappedLimit);
+        .limit(limit)
+        .offset(offset);
 
       return results.map((asset) => ({
         id: asset.id,
@@ -646,14 +647,16 @@ export class AssetService extends EventEmitter {
    */
   async getAssetsByStatusForDisplay(
     status: "published" | "failed" | "publishing" | "queued",
-    limit: number = 10,
+    limit: number = 20,
+    offset: number = 0,
   ): Promise<AssetStatus[]> {
     const results = await this.db
       .select()
       .from(assets)
       .where(eq(assets.status, status))
       .orderBy(desc(assets.createdAt))
-      .limit(Math.min(limit, 20)); // Cap at 20
+      .limit(limit)
+      .offset(offset);
 
     return results.map((asset) => ({
       id: asset.id,
