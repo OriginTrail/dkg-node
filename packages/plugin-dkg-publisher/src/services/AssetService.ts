@@ -16,7 +16,7 @@ export class AssetService extends EventEmitter {
   /**
    * Register an asset for publishing
    */
-  async registerAsset(input: AssetInput, userId?: string): Promise<AssetStatus> {
+  async registerAsset(input: AssetInput): Promise<AssetStatus> {
     // Save content as file
     const { url: contentUrl, size: contentSize } =
       await this.storageService.saveContent(input.content);
@@ -25,7 +25,6 @@ export class AssetService extends EventEmitter {
     const result = await this.db.insert(assets).values({
       contentUrl,
       contentSize,
-      userId: userId || null,
       source: input.metadata?.source || null,
       sourceId: input.metadata?.sourceId || null,
       priority: input.publishOptions?.priority || 50,
@@ -546,21 +545,17 @@ export class AssetService extends EventEmitter {
   }
 
   /**
-   * Get asset by content ID (@id from JSON-LD) for a specific user
+   * Get asset by content ID (@id from JSON-LD)
    */
   async getAssetByContentId(
     contentId: string,
-    userId?: string,
   ): Promise<AssetStatus | null> {
     // We need to search in the stored content files
     // This requires reading contentUrl and parsing JSON
-    const assetsToSearch = userId
-      ? await this.db
-          .select()
-          .from(assets)
-          .where(eq(assets.userId, userId))
-          .orderBy(desc(assets.createdAt))
-      : await this.db.select().from(assets).orderBy(desc(assets.createdAt));
+    const assetsToSearch = await this.db
+      .select()
+      .from(assets)
+      .orderBy(desc(assets.createdAt));
 
     for (const asset of assetsToSearch) {
       try {
@@ -598,28 +593,41 @@ export class AssetService extends EventEmitter {
   }
 
   /**
-   * Get recent assets for a specific user
+   * Get recent assets for display (all users, no filtering by userId)
    */
-  async getRecentAssetsByUser(
-    userId: string,
+  async getRecentAssets(
     limit: number = 5,
     statusFilter?: "published" | "failed" | "publishing" | "queued",
   ): Promise<AssetStatus[]> {
-    let whereClause = eq(assets.userId, userId);
+    const cappedLimit = Math.min(limit, 20); // Cap at 20
 
-    if (statusFilter) {
-      whereClause = and(
-        eq(assets.userId, userId),
-        eq(assets.status, statusFilter),
-      );
-    }
-
-    const results = await this.db
+    let query = this.db
       .select()
       .from(assets)
-      .where(whereClause)
       .orderBy(desc(assets.createdAt))
-      .limit(limit);
+      .limit(cappedLimit);
+
+    if (statusFilter) {
+      const results = await this.db
+        .select()
+        .from(assets)
+        .where(eq(assets.status, statusFilter))
+        .orderBy(desc(assets.createdAt))
+        .limit(cappedLimit);
+
+      return results.map((asset) => ({
+        id: asset.id,
+        status: asset.status,
+        ual: asset.ual,
+        transactionHash: asset.transactionHash,
+        publishedAt: asset.publishedAt,
+        attemptCount: asset.attemptCount || 0,
+        lastError: asset.lastError,
+        metadata: { source: asset.source, sourceId: asset.sourceId },
+      }));
+    }
+
+    const results = await query;
 
     return results.map((asset) => ({
       id: asset.id,
@@ -634,19 +642,18 @@ export class AssetService extends EventEmitter {
   }
 
   /**
-   * Get assets by status for a specific user
+   * Get assets by status for display (all users, no filtering by userId)
    */
-  async getAssetsByStatusForUser(
-    userId: string,
+  async getAssetsByStatusForDisplay(
     status: "published" | "failed" | "publishing" | "queued",
     limit: number = 10,
   ): Promise<AssetStatus[]> {
     const results = await this.db
       .select()
       .from(assets)
-      .where(and(eq(assets.userId, userId), eq(assets.status, status)))
+      .where(eq(assets.status, status))
       .orderBy(desc(assets.createdAt))
-      .limit(limit);
+      .limit(Math.min(limit, 20)); // Cap at 20
 
     return results.map((asset) => ({
       id: asset.id,

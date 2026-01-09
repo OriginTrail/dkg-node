@@ -1,9 +1,0 @@
--- Add user_id column
-ALTER TABLE `assets` ADD `user_id` varchar(255);
-
--- Create index for user_id queries
-CREATE INDEX `idx_user_id` ON `assets` (`user_id`);
-
--- Create composite index for efficient user + status + date queries
-CREATE INDEX `idx_user_status` ON `assets` (`user_id`, `status`, `created_at`);
-
