@@ -168,7 +168,7 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
       for (let idx = 0; idx < assetsList.length; idx++) {
         const asset = assetsList[idx];
         
-        // Try to extract Content ID from stored content
+        // Attempt to extract Content ID (@id) from the stored JSON-LD content file
         let contentId = "Unknown";
         try {
           const [dbAsset] = await db
@@ -188,7 +188,7 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
             }
           }
         } catch (e) {
-          // Keep as "Unknown"
+          console.warn(`Failed to extract Content ID for asset ${asset.id}:`, e instanceof Error ? e.message : String(e));
         }
         
         resultText += formatAssetStatus({
@@ -260,7 +260,7 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
       for (let idx = 0; idx < assetsList.length; idx++) {
         const asset = assetsList[idx];
         
-        // Try to extract Content ID from stored content
+        // Attempt to extract Content ID (@id) from the stored JSON-LD content file
         let contentId = "Unknown";
         try {
           const [dbAsset] = await db
@@ -280,7 +280,7 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
             }
           }
         } catch (e) {
-          // Keep as "Unknown"
+          console.warn(`Failed to extract Content ID for asset ${asset.id}:`, e instanceof Error ? e.message : String(e));
         }
         
         resultText += formatAssetStatus({
