@@ -8,12 +8,13 @@ import {
   shutdownServices,
   ServiceContainer,
   AssetService,
+  WalletService,
   QueueService,
   DkgService,
 } from "./services";
 import { openAPIRoute } from "@dkg/plugin-swagger";
-
 import express from "express";
+import { registerMcpTools } from "./mcp/tools";
 
 /**
  * DKG Publisher Plugin
@@ -161,6 +162,10 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
             attemptCount: z.number(),
           }),
         },
+        finalizeRouteConfig: (config) => ({
+          ...config,
+          security: [],
+        }),
       },
       async (req, res) => {
         if (!serviceContainer) {
@@ -199,6 +204,10 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
         params: z.object({
           id: z.string().transform(Number),
         }),
+        finalizeRouteConfig: (config) => ({
+          ...config,
+          security: [],
+        }),
       },
       async (req, res) => {
         if (!serviceContainer) {
@@ -232,8 +241,8 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
 
     try {
       const queueService = serviceContainer.get<QueueService>("queueService");
-      const assetService = serviceContainer.get<any>("assetService");
-      const walletService = serviceContainer.get<any>("walletService");
+      const assetService = serviceContainer.get<AssetService>("assetService");
+      const walletService = serviceContainer.get<WalletService>("walletService");
 
       // Get Redis queue stats
       const queueStats = await queueService.getQueueStats();
@@ -260,7 +269,7 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
         capacity: {
           totalWallets: walletStats.total,
           availableWallets: walletStats.available,
-          lockedWallets: walletStats.locked,
+          lockedWallets: walletStats.inUse,
           availableSlots: availableSlots, // Slots available for new jobs
         },
       });
@@ -275,7 +284,7 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
     }
 
     try {
-      const walletService = serviceContainer.get<any>("walletService");
+      const walletService = serviceContainer.get<WalletService>("walletService");
       const stats = await walletService.getWalletStats();
       res.json(stats);
     } catch (error: any) {
@@ -312,6 +321,10 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
               .optional(),
           }),
         },
+        finalizeRouteConfig: (config) => ({
+          ...config,
+          security: [],
+        }),
       },
       async (req, res) => {
         if (!serviceContainer) {
@@ -357,6 +370,10 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
             error: z.string().optional(),
           }),
         },
+        finalizeRouteConfig: (config) => ({
+          ...config,
+          security: [],
+        }),
       },
       async (req, res) => {
         if (!serviceContainer) {
@@ -383,51 +400,8 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
     ),
   );
 
-  // MCP tool for creating knowledge assets
-  mcp.registerTool(
-    "knowledge-asset-publish",
-    {
-      title: "Publish Knowledge Asset",
-      description: "Register a JSON-LD asset for publishing to the DKG",
-      inputSchema: {
-        content: z.object({}).passthrough(),
-        metadata: z
-          .object({
-            source: z.string().optional(),
-            sourceId: z.string().optional(),
-          })
-          .optional(),
-        privacy: z.enum(["private", "public"]).optional(),
-      },
-    },
-    async (input) => {
-      if (!serviceContainer) {
-        throw new Error("DKG Publisher Plugin not configured");
-      }
-
-      const assetService = serviceContainer.get<AssetService>("assetService");
-
-      const assetInput = {
-        content: input.content,
-        metadata: input.metadata,
-        publishOptions: {
-          privacy: input.privacy || "private",
-        },
-      };
-
-      const result = await assetService.registerAsset(assetInput);
-      // Asset registration emits 'asset-queued' event which triggers queue addition
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Asset registered for publishing: ${result.id} (Status: ${result.status})`,
-          },
-        ],
-      };
-    },
-  );
+  // Register all MCP tools for publisher plugin
+  registerMcpTools(mcp, serviceContainer);
 });
 
 // Cleanup function
