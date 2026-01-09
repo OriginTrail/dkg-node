@@ -41,7 +41,7 @@
       * [IPO voting](build-a-dkg-node-ai-agent/advanced-features-and-toolkits/dkg-paranets/initial-paranet-offerings-ipos/ipo-voting.md)
 * [Contributing a plugin](build-a-dkg-node-ai-agent/contributing-a-plugin.md)
 
-## Contribute to the DKG&#x20;
+## Contribute to the DKG
 
 * [Hackathon: Scaling Trust in the Age of AI](contribute-to-the-dkg/hackathon-scaling-trust-in-the-age-of-ai/README.md)
   * [DKG Social Graph Query Guide](contribute-to-the-dkg/hackathon-scaling-trust-in-the-age-of-ai/dkg-social-graph-query-guide.md)
@@ -98,6 +98,7 @@
       * [Protocol updates](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/protocol-updates.md)
       * [Feature roadmap](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/feature-roadmap.md)
       * [How to upgrade to V8?](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/how-to-upgrade-to-v8.md)
+    * [Staking Threshold Update & OutstandingNetwork Rewards Release](dkg-knowledge-hub/learn-more/previous-updates/staking-threshold-update-and-outstandingnetwork-rewards-release.md)
   * [What is a DKG Node?](dkg-knowledge-hub/learn-more/decentralized-knowle-dge-graph-dkg.md)
 * [How-tos & tutorials](dkg-knowledge-hub/how-tos-and-tutorials/README.md)
   * [Fund your Web3 wallets](dkg-knowledge-hub/how-tos-and-tutorials/fund-your-web3-wallets.md)
