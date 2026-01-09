@@ -31,7 +31,7 @@ Running a DKG Node is designed to be accessible — but like any powerful techno
 * **AI agent concepts** – Knowing how agents interact with external data (like the DKG) will help you design better applications.
 * **Basic terminal & server skills** – Installing and managing a node requires comfort with the command line and deploying services on a VPS.
 
-We recommend exploring our [introductory resources or tutorials if any of these areas are new to you](broken-reference). And remember — you’re not alone. The OriginTrail Discord community is active and welcoming, with dedicated channels where you can ask questions, troubleshoot issues, and share ideas as you learn.
+We recommend exploring our [introductory resources or tutorials if any of these areas are new to you](/broken/pages/NiPXKCuxKbkBdWfF6pBd). And remember — you’re not alone. The OriginTrail Discord community is active and welcoming, with dedicated channels where you can ask questions, troubleshoot issues, and share ideas as you learn.
 
 ***
 
