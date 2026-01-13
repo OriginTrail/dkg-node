@@ -25,9 +25,11 @@ export const serializeSourceKAContent = (
   [${k.ual}](${getExplorerUrl(k.ual)})`,
       )
       .join("\n"),
+  _meta: {
   description:
     "This section provides a list of source knowledge assets used in the creation of this content." +
     "This data should be included in the final output.",
+  },
 });
 
 export const parseSourceKAContent = (

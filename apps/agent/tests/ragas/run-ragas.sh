@@ -11,15 +11,24 @@ cd ../../
 # Function to cleanup on exit
 cleanup() {
     echo "🧹 Cleaning up..."
+    
+    # In CI, use force kill (-9) to prevent hanging
+    if [ -n "$CI" ] || [ -n "$JENKINS_URL" ] || [ -n "$GITHUB_ACTIONS" ] || [ -n "$GITLAB_CI" ]; then
+        KILL_SIGNAL="-9"
+        echo "🤖 CI environment detected - using force kill"
+    else
+        KILL_SIGNAL=""
+    fi
+    
     if [ ! -z "$FRONTEND_PID" ] && kill -0 $FRONTEND_PID 2>/dev/null; then
         echo "🔴 Stopping frontend server (PID: $FRONTEND_PID)..."
-        kill $FRONTEND_PID
-        wait $FRONTEND_PID 2>/dev/null
+        kill $KILL_SIGNAL $FRONTEND_PID 2>/dev/null || true
+        sleep 1
     fi
     if [ ! -z "$BACKEND_PID" ] && kill -0 $BACKEND_PID 2>/dev/null; then
         echo "🔴 Stopping backend server (PID: $BACKEND_PID)..."
-        kill $BACKEND_PID
-        wait $BACKEND_PID 2>/dev/null
+        kill $KILL_SIGNAL $BACKEND_PID 2>/dev/null || true
+        sleep 1
     fi
     # Note: Dashboard process (DASHBOARD_PID) is intentionally NOT killed
     # to allow continued access to results after evaluation completes
@@ -139,15 +148,15 @@ if [ $? -eq 0 ]; then
         # Stop the evaluation servers but keep dashboard running
         if [ "$FRONTEND_ALREADY_RUNNING" = false ] && [ ! -z "$FRONTEND_PID" ] && kill -0 $FRONTEND_PID 2>/dev/null; then
             echo "🔴 Stopping frontend server (evaluation complete)..."
-            kill $FRONTEND_PID
-            wait $FRONTEND_PID 2>/dev/null
+            kill $FRONTEND_PID 2>/dev/null || true
+            sleep 1
             FRONTEND_PID=""
         fi
         
         if [ "$BACKEND_ALREADY_RUNNING" = false ] && [ ! -z "$BACKEND_PID" ] && kill -0 $BACKEND_PID 2>/dev/null; then
             echo "🔴 Stopping backend server (evaluation complete)..."
-            kill $BACKEND_PID
-            wait $BACKEND_PID 2>/dev/null
+            kill $BACKEND_PID 2>/dev/null || true
+            sleep 1
             BACKEND_PID=""
         fi
         

@@ -134,7 +134,7 @@ class ChatbotPage {
           document.querySelectorAll('[data-testid="chat-message-text"]'),
         );
         const successPattern =
-          /((Knowledge Asset|KA).*(created|published|generated|added|stored|uploaded)|(created|published|generated|added|stored|uploaded).*(Knowledge Asset|KA)|successfully.*(created|published)|UAL.*did:|Here.*UAL|Asset.*DKG|DKG.*Asset)/i;
+          /(?!.*unable)(?!.*failed)(?!.*error)(?!.*cannot)(?!.*can't)((Knowledge Asset|KA).*(created|published|generated|added|stored|uploaded)|(created|published|generated|added|stored|uploaded).*(Knowledge Asset|KA)|successfully.*(created|published)|UAL.*did:|Here.*UAL)/i;
         return messages.some((msg) =>
           successPattern.test(msg.textContent || ""),
         );
@@ -145,7 +145,7 @@ class ChatbotPage {
 
     // Find the success message and extract UAL from it
     const successMessageRegex =
-      /(Knowledge Asset.*(?:created|published|generated|added|stored|uploaded)|(?:created|published|generated|added|stored|uploaded).*Knowledge Asset|successfully.*(?:created|published)|UAL.*did:|Here.*UAL|Asset.*DKG|DKG.*Asset|KA.*(?:created|published)|(?:created|published).*KA)/i;
+      /(?!.*unable)(?!.*failed)(?!.*error)(?!.*cannot)(?!.*can't)(Knowledge Asset.*(?:created|published|generated|added|stored|uploaded)|(?:created|published|generated|added|stored|uploaded).*Knowledge Asset|successfully.*(?:created|published)|UAL.*did:|Here.*UAL|KA.*(?:created|published)|(?:created|published).*KA)/i;
 
     // Get all messages and find the one with success content
     const allMessages = await this.page.getByTestId("chat-message-text").all();
