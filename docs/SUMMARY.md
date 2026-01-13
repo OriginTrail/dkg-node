@@ -16,6 +16,7 @@
 
 * [Architecture](build-a-dkg-node-ai-agent/architecture.md)
 * [Essentials Plugin](build-a-dkg-node-ai-agent/essentials-plugin.md)
+* [Using the DKG Client](build-a-dkg-node-ai-agent/using-the-dkg-client.md)
 * [Customizing your DKG agent](build-a-dkg-node-ai-agent/customizing-your-dkg-agent.md)
 * [Evaluating agent responses](build-a-dkg-node-ai-agent/evaluating-agent-responses.md)
 * [Set up your custom DKG Node fork & update flow](build-a-dkg-node-ai-agent/set-up-your-custom-dkg-node-fork-and-update-flow.md)
