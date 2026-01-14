@@ -12,9 +12,9 @@ As the network continues to grow, we’re seeing increased delegation demand—e
 
 **1) Staking cap increases to 10,000,000 $TRAC**
 
-To support more stake delegations on top-performing nodes, the staking cap will increase from 5,000,000 $TRAC to 10,000,000 $TRAC.
+To support more stake delegations on top-performing nodes, the staking cap on the DKG nodes will increase from 5,000,000 $TRAC to 10,000,000 $TRAC.
 
-This change is intended to make it easier for delegators to stake with high-performing operators without hitting the previous threshold as quickly.
+This change is intended to make it easier for delegators to stake with high-performing nodes without hitting the previous threshold as quickly.
 
 **2) Rewards formula update will be introduced via RFC**
 
@@ -22,7 +22,7 @@ We also want to maintain a balanced incentive structure—where staking is impor
 
 To retain that balance:
 
-* We will introduce a formula change via a public RFC (Request for Comments) before implementation.
+* We will introduce a change to the rewards formula via a public RFC (Request for Comments) before implementation.
 * The goal is transparency and feedback prior to rollout.
 * The formula change is planned to be implemented at the end of the next epoch (around February 10).
 
@@ -43,6 +43,7 @@ There are outstanding network rewards to be released. To do this cleanly and fai
 * **\~February 10 (at end of epoch 13)**
   * Outstanding network rewards released
   * Formula update implemented (after the RFC is published and reviewed)
+  * Staking cap increased on DKG nodes from 5M to 10M $TRAC.
 
 _(All “around” dates are aligned to epoch timing.)_
 
