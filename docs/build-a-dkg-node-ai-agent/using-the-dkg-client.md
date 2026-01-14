@@ -4,15 +4,15 @@ description: >-
   and publish Knowledge Assets on the OriginTrail Decentralized Knowledge Graph.
 ---
 
-# Using the DKG Client
+# Using the DKG client
 
 When building plugins for your DKG Node, you have access to `ctx.dkg` — a powerful client that lets you interact directly with the OriginTrail Decentralized Knowledge Graph. This page covers the core operations you'll use most often: **querying**, **getting**, and **publishing** Knowledge Assets.
 
 {% hint style="info" %}
-💡 **Quick Reference:** The `ctx.dkg` client is an instance of [dkg.js](advanced-features-and-toolkits/dkg-sdk/dkg-v8-js-client/README.md) that's pre-configured and injected into every plugin via the `defineDkgPlugin` function.
+💡 **Quick Reference:** The `ctx.dkg` client is an instance of [dkg.js](advanced-features-and-toolkits/dkg-sdk/dkg-v8-js-client/) that's pre-configured and injected into every plugin via the `defineDkgPlugin` function.
 {% endhint %}
 
-## Accessing the DKG Client
+## Accessing the DKG client
 
 Inside your plugin, you receive `ctx` as the first argument to `defineDkgPlugin`. The DKG client is available at `ctx.dkg`:
 
@@ -33,7 +33,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
 The most powerful way to explore and retrieve data from the DKG is through SPARQL queries. SPARQL is a query language for RDF data — think of it like SQL, but for graph databases.
 
-### Basic Query Syntax
+### Basic query syntax
 
 Use `ctx.dkg.graph.query()` to execute SPARQL queries:
 
@@ -48,16 +48,16 @@ const result = await ctx.dkg.graph.query(
 );
 ```
 
-### Query Types
+### Query types
 
-| Type | Description | Returns |
-|------|-------------|---------|
-| `SELECT` | Returns variable bindings (rows of data) | Array of objects with variable bindings |
-| `CONSTRUCT` | Builds a new RDF graph from results | RDF triples in JSON-LD format |
-| `ASK` | Boolean query — does a pattern exist? | `true` or `false` |
-| `DESCRIBE` | Returns RDF data about a resource | RDF description of the resource |
+| Type        | Description                              | Returns                                 |
+| ----------- | ---------------------------------------- | --------------------------------------- |
+| `SELECT`    | Returns variable bindings (rows of data) | Array of objects with variable bindings |
+| `CONSTRUCT` | Builds a new RDF graph from results      | RDF triples in JSON-LD format           |
+| `ASK`       | Boolean query — does a pattern exist?    | `true` or `false`                       |
+| `DESCRIBE`  | Returns RDF data about a resource        | RDF description of the resource         |
 
-### Query Response Structure
+### Query response structure
 
 ```ts
 {
@@ -69,7 +69,7 @@ const result = await ctx.dkg.graph.query(
 }
 ```
 
-### Example: Building a Query Tool
+### Example: Building a query tool
 
 Here's a complete example of registering an MCP tool that queries the DKG:
 
@@ -119,11 +119,11 @@ export default defineDkgPlugin((ctx, mcp) => {
 });
 ```
 
-### Common Query Patterns
+### Common query patterns
 
-#### Query All Current Knowledge Assets
+#### Query all current Knowledge Assets
 
-Use `<current:graph>` to filter for currently valid KAs:
+Use `<current:graph>` to filter for currently valid Knowledge Assets (KAs):
 
 ```sparql
 PREFIX schema: <http://schema.org/>
@@ -141,7 +141,7 @@ WHERE {
 LIMIT 100
 ```
 
-#### Query Within a Specific Paranet
+#### Query within a specific paranet
 
 Restrict queries to a paranet scope:
 
@@ -159,7 +159,7 @@ WHERE {
 }
 ```
 
-#### Query by Publisher
+#### Query by publisher
 
 Find all KAs published by a specific wallet:
 
@@ -175,7 +175,7 @@ WHERE {
 }
 ```
 
-#### Query by Date Range
+#### Query by date range
 
 Filter KAs by publish time:
 
@@ -203,13 +203,13 @@ WHERE {
 
 To retrieve a specific Knowledge Asset by its UAL (Uniform Asset Locator), use `ctx.dkg.asset.get()`.
 
-### Basic Get Operation
+### Basic get operation
 
 ```ts
 const result = await ctx.dkg.asset.get(ual);
 ```
 
-### Get with Options
+### Get with options
 
 ```ts
 const result = await ctx.dkg.asset.get(ual, {
@@ -217,7 +217,7 @@ const result = await ctx.dkg.asset.get(ual, {
 });
 ```
 
-### Response Structure
+### Response structure
 
 ```ts
 {
@@ -237,7 +237,7 @@ const result = await ctx.dkg.asset.get(ual, {
 }
 ```
 
-### Example: Get Tool Implementation
+### Example: Get tool implementation
 
 ```ts
 import { defineDkgPlugin } from "@dkg/plugins";
@@ -282,10 +282,11 @@ did:dkg:base:84532/0xd5550173b0f7b8766ab2770e4ba86caf714a5af5/10310
 ```
 
 Components:
-- `did:dkg` — DID method prefix
-- `base:84532` — Blockchain name and chain ID
-- `0xd555...` — Contract address
-- `10310` — Asset ID (Knowledge Collection ID + optional Asset ID)
+
+* `did:dkg` — DID method prefix
+* `base:84532` — Blockchain name and chain ID
+* `0xd555...` — Contract address
+* `10310` — Asset ID (Knowledge Collection ID + optional Asset ID)
 
 ***
 
@@ -293,7 +294,7 @@ Components:
 
 Use `ctx.dkg.asset.create()` to publish new Knowledge Assets to the DKG.
 
-### Basic Create Operation
+### Basic create operation
 
 ```ts
 const content = {
@@ -311,7 +312,7 @@ const result = await ctx.dkg.asset.create(content, {
 });
 ```
 
-### Public vs Private Content
+### Public vs private content
 
 You can publish content as **public** (replicated across the network) or **private** (stays on your node only):
 
@@ -337,15 +338,15 @@ const result = await ctx.dkg.asset.create(content, {
 });
 ```
 
-### Create Options
+### Create options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `epochsNum` | Number of epochs (months) to store the asset | Required |
-| `minimumNumberOfFinalizationConfirmations` | Confirmations needed before finalized | 3 |
-| `minimumNumberOfNodeReplications` | Minimum nodes to replicate to | 1 |
+| Option                                     | Description                                  | Default  |
+| ------------------------------------------ | -------------------------------------------- | -------- |
+| `epochsNum`                                | Number of epochs (months) to store the asset | Required |
+| `minimumNumberOfFinalizationConfirmations` | Confirmations needed before finalized        | 3        |
+| `minimumNumberOfNodeReplications`          | Minimum nodes to replicate to                | 1        |
 
-### Response Structure
+### Response structure
 
 ```ts
 {
@@ -366,7 +367,7 @@ const result = await ctx.dkg.asset.create(content, {
 }
 ```
 
-### Example: Create Tool Implementation
+### Example: Create tool implementation
 
 ```ts
 import { defineDkgPlugin } from "@dkg/plugins";
@@ -411,7 +412,7 @@ export default defineDkgPlugin((ctx, mcp) => {
 });
 ```
 
-### JSON-LD Best Practices
+### JSON-LD best practices
 
 When creating Knowledge Assets, follow these JSON-LD conventions:
 
@@ -440,9 +441,9 @@ When creating Knowledge Assets, follow these JSON-LD conventions:
 
 ***
 
-## Complete Plugin Example
+## Complete DKG plugin example
 
-Here's a full plugin that demonstrates all three operations:
+Here's a full MCP tool that demonstrates all three operations:
 
 ```ts
 import { defineDkgPlugin } from "@dkg/plugins";
@@ -523,20 +524,20 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
 ***
 
-## Additional DKG Client Methods
+## Additional DKG client methods
 
 Beyond the core operations, `ctx.dkg` provides additional functionality:
 
-| Method | Description |
-|--------|-------------|
-| `ctx.dkg.node.info()` | Get information about the connected DKG node |
-| `ctx.dkg.asset.update()` | Update an existing Knowledge Asset |
+| Method                              | Description                                      |
+| ----------------------------------- | ------------------------------------------------ |
+| `ctx.dkg.node.info()`               | Get information about the connected DKG node     |
+| `ctx.dkg.asset.update()`            | Update an existing Knowledge Asset               |
 | `ctx.dkg.asset.increaseAllowance()` | Pre-approve token spending for faster publishing |
-| `ctx.dkg.asset.decreaseAllowance()` | Revoke token spending authorization |
+| `ctx.dkg.asset.decreaseAllowance()` | Revoke token spending authorization              |
 
 ***
 
-## Error Handling
+## Error handling
 
 Always wrap DKG operations in try-catch blocks:
 
@@ -551,16 +552,17 @@ try {
 ```
 
 Common error scenarios:
-- **Network errors** — Node unreachable or timeout
-- **Invalid UAL** — Malformed or non-existent asset
-- **Insufficient funds** — Not enough tokens for publishing
-- **Invalid JSON-LD** — Malformed content structure
+
+* **Network errors** — Node unreachable or timeout
+* **Invalid UAL** — Malformed or non-existent asset
+* **Insufficient funds** — Not enough tokens for publishing
+* **Invalid JSON-LD** — Malformed content structure
 
 ***
 
-## Next Steps
+## Next steps
 
-- **[Query the DKG](advanced-features-and-toolkits/querying-the-dkg.md)** — Deep dive into SPARQL query patterns
-- **[DKG JavaScript SDK](advanced-features-and-toolkits/dkg-sdk/dkg-v8-js-client/README.md)** — Full SDK documentation
-- **[Customizing your DKG Agent](customizing-your-dkg-agent.md)** — Build custom plugins
-- **[Essentials Plugin](essentials-plugin.md)** — Reference implementation for DKG tools
+* [**Query the DKG**](advanced-features-and-toolkits/querying-the-dkg.md) — Deep dive into SPARQL query patterns
+* [**DKG JavaScript SDK**](advanced-features-and-toolkits/dkg-sdk/dkg-v8-js-client/) — Full SDK documentation
+* [**Customizing your DKG Agent**](customizing-your-dkg-agent.md) — Build custom plugins
+* [**Essentials Plugin**](essentials-plugin.md) — Reference implementation for DKG tools
