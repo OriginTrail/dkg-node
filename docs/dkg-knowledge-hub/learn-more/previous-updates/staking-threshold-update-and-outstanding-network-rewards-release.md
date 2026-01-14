@@ -3,7 +3,7 @@
 **TL;DR**
 
 * We’re **increasing the staking cap from 5,000,000 $TRAC to 10,000,000 $TRAC to accommodate more stake delegations** on the best-performing DKG nodes.
-* To ensure staking doesn’t outweigh other performance drivers (e.g., node publishing factor), we will **publish an RFC with an updated formula before the updated staking cap goes live**. The formula update is planned for the **end of the next epoch (around February 10)**.
+* To ensure staking doesn’t outweigh other performance drivers (e.g., node publishing factor), we will **publish an RFC with an updated rewards formula before the updated staking cap goes live**. The formula update is planned for the **end of the next epoch (around February 10)**.
 * With the last epoch of previously allocated V6 rewards expiring on January 9th (today), the conditions to begin **releasing outstanding network rewards are met**. The rewards deployment is scheduled for **the end of epoch 13 (around February 10)**.
 
 #### What’s changing and why
