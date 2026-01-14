@@ -99,7 +99,7 @@
       * [Protocol updates](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/protocol-updates.md)
       * [Feature roadmap](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/feature-roadmap.md)
       * [How to upgrade to V8?](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/how-to-upgrade-to-v8.md)
-    * [Staking Threshold Update & Outstanding Network Rewards Release](dkg-knowledge-hub/learn-more/previous-updates/staking-threshold-update-and-outstanding-network-rewards-release.md)
+    * [Staking cap & outstanding network rewards release](dkg-knowledge-hub/learn-more/previous-updates/staking-threshold-update-and-outstanding-network-rewards-release.md)
   * [What is a DKG Node?](dkg-knowledge-hub/learn-more/decentralized-knowle-dge-graph-dkg.md)
 * [How-tos & tutorials](dkg-knowledge-hub/how-tos-and-tutorials/README.md)
   * [Fund your Web3 wallets](dkg-knowledge-hub/how-tos-and-tutorials/fund-your-web3-wallets.md)

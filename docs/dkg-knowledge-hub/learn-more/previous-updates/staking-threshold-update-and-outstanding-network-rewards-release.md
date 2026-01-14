@@ -1,18 +1,18 @@
-# Staking Threshold Update & OutstandingNetwork Rewards Release
+# Staking cap & outstanding network rewards release
 
-**TLDR**
+**TL;DR**
 
-* We’re **increasing the staking threshold from 5,000,000 $TRAC to 10,000,000 $TRAC to accommodate more stake delegations** on the best performing DKG nodes.
-* To ensure staking doesn’t outweigh other performance drivers (e.g., node publishing factor), we will **publish an RFC with an updated formula before it goes live**. The formula update is planned for the **end of the next epoch (around February 10)**.
-* Having the last epoch of previously allocated V6 rewards expired on January 9th (today), the conditions to start the process of **releasing outstanding network rewards are met**. The rewards deployment is scheduled for **the end of epoch 13 (around February 10)**.
+* We’re **increasing the staking cap from 5,000,000 $TRAC to 10,000,000 $TRAC to accommodate more stake delegations** on the best-performing DKG nodes.
+* To ensure staking doesn’t outweigh other performance drivers (e.g., node publishing factor), we will **publish an RFC with an updated formula before the updated staking cap goes live**. The formula update is planned for the **end of the next epoch (around February 10)**.
+* With the last epoch of previously allocated V6 rewards expiring on January 9th (today), the conditions to begin **releasing outstanding network rewards are met**. The rewards deployment is scheduled for **the end of epoch 13 (around February 10)**.
 
 #### What’s changing and why
 
-As the network continues to grow, we’re seeing increased delegation demand—especially toward the best performing DKG nodes. To better accommodate this and reduce delegation bottlenecks, we’re updating the staking parameters used for delegations.
+As the network continues to grow, we’re seeing increased delegation demand—especially toward the best-performing DKG nodes. To better accommodate this and reduce delegation bottlenecks, we’re updating the staking parameters used for delegations.
 
-**1) Staking threshold increases to 10,000,000 $TRAC**
+**1) Staking cap increases to 10,000,000 $TRAC**
 
-To support more stake delegations on top-performing nodes, the staking threshold will increase from 5,000,000 $TRAC to 10,000,000 $TRAC.
+To support more stake delegations on top-performing nodes, the staking cap will increase from 5,000,000 $TRAC to 10,000,000 $TRAC.
 
 This change is intended to make it easier for delegators to stake with high-performing operators without hitting the previous threshold as quickly.
 
@@ -39,7 +39,7 @@ There are outstanding network rewards to be released. To do this cleanly and fai
 #### Key dates and timeline
 
 * **January 9 - Epoch 12 ends**&#x20;
-  * A network snapshot will be taken following the epoch end.
+  * A network snapshot will be taken at the end of the epoch.
 * **\~February 10 (at end of epoch 13)**
   * Outstanding network rewards released
   * Formula update implemented (after the RFC is published and reviewed)
@@ -48,8 +48,8 @@ _(All “around” dates are aligned to epoch timing.)_
 
 #### What this means for delegators
 
-* More capacity to delegate to the best performing DKG nodes, due to the higher threshold (10M $TRAC).
-* No immediate action is required purely because of this announcement - your delegation remains as-is unless you choose to adjust it.
+* More capacity to delegate to the best-performing DKG nodes, due to the higher cap (10M $TRAC).
+* No immediate action is required purely because of this announcement — your delegation remains as-is unless you choose to adjust it.
 * If you care about how staking weight vs. publishing/performance factors are balanced, you’ll be able to review and comment on the upcoming RFC before the formula change is implemented.
 
 #### What this means for node operators
