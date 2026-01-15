@@ -401,6 +401,33 @@ test.describe('DKG Publisher - 10 Parallel Publishes', () => {
     console.log('================================================================================');
     console.log('================================================================================\n\n');
     
+    // Export results as JSON for Grafana insertion
+    const jsonResults = {
+      timestamp: new Date().toISOString(),
+      blockchain: 'otp:20430',
+      totalAssets: totalAssets,
+      published: successfulPublishes.length,
+      failed: failedPublishes.length,
+      avgPublishTime: avgSuccessTime / 1000, // Convert to seconds
+      totalDuration: totalDuration / 1000, // Convert to seconds
+      errors: failedPublishes.map(f => ({
+        assetNumber: f.number,
+        assetId: f.assetId,
+        message: f.error || 'Unknown error',
+      })),
+    };
+
+    const fs = require('fs');
+    const path = require('path');
+    const resultsPath = path.join(process.cwd(), 'publisher-test-results.json');
+    
+    try {
+      fs.writeFileSync(resultsPath, JSON.stringify(jsonResults, null, 2));
+      console.log(`📝 Test results exported to: ${resultsPath}\n`);
+    } catch (err) {
+      console.error(`❌ Failed to export results to JSON: ${err.message}\n`);
+    }
+    
     // Assert that at least some assets succeeded
     expect(successfulPublishes.length).toBeGreaterThan(0);
   });

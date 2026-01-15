@@ -28,6 +28,7 @@
     "test:ragas:results": "NODE_OPTIONS='--import tsx' tsx tests/ragas/show-results.ts",
     "test:ragas:dashboard": "NODE_OPTIONS='--import tsx' tsx tests/ragas/dashboard.ts",
     "ragas": "chmod +x tests/ragas/run-ragas.sh && tests/ragas/run-ragas.sh",
+    "test:publisher:insert-metrics": "NODE_OPTIONS='--import tsx' tsx tests/e2e/scripts/insert_publisher_metrics_to_db.js",
     "postinstall": "node fix-uuid.js"
   },
   "dependencies": {

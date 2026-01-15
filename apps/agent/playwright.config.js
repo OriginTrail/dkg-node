@@ -44,7 +44,7 @@ module.exports = defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: "http://localhost:8081",
     browserName: "chromium",
-    headless: false,
+    headless: true,
     actionTimeout: 2 * 60 * 1000, // 2 minutes for all actions
     launchOptions: {
       slowMo: 1500,
