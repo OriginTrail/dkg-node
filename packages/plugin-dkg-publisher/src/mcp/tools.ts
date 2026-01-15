@@ -1,22 +1,43 @@
+import consumers from "stream/consumers";
 import { z } from "@dkg/plugin-swagger";
 import type { ServiceContainer, AssetService } from "../services";
 import type { Database } from "../database";
 import { assets } from "../database/schema";
 import { eq } from "drizzle-orm";
 import { formatAssetStatus } from "./utils";
+import type { DkgContext } from "@dkg/plugins";
 
 /**
  * Register all MCP tools for the DKG Publisher Plugin
  */
-export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | null) {
+export function registerMcpTools(
+  mcp: any,
+  serviceContainer: ServiceContainer | null,
+  ctx: DkgContext,
+) {
   // MCP tool for creating knowledge assets
   mcp.registerTool(
     "knowledge-asset-publish",
     {
       title: "Publish Knowledge Asset",
-      description: "Register a JSON-LD asset for publishing to the DKG. Use the MCP query tools to check status and view recent published assets.",
+      description:
+        "Register a JSON-LD asset for publishing to the DKG. " +
+        "You can provide the content directly as a JSON object, or provide a blobId to load content from a previously uploaded file. " +
+        "Use blobId for large files. Use the MCP query tools to check status and view recent published assets.",
       inputSchema: {
-        content: z.object({}).passthrough(),
+        content: z
+          .object({})
+          .passthrough()
+          .optional()
+          .describe(
+            "JSON-LD content object to publish (optional if blobId is provided)",
+          ),
+        blobId: z
+          .string()
+          .optional()
+          .describe(
+            "ID of an uploaded blob to publish (from the upload tool). Use this for large files instead of content.",
+          ),
         metadata: z
           .object({
             source: z.string().optional(),
@@ -31,10 +52,48 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
         throw new Error("DKG Publisher Plugin not configured");
       }
 
+      // Validate that at least one of content or blobId is provided
+      if (!input.content && !input.blobId) {
+        throw new Error(
+          "Either 'content' or 'blobId' must be provided to publish an asset",
+        );
+      }
+
+      // If both are provided, prefer blobId (more efficient for large files)
+      let content: any;
+      let contentSource: string;
+
+      if (input.blobId) {
+        try {
+          const blob = await ctx.blob.get(input.blobId);
+          if (!blob) {
+            throw new Error(`Blob not found: ${input.blobId}`);
+          }
+
+          // Read blob content as text and parse as JSON
+          const text = await consumers.text(blob.data);
+          content = JSON.parse(text);
+          contentSource = `blob:${input.blobId}`;
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          if (errorMessage.includes("not found")) {
+            throw error;
+          }
+          throw new Error(
+            `Failed to read blob ${input.blobId}: ${errorMessage}. Ensure the blob contains valid JSON-LD.`,
+          );
+        }
+      } else {
+        // Use provided content directly
+        content = input.content;
+        contentSource = "direct";
+      }
+
       const assetService = serviceContainer.get<AssetService>("assetService");
 
       const assetInput = {
-        content: input.content,
+        content,
         metadata: input.metadata,
         publishOptions: {
           privacy: input.privacy || "private",
@@ -47,23 +106,30 @@ export function registerMcpTools(mcp: any, serviceContainer: ServiceContainer | 
       // Extract content @id for user reference
       let contentId = "Unknown";
       try {
-        if (input.content?.["@id"]) {
-          contentId = input.content["@id"] as string;
+        if (content?.["@id"]) {
+          contentId = content["@id"] as string;
         }
       } catch (e) {
         console.warn("⚠️ Failed to extract @id from content:", e);
       }
 
+      const sourceInfo =
+        contentSource === "direct"
+          ? "Content provided directly"
+          : `Content loaded from ${contentSource}`;
+
       return {
         content: [
           {
             type: "text",
-            text: `Asset registered for publishing (ID: ${result.id}, Status: ${result.status})\n\n` +
-                 `Content ID: ${contentId}\n\n` +
-                 `To check the publishing status later, ask:\n` +
-                 `• "What's the status of asset '${contentId}'?"\n` +
-                 `• "Show me my recent published assets"\n` +
-                 `• "Show me my published assets"`,
+            text:
+              `Asset registered for publishing (ID: ${result.id}, Status: ${result.status})\n\n` +
+              `Content ID: ${contentId}\n` +
+              `Source: ${sourceInfo}\n\n` +
+              `To check the publishing status later, ask:\n` +
+              `• "What's the status of asset '${contentId}'?"\n` +
+              `• "Show me my recent published assets"\n` +
+              `• "Show me my published assets"`,
           },
         ],
       };
