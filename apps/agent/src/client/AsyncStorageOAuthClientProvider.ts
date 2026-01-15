@@ -73,7 +73,9 @@ export default class AsyncStorageOAuthClientProvider
           if (r.status < 400) return {};
           return r.json();
         })
-        .then((err: any) => err?.error === "invalid_client")
+        .then((err: any) => {
+          return err?.error === "invalid_client";
+        })
         .catch((err) => {
           console.log("Error when checking client_id:", err);
           return false;
