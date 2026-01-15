@@ -75,7 +75,7 @@ export default function ProtectedLayout() {
               isHandlingError.current = false;
               return;
             }
-            router.replace("/authorize");
+            router.replace("/");
           } catch {
             isHandlingError.current = false;
           }
