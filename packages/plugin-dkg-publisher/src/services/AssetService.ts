@@ -32,7 +32,7 @@ export class AssetService extends EventEmitter {
       queuedAt: sql`NOW()`,
       privacy: input.publishOptions?.privacy || "private",
       epochs: input.publishOptions?.epochs || 2,
-      maxAttempts: input.publishOptions?.maxAttempts || 3,
+      maxAttempts: input.publishOptions?.maxAttempts || 1, // 1 attempt = 0 retries
       retryCount: 0,
     });
 
@@ -237,7 +237,7 @@ export class AssetService extends EventEmitter {
     }
 
     const currentAsset = asset[0];
-    const maxRetries = currentAsset.maxAttempts || 3;
+    const maxRetries = currentAsset.maxAttempts || 1; // 1 attempt = 0 retries
     const currentRetries = currentAsset.retryCount || 0;
 
     // Check if asset has exceeded retry limit
@@ -301,7 +301,7 @@ export class AssetService extends EventEmitter {
     if (!asset.length) return;
 
     const currentAsset = asset[0];
-    const maxRetries = currentAsset.maxAttempts || 3;
+    const maxRetries = currentAsset.maxAttempts || 1; // 1 attempt = 0 retries
     const currentRetries = currentAsset.retryCount || 0;
     const newRetryCount = currentRetries + 1;
 

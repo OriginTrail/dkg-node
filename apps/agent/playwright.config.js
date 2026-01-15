@@ -7,7 +7,7 @@ const { defineConfig, devices } = require("@playwright/test");
 module.exports = defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.spec.js",
-  retries: 2,
+  //retries: 2,
   workers: 1,
   timeout: 10 * 60 * 1000, // 10 minutes per test
   globalTimeout: process.env.CI ? 45 * 60 * 1000 : 0, // 45 minutes in CI, no limit locally
@@ -44,7 +44,7 @@ module.exports = defineConfig({
     /* Base URL to use in actions like `await page.goto('/')`. */
     baseURL: "http://localhost:8081",
     browserName: "chromium",
-    headless: true,
+    headless: false,
     actionTimeout: 2 * 60 * 1000, // 2 minutes for all actions
     launchOptions: {
       slowMo: 1500,

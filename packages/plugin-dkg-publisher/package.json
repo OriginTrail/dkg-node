@@ -12,6 +12,7 @@
     "lint": "eslint . --max-warnings 0",
     "test": "mocha --loader ../../node_modules/tsx/dist/loader.mjs 'tests/**/*.spec.ts'",
     "setup": "node setup.js",
+    "setup:wallets": "node scripts/setup-test-wallets.js",
     "db:generate": "drizzle-kit generate:mysql",
     "db:migrate": "node migrate.js",
     "db:push": "drizzle-kit push:mysql",

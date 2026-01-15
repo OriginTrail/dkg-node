@@ -21,6 +21,7 @@
     "script:createToken": "node dist/scripts/createToken.js",
     "test": "PLAYWRIGHT_JUNIT_OUTPUT_NAME=DKG_Node_UI_Tests.xml npx playwright test spec/testUI.spec.js --grep '@gh_actions' --reporter=list,html,junit",
     "test:e2e": "PLAYWRIGHT_JUNIT_OUTPUT_NAME=DKG_Node_UI_Tests.xml npx playwright test spec/testUI.spec.js --reporter=list,html,junit",
+    "test:e2e:publisher": "PLAYWRIGHT_JUNIT_OUTPUT_NAME=DKG_Node_Publisher_Tests.xml npx playwright test tests/e2e/spec/publisherParallelTest.spec.js --reporter=list,html,junit",
     "test:install": "npx playwright install",
     "test:integration": "NODE_OPTIONS='--import tsx' mocha 'tests/integration/**/*.spec.ts' --require tests/integration/setup/global-setup.ts",
     "test:ragas": "NODE_OPTIONS='--import tsx' tsx tests/ragas/evaluate.ts",

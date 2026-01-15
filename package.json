@@ -13,6 +13,7 @@
     "test:mocha": "mocha",
     "test": "npm run test:api && npm run test:integration && turbo run test --filter=@dkg/agent --force",
     "test:e2e": "turbo run test:e2e --filter=@dkg/agent --force",
+    "test:e2e:publisher": "cd apps/agent && npm run test:e2e:publisher",
     "test:api": "turbo run test --filter='@dkg/plugin-*' --force",
     "test:integration": "cd apps/agent && npm run test:integration",
     "test:ui:report": "node apps/agent/tests/e2e/utils/report-UI-Tests-config.js",

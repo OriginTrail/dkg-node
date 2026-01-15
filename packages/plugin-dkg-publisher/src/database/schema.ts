@@ -36,7 +36,7 @@ export const assets = mysqlTable(
     privacy: mysqlEnum("privacy", ["private", "public"]).default("private"),
     epochs: int("epochs").default(2),
     replications: int("replications").default(1),
-    maxAttempts: int("max_attempts").default(3),
+    maxAttempts: int("max_attempts").default(1), // 1 attempt = 0 retries
 
     // Status and attempts
     status: mysqlEnum("status", [
