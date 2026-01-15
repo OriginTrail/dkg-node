@@ -32,6 +32,11 @@ function escapeSparql(value: string): string {
  * Accepts: "assembling" or "https://ref.gs1.org/cbv/BizStep-assembling"
  */
 function normalizeBizStep(value: string): string {
+
+  if (typeof value !== "string" || value.length === 0) {
+    throw new Error("Invalid bizStep value");
+  }
+  
   if (!value.includes('://')) {
     return `https://ref.gs1.org/cbv/BizStep-${value}`;
   }

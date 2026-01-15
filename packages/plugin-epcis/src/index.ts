@@ -131,8 +131,15 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           const { captureID } = req.params;
           const publisherUrl = process.env.PUBLISHER_URL || "http://localhost:9200";
 
+          const captureIdPattern = /^[0-9]+$/;
+          if (!captureIdPattern.test(captureID)) {
+            return res.status(400).json({
+              error: "Invalid captureID format",
+              captureID,
+            } as any);
+          }
           // Query publisher for asset status
-          const response = await fetch(`${publisherUrl}/api/dkg/assets/status/${captureID}`);
+          const response = await fetch(`${publisherUrl}/api/dkg/assets/status/${encodeURIComponent(captureID)}`);
 
           if (!response.ok) {
             if (response.status === 404) {
