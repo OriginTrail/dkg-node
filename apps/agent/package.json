@@ -34,6 +34,7 @@
   "dependencies": {
     "@dkg/expo-forcegraph": "^0.0.0",
     "@dkg/plugin-dkg-essentials": "^0.0.3",
+    "@dkg/plugin-dkg-publisher": "*",
     "@dkg/plugin-example": "^0.0.3",
     "@dkg/plugin-oauth": "^0.0.2",
     "@dkg/plugin-swagger": "^0.0.2",

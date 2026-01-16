@@ -64,7 +64,7 @@ test.describe('DKG Publisher - 10 Parallel Publishes', () => {
     loginPage = new LoginPage(page);
 
     await page.goto('/');
-    await loginPage.login('admin@gmail.com', 'admin123');
+    await loginPage.login('admin@example.com', 'admin123');
     await chatbotPage.waitForChatReady();
   });
 
