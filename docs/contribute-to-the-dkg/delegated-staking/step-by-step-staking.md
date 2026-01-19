@@ -15,7 +15,7 @@ Welcome to the step-by-step TRAC delegated staking guide! First, lets start with
    * [Gnosis Chain](../../dkg-knowledge-hub/learn-more/connected-blockchains/gnosis-chain/)
 3. Bridge your TRAC to the chosen blockchain. See instructions for bridging:
    * [Base Blockchain](../../dkg-knowledge-hub/learn-more/connected-blockchains/base-blockchain/)
-   * [NeuroWeb](../../graveyard/everything/teleport-instructions-neuroweb.md)
+   * [NeuroWeb](../../dkg-knowledge-hub/learn-more/connected-blockchains/neuroweb.md)
    * [Gnosis Chain](../../dkg-knowledge-hub/learn-more/connected-blockchains/gnosis-chain/)
 4. Have some gas fee tokens available on the chosen network:
    * Base Mainnet: ETH on Base
