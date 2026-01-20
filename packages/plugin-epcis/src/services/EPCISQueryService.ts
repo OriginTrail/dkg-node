@@ -18,6 +18,8 @@ export interface EpcisQueryParams {
   bizStep?: string;
   bizLocation?: string;
   ual?: string;
+  /** If true, searches all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) */
+  fullTrace?: boolean;
 }
 
 /**
@@ -64,9 +66,22 @@ export class EpcisQueryService {
     // Filter by event type (must be EPCIS event)
     filterClauses.push('FILTER(STRSTARTS(STR(?eventType), "https://gs1.github.io/EPCIS/"))');
 
-    // EPC filter
+    // EPC filter - with optional full traceability across all EPC fields
     if (params.epc) {
-      wherePatterns.push(`?event epcis:epcList "${escapeSparql(params.epc)}" .`);
+      const epcValue = escapeSparql(params.epc);
+      if (params.fullTrace) {
+        // Search across ALL EPC fields for full supply chain traceability
+        wherePatterns.push(`{
+          { ?event epcis:epcList "${epcValue}" }
+          UNION { ?event epcis:inputEPCList "${epcValue}" }
+          UNION { ?event epcis:outputEPCList "${epcValue}" }
+          UNION { ?event epcis:childEPCs "${epcValue}" }
+          UNION { ?event epcis:parentID "${epcValue}" }
+        }`);
+      } else {
+        // Default: only search epcList
+        wherePatterns.push(`?event epcis:epcList "${epcValue}" .`);
+      }
     } else {
       optionalClauses.push('OPTIONAL { ?event epcis:epcList ?epc . }');
     }

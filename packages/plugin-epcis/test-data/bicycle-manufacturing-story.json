@@ -1,0 +1,346 @@
+{
+  "story": "Alpine Cycles Bicycle Manufacturing - Full Traceability Demo",
+  "description": "This dataset tells the story of manufacturing premium bicycles, from receiving raw components to shipping finished products. Use these events to test EPCIS querying and item tracking.",
+  
+  "characters": {
+    "components": {
+      "frame": "urn:epc:id:sgtin:4012345.011111.1001",
+      "frontWheel": "urn:epc:id:sgtin:4012345.022222.2001",
+      "rearWheel": "urn:epc:id:sgtin:4012345.022222.2002",
+      "handlebar": "urn:epc:id:sgtin:4012345.033333.3001"
+    },
+    "finishedProduct": {
+      "bicycle": "urn:epc:id:sgtin:4012345.099999.9001"
+    },
+    "container": {
+      "pallet": "urn:epc:id:sscc:4012345.0000000001"
+    }
+  },
+
+  "locations": {
+    "receivingDock": "urn:epc:id:sgln:4012345.00001.0",
+    "qualityLab": "urn:epc:id:sgln:4012345.00002.0",
+    "assemblyLine": "urn:epc:id:sgln:4012345.00003.0",
+    "packingArea": "urn:epc:id:sgln:4012345.00004.0",
+    "shippingDock": "urn:epc:id:sgln:4012345.00005.0"
+  },
+
+  "events": [
+    {
+      "name": "Event 1: Receive Frame",
+      "description": "Carbon fiber frame arrives from supplier",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-01T08:00:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "ObjectEvent",
+            "eventTime": "2024-03-01T08:00:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "epcList": ["urn:epc:id:sgtin:4012345.011111.1001"],
+            "action": "ADD",
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-receiving",
+            "disposition": "https://ref.gs1.org/cbv/Disp-in_progress",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00001.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00001.0"},
+            "bizTransactionList": [
+              {"type": "https://ref.gs1.org/cbv/BTT-po", "bizTransaction": "urn:epc:id:gdti:4012345.00001.PO-2024-001"}
+            ]
+          }]
+        }
+      }
+    },
+    {
+      "name": "Event 2: Receive Wheels",
+      "description": "Front and rear wheels arrive from wheel supplier",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-01T08:30:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "ObjectEvent",
+            "eventTime": "2024-03-01T08:30:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "epcList": [
+              "urn:epc:id:sgtin:4012345.022222.2001",
+              "urn:epc:id:sgtin:4012345.022222.2002"
+            ],
+            "action": "ADD",
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-receiving",
+            "disposition": "https://ref.gs1.org/cbv/Disp-in_progress",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00001.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00001.0"},
+            "bizTransactionList": [
+              {"type": "https://ref.gs1.org/cbv/BTT-po", "bizTransaction": "urn:epc:id:gdti:4012345.00001.PO-2024-002"}
+            ]
+          }]
+        }
+      }
+    },
+    {
+      "name": "Event 3: Receive Handlebar",
+      "description": "Aluminum handlebar arrives",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-01T09:00:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "ObjectEvent",
+            "eventTime": "2024-03-01T09:00:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "epcList": ["urn:epc:id:sgtin:4012345.033333.3001"],
+            "action": "ADD",
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-receiving",
+            "disposition": "https://ref.gs1.org/cbv/Disp-in_progress",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00001.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00001.0"}
+          }]
+        }
+      }
+    },
+    {
+      "name": "Event 4: Inspect Frame",
+      "description": "Quality check on carbon fiber frame - PASSED",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-01T10:00:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "ObjectEvent",
+            "eventTime": "2024-03-01T10:00:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "epcList": ["urn:epc:id:sgtin:4012345.011111.1001"],
+            "action": "OBSERVE",
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-inspecting",
+            "disposition": "https://ref.gs1.org/cbv/Disp-conformant",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00002.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00002.0"}
+          }]
+        }
+      }
+    },
+    {
+      "name": "Event 5: Inspect Wheels",
+      "description": "Quality check on both wheels - PASSED",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-01T10:30:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "ObjectEvent",
+            "eventTime": "2024-03-01T10:30:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "epcList": [
+              "urn:epc:id:sgtin:4012345.022222.2001",
+              "urn:epc:id:sgtin:4012345.022222.2002"
+            ],
+            "action": "OBSERVE",
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-inspecting",
+            "disposition": "https://ref.gs1.org/cbv/Disp-conformant",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00002.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00002.0"}
+          }]
+        }
+      }
+    },
+    {
+      "name": "Event 6: Assemble Bicycle",
+      "description": "🔧 TRANSFORMATION: Components assembled into finished bicycle",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-01T14:00:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "TransformationEvent",
+            "eventTime": "2024-03-01T14:00:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "inputEPCList": [
+              "urn:epc:id:sgtin:4012345.011111.1001",
+              "urn:epc:id:sgtin:4012345.022222.2001",
+              "urn:epc:id:sgtin:4012345.022222.2002",
+              "urn:epc:id:sgtin:4012345.033333.3001"
+            ],
+            "outputEPCList": [
+              "urn:epc:id:sgtin:4012345.099999.9001"
+            ],
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-assembling",
+            "disposition": "https://ref.gs1.org/cbv/Disp-active",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00003.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00003.0"}
+          }]
+        }
+      }
+    },
+    {
+      "name": "Event 7: Final Quality Check",
+      "description": "Finished bicycle passes final inspection",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-01T15:00:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "ObjectEvent",
+            "eventTime": "2024-03-01T15:00:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "epcList": ["urn:epc:id:sgtin:4012345.099999.9001"],
+            "action": "OBSERVE",
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-inspecting",
+            "disposition": "https://ref.gs1.org/cbv/Disp-conformant",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00002.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00002.0"}
+          }]
+        }
+      }
+    },
+    {
+      "name": "Event 8: Pack Bicycle",
+      "description": "📦 AGGREGATION: Bicycle packed onto shipping pallet",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-01T16:00:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "AggregationEvent",
+            "eventTime": "2024-03-01T16:00:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "parentID": "urn:epc:id:sscc:4012345.0000000001",
+            "childEPCs": [
+              "urn:epc:id:sgtin:4012345.099999.9001"
+            ],
+            "action": "ADD",
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-packing",
+            "disposition": "https://ref.gs1.org/cbv/Disp-in_transit",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00004.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00004.0"}
+          }]
+        }
+      }
+    },
+    {
+      "name": "Event 9: Ship Pallet",
+      "description": "🚚 Pallet shipped to customer",
+      "document": {
+        "@context": {
+          "@vocab": "https://gs1.github.io/EPCIS/",
+          "epcis": "https://gs1.github.io/EPCIS/",
+          "cbv": "https://ref.gs1.org/cbv/",
+          "type": "@type",
+          "id": "@id"
+        },
+        "type": "EPCISDocument",
+        "schemaVersion": "2.0",
+        "creationDate": "2024-03-02T08:00:00Z",
+        "epcisBody": {
+          "eventList": [{
+            "type": "ObjectEvent",
+            "eventTime": "2024-03-02T08:00:00.000Z",
+            "eventTimeZoneOffset": "+00:00",
+            "epcList": ["urn:epc:id:sscc:4012345.0000000001"],
+            "action": "OBSERVE",
+            "bizStep": "https://ref.gs1.org/cbv/BizStep-shipping",
+            "disposition": "https://ref.gs1.org/cbv/Disp-in_transit",
+            "readPoint": {"id": "urn:epc:id:sgln:4012345.00005.0"},
+            "bizLocation": {"id": "urn:epc:id:sgln:4012345.00005.0"},
+            "bizTransactionList": [
+              {"type": "https://ref.gs1.org/cbv/BTT-desadv", "bizTransaction": "urn:epc:id:gdti:4012345.00001.ASN-2024-001"}
+            ]
+          }]
+        }
+      }
+    }
+  ],
+
+  "testQueries": {
+    "trackFrame": {
+      "description": "Track the carbon frame from receiving through assembly",
+      "epc": "urn:epc:id:sgtin:4012345.011111.1001",
+      "fullTrace": true,
+      "expectedEvents": ["receiving", "inspecting", "assembling (as input)"]
+    },
+    "trackBicycle": {
+      "description": "Track the finished bicycle from creation to shipping",
+      "epc": "urn:epc:id:sgtin:4012345.099999.9001",
+      "fullTrace": true,
+      "expectedEvents": ["assembling (as output)", "inspecting", "packing (as child)", "shipping"]
+    },
+    "findAllReceiving": {
+      "description": "Find all items received on March 1st",
+      "bizStep": "receiving",
+      "from": "2024-03-01T00:00:00Z",
+      "to": "2024-03-01T23:59:59Z"
+    },
+    "findAssemblyEvents": {
+      "description": "Find all assembly operations",
+      "bizStep": "assembling"
+    },
+    "findAtQualityLab": {
+      "description": "Find all events at the quality lab",
+      "bizLocation": "urn:epc:id:sgln:4012345.00002.0"
+    }
+  }
+}
+

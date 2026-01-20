@@ -39,6 +39,137 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   console.log("🚀 EPCIS Plugin loaded");
 
+  // MCP Tool: Query EPCIS events from DKG
+  mcp.registerTool(
+    "epcis-query",
+    {
+      title: "Query EPCIS Events",
+      description: 
+        "Query EPCIS supply chain events from the OriginTrail DKG. " +
+        "Can filter by EPC (product identifier), time range, business step, or location. " +
+        "Use fullTrace=true to search across all event types (transformations, aggregations) for complete supply chain traceability.",
+      inputSchema: {
+        epc: z.string().optional().describe("EPC identifier (e.g., urn:epc:id:sgtin:0614141.107346.2017)"),
+        from: z.string().optional().describe("Start of time range (ISO 8601, e.g., 2024-01-01T00:00:00Z)"),
+        to: z.string().optional().describe("End of time range (ISO 8601)"),
+        bizStep: z.string().optional().describe("Business step (e.g., 'receiving', 'shipping', 'assembling')"),
+        bizLocation: z.string().optional().describe("Business location URI"),
+        fullTrace: z.boolean().optional().describe("If true, search all EPC fields for full traceability"),
+      },
+    },
+    async (input) => {
+      try {
+        const sparqlQuery = queryService.buildQuery({
+          epc: input.epc,
+          from: input.from,
+          to: input.to,
+          bizStep: input.bizStep,
+          bizLocation: input.bizLocation,
+          fullTrace: input.fullTrace,
+        });
+
+        const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
+
+        const summary = results?.length 
+          ? `Found ${results.length} EPCIS event(s)` 
+          : "No events found matching the criteria";
+
+        return {
+          content: [
+            { 
+              type: "text", 
+              text: JSON.stringify({
+                summary,
+                count: results?.length || 0,
+                events: results || [],
+                query: sparqlQuery,
+              }, null, 2)
+            }
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            { 
+              type: "text", 
+              text: JSON.stringify({
+                error: "Query failed",
+                message: error.message,
+              }, null, 2)
+            }
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // MCP Tool: Track item journey (full traceability)
+  mcp.registerTool(
+    "epcis-track-item",
+    {
+      title: "Track Item Journey",
+      description: 
+        "Track a single item's complete journey through the supply chain. " +
+        "Finds all events where this EPC appears - as observed item, transformation input/output, or in aggregations. " +
+        "Returns events in chronological order showing the item's full lifecycle.",
+      inputSchema: {
+        epc: z.string().describe("The EPC to track (e.g., urn:epc:id:sgtin:0614141.107346.2017)"),
+      },
+    },
+    async (input) => {
+      try {
+        const sparqlQuery = queryService.buildQuery({
+          epc: input.epc,
+          fullTrace: true,  // Always use full traceability for item tracking
+        });
+
+        const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
+
+        const eventCount = results?.length || 0;
+        let summary = `Tracking: ${input.epc}\n`;
+        summary += `Found ${eventCount} event(s) in the supply chain.\n\n`;
+
+        if (eventCount > 0) {
+          summary += "Journey Timeline:\n";
+          results.forEach((event: any, idx: number) => {
+            const time = event.eventTime || "Unknown time";
+            const step = event.bizStep?.split("-").pop() || event.eventType?.split("/").pop() || "Unknown";
+            const location = event.bizLocation || event.readPoint || "Unknown location";
+            summary += `${idx + 1}. [${time}] ${step} @ ${location}\n`;
+          });
+        }
+
+        return {
+          content: [
+            { 
+              type: "text", 
+              text: JSON.stringify({
+                summary,
+                epc: input.epc,
+                eventCount,
+                events: results || [],
+              }, null, 2)
+            }
+          ],
+        };
+      } catch (error: any) {
+        return {
+          content: [
+            { 
+              type: "text", 
+              text: JSON.stringify({
+                error: "Tracking failed",
+                message: error.message,
+              }, null, 2)
+            }
+          ],
+          isError: true,
+        };
+      }
+    }
+  );
+
   // POST /epcis/capture - Accept EPCISDocument and queue for publishing
   api.post(
     "/epcis/capture",
@@ -183,7 +314,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         query: z.object({
           epc: z.string().optional().openapi({
             description: "Filter by EPC (product identifier)",
-            example: "urn:kam:item:2224813",
+            example: "urn:epc:id:sgtin:0614141.107346.2017",
           }),
           from: z.string().optional().openapi({
             description: "Start of time range (ISO 8601)",
@@ -199,10 +330,14 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           }),
           bizLocation: z.string().optional().openapi({
             description: "Filter by business location",
-            example: "urn:kam:location:workcenter:W1006",
+            example: "urn:epc:id:sgln:0614141.00001.0",
           }),
           ual: z.string().optional().openapi({
             description: "Get event by specific UAL",
+          }),
+          fullTrace: z.string().optional().openapi({
+            description: "If 'true', search all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) for full supply chain traceability",
+            example: "true",
           }),
         }),
         response: {
@@ -217,7 +352,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       },
       async (req, res) => {
         try {
-          const { epc, from, to, bizStep, bizLocation, ual } = req.query;
+          const { epc, from, to, bizStep, bizLocation, ual, fullTrace } = req.query;
 
           // Build the SPARQL query based on parameters
           const sparqlQuery = queryService.buildQuery({
@@ -227,6 +362,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             bizStep: bizStep as string,
             bizLocation: bizLocation as string,
             ual: ual as string,
+            fullTrace: fullTrace === 'true',
           });
 
           console.log("[EPCIS Events] Executing SPARQL query:", sparqlQuery);
