@@ -23,35 +23,6 @@ export class EpcisValidationService {
    * Validate an EPCISDocument against the GS1 JSON Schema
    */
   validate(document: unknown): ValidationResult {
-    // Check basic structure first
-    if (!document || typeof document !== "object") {
-      return {
-        valid: false,
-        errors: ["Document must be a valid JSON object"],
-      };
-    }
-
-    const doc = document as EPCISDocument;
-
-    // Check for required type
-    if (doc.type !== "EPCISDocument") {
-      return {
-        valid: false,
-        errors: [`Invalid type: expected "EPCISDocument", got "${doc.type}"`],
-      };
-    }
-
-    // Get event list from either location
-    const eventList = doc.eventList || doc.epcisBody?.eventList;
-
-    if (!eventList || !Array.isArray(eventList) || eventList.length === 0) {
-      return {
-        valid: false,
-        errors: ["EPCISDocument must contain at least one event in eventList or epcisBody.eventList"],
-      };
-    }
-
-    // Validate against GS1 schema
     const isValid = this.validateSchema(document);
 
     if (!isValid) {
@@ -62,9 +33,12 @@ export class EpcisValidationService {
       return {
         valid: false,
         errors,
-        eventCount: eventList.length,
       };
     }
+
+    // Count events for response
+    const doc = document as EPCISDocument;
+    const eventList = doc.epcisBody?.eventList || [];
 
     return {
       valid: true,

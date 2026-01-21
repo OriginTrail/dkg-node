@@ -4,32 +4,48 @@ import { EpcisValidationService } from "./services/EPCISValidationService";
 import { EpcisQueryService } from "./services/EPCISQueryService";
 import type { CaptureResponse } from "./model/types";
 
+// Timeout for internal publisher requests (30s for POST, 5s for GET)
+const PUBLISHER_POST_TIMEOUT_MS = 10000;
+const PUBLISHER_GET_TIMEOUT_MS = 5000;
+
 // Helper function to send JSON-LD to publisher
 async function sendToPublisher(
   jsonLd: any,
-  metadata?: { source?: string; sourceId?: string }
+  metadata?: { source?: string; sourceId?: string },
+  publishOptions?: {
+    privacy?: "private" | "public";
+    epochs?: number;
+  }
 ): Promise<{ id: number; status: string; attemptCount: number }> {
   const publisherUrl = process.env.PUBLISHER_URL || "http://localhost:9200";
 
-  const response = await fetch(`${publisherUrl}/api/dkg/assets`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      content: jsonLd,
-      metadata: metadata || { source: "EPCIS" },
-      publishOptions: {
-        privacy: "private",
-        epochs: 2,
-      },
-    }),
-  });
+  try {
+    const response = await fetch(`${publisherUrl}/api/dkg/assets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        content: jsonLd,
+        metadata: metadata || { source: "EPCIS" },
+        publishOptions: {
+          privacy: publishOptions?.privacy ?? "private",
+          epochs: publishOptions?.epochs ?? 12,
+        },
+      }),
+      signal: AbortSignal.timeout(PUBLISHER_POST_TIMEOUT_MS),
+    });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Publisher request failed");
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Publisher request failed");
+    }
+
+    return response.json();
+  } catch (error: any) {
+    if (error.name === "TimeoutError") {
+      throw new Error("Publisher request timed out");
+    }
+    throw error;
   }
-
-  return response.json();
 }
 
 export default defineDkgPlugin((ctx, mcp, api) => {
@@ -46,12 +62,12 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       title: "Query EPCIS Events",
       description: 
         "Query EPCIS supply chain events from the OriginTrail DKG. " +
-        "Can filter by EPC (product identifier), time range, business step, or location. " +
+        "Can filter by EPC (product identifier), from date to date, business step, or location. " +
         "Use fullTrace=true to search across all event types (transformations, aggregations) for complete supply chain traceability.",
       inputSchema: {
         epc: z.string().optional().describe("EPC identifier (e.g., urn:epc:id:sgtin:0614141.107346.2017)"),
-        from: z.string().optional().describe("Start of time range (ISO 8601, e.g., 2024-01-01T00:00:00Z)"),
-        to: z.string().optional().describe("End of time range (ISO 8601)"),
+        from: z.string().optional().describe("Query events from this date onwards, requires it to follow ISO 8601 format (e.g., 2024-01-01T00:00:00Z)"),
+        to: z.string().optional().describe("Query events up to this date, requires it to follow ISO 8601 format (e.g., 2024-01-01T00:00:00Z)"),
         bizStep: z.string().optional().describe("Business step (e.g., 'receiving', 'shipping', 'assembling')"),
         bizLocation: z.string().optional().describe("Business location URI"),
         fullTrace: z.boolean().optional().describe("If true, search all EPC fields for full traceability"),
@@ -80,9 +96,9 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               type: "text", 
               text: JSON.stringify({
                 summary,
-                count: results?.length || 0,
+                count: results?.data.length || 0,
                 events: results || [],
-                query: sparqlQuery,
+                //query: sparqlQuery,
               }, null, 2)
             }
           ],
@@ -178,8 +194,20 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         tag: "EPCIS",
         summary: "Capture EPCIS Document",
         description: "Accept an EPCISDocument and queue it for publishing to DKG",
-        body: z.object({}).passthrough().openapi({
-          description: "EPCISDocument (JSON-LD)",
+        body: z.object({
+          epcisDocument: z.object({}).passthrough().openapi({
+            description: "The EPCISDocument (JSON-LD)",
+          }),
+          publishOptions: z.object({
+            privacy: z.enum(["private", "public"]).optional().openapi({
+              description: "Asset visibility (default: private)",
+            }),
+            epochs: z.number().min(1).optional().openapi({
+              description: "Number of epochs to publish for (default: 12)",
+            }),
+          }).optional().openapi({
+            description: "Publishing options (all optional with sensible defaults)",
+          }),
         }),
         response: {
           description: "Capture accepted",
@@ -193,11 +221,10 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       },
       async (req, res) => {
         try {
-          const document = req.body;
+          const { epcisDocument, publishOptions } = req.body;
 
           // Validate the EPCIS document
-
-          const validation = validationService.validate(document);
+          const validation = validationService.validate(epcisDocument);
 
           if (!validation.valid) {
             return res.status(400).json({
@@ -206,11 +233,15 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             } as any);
           }
 
-          // Send to publisher
-          const result = await sendToPublisher(document, {
-            source: "EPCIS",
-            sourceId: `epcis-${Date.now()}`,
-          });
+          // Send to publisher with user-provided options (or defaults)
+          const result = await sendToPublisher(
+            epcisDocument,
+            {
+              source: "EPCIS",
+              sourceId: `epcis-${Date.now()}`,
+            },
+            publishOptions
+          );
 
           // Return capture response
           const response: CaptureResponse = {
@@ -225,7 +256,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           console.error("[EPCIS Capture] Error:", error);
           res.status(500).json({
             error: "Failed to process capture",
-            message: error.message,
+            //message: error.message,
           } as any);
         }
       }
@@ -262,7 +293,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           const { captureID } = req.params;
           const publisherUrl = process.env.PUBLISHER_URL || "http://localhost:9200";
 
-          const captureIdPattern = /^[0-9]+$/;
+          const captureIdPattern = /^[0-9]{1,20}$/;
           if (!captureIdPattern.test(captureID)) {
             return res.status(400).json({
               error: "Invalid captureID format",
@@ -270,7 +301,21 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             } as any);
           }
           // Query publisher for asset status
-          const response = await fetch(`${publisherUrl}/api/dkg/assets/status/${encodeURIComponent(captureID)}`);
+          let response: Response;
+          try {
+            response = await fetch(
+              `${publisherUrl}/api/dkg/assets/status/${encodeURIComponent(captureID)}`,
+              { signal: AbortSignal.timeout(PUBLISHER_GET_TIMEOUT_MS) }
+            );
+          } catch (error: any) {
+            if (error.name === "TimeoutError") {
+              return res.status(504).json({
+                error: "Publisher timeout",
+                captureID,
+              } as any);
+            }
+            throw error;
+          }
 
           if (!response.ok) {
             if (response.status === 404) {
@@ -296,7 +341,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           console.error("[EPCIS Status] Error:", error);
           res.status(500).json({
             error: "Failed to get capture status",
-            message: error.message,
+            //message: error.message,
           } as any);
         }
       }
@@ -316,11 +361,11 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             description: "Filter by EPC (product identifier)",
             example: "urn:epc:id:sgtin:0614141.107346.2017",
           }),
-          from: z.string().optional().openapi({
+          from: z.string().datetime({ message: "Must be ISO 8601 format (e.g., 2024-01-01T00:00:00Z)" }).optional().openapi({
             description: "Start of time range (ISO 8601)",
             example: "2024-01-01T00:00:00Z",
           }),
-          to: z.string().optional().openapi({
+          to: z.string().datetime({ message: "Must be ISO 8601 format (e.g., 2024-12-31T23:59:59Z)" }).optional().openapi({
             description: "End of time range (ISO 8601)",
             example: "2024-12-31T23:59:59Z",
           }),
@@ -332,9 +377,9 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             description: "Filter by business location",
             example: "urn:epc:id:sgln:0614141.00001.0",
           }),
-          ual: z.string().optional().openapi({
+          /*ual: z.string().optional().openapi({
             description: "Get event by specific UAL",
-          }),
+          }),*/
           fullTrace: z.string().optional().openapi({
             description: "If 'true', search all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) for full supply chain traceability",
             example: "true",
@@ -352,7 +397,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       },
       async (req, res) => {
         try {
-          const { epc, from, to, bizStep, bizLocation, ual, fullTrace } = req.query;
+          const { epc, from, to, bizStep, bizLocation, /*ual,*/ fullTrace } = req.query;
 
           // Build the SPARQL query based on parameters
           const sparqlQuery = queryService.buildQuery({
@@ -361,7 +406,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             to: to as string,
             bizStep: bizStep as string,
             bizLocation: bizLocation as string,
-            ual: ual as string,
+            //ual: ual as string,
             fullTrace: fullTrace === 'true',
           });
 
@@ -372,7 +417,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
           res.json({
             success: true,
-            query: sparqlQuery,
+            //query: sparqlQuery,
             results: results || [],
             count: results?.length || 0,
           });

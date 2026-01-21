@@ -6,7 +6,6 @@
 // Namespace prefixes for EPCIS queries
 const PREFIXES = `
 PREFIX epcis: <https://gs1.github.io/EPCIS/>
-PREFIX kam: <https://kam.example.com/epcis/>
 PREFIX schema: <http://schema.org/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 `;
@@ -17,7 +16,7 @@ export interface EpcisQueryParams {
   to?: string;
   bizStep?: string;
   bizLocation?: string;
-  ual?: string;
+  // ual?: string;  // TODO: Re-enable when UAL query is implemented
   /** If true, searches all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) */
   fullTrace?: boolean;
 }
@@ -52,9 +51,9 @@ export class EpcisQueryService {
    */
   buildQuery(params: EpcisQueryParams): string {
     // Special case: UAL lookup returns all triples for that graph
-    if (params.ual) {
+    /*if (params.ual) {
       return this.getEventByUal(params.ual);
-    }
+    }*/
 
     const wherePatterns: string[] = [];
     const filterClauses: string[] = [];
@@ -102,17 +101,17 @@ export class EpcisQueryService {
       optionalClauses.push('OPTIONAL { ?event epcis:bizLocation ?bizLocation . }');
     }
 
-    // Time range filter
+    // Time range filter - use xsd:dateTime for proper date comparison
     if (params.from || params.to) {
       wherePatterns.push('?event epcis:eventTime ?eventTime .');
       if (params.from && params.to) {
         filterClauses.push(
-          `FILTER(STR(?eventTime) >= "${escapeSparql(params.from)}" && STR(?eventTime) <= "${escapeSparql(params.to)}")`
+          `FILTER(xsd:dateTime(?eventTime) >= xsd:dateTime("${escapeSparql(params.from)}") && xsd:dateTime(?eventTime) <= xsd:dateTime("${escapeSparql(params.to)}"))`
         );
       } else if (params.from) {
-        filterClauses.push(`FILTER(STR(?eventTime) >= "${escapeSparql(params.from)}")`);
+        filterClauses.push(`FILTER(xsd:dateTime(?eventTime) >= xsd:dateTime("${escapeSparql(params.from)}"))`);
       } else if (params.to) {
-        filterClauses.push(`FILTER(STR(?eventTime) <= "${escapeSparql(params.to)}")`);
+        filterClauses.push(`FILTER(xsd:dateTime(?eventTime) <= xsd:dateTime("${escapeSparql(params.to)}"))`);
       }
     } else {
       optionalClauses.push('OPTIONAL { ?event epcis:eventTime ?eventTime . }');
@@ -139,7 +138,7 @@ LIMIT 100`;
   /**
    * Query event by UAL (get full event details)
    */
-  private getEventByUal(ual: string): string {
+  /*private getEventByUal(ual: string): string {
     // Basic UAL format validation
     if (!ual.startsWith('did:')) {
       throw new Error('Invalid UAL format');
@@ -151,5 +150,5 @@ WHERE {
     ?subject ?predicate ?object .
   }
 }`;
-  }
+  }*/
 }

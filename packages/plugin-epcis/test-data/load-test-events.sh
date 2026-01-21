@@ -29,12 +29,12 @@ for i in $(seq 0 $((EVENT_COUNT - 1))); do
     echo "[$((i + 1))/$EVENT_COUNT] $EVENT_NAME"
     echo "         $EVENT_DESC"
     
-    # Extract and send the document
-    DOCUMENT=$(jq ".events[$i].document" "$DATA_FILE")
+    # Extract and send the request (contains epcisDocument + publishOptions)
+    REQUEST=$(jq ".events[$i].request" "$DATA_FILE")
     
     RESPONSE=$(curl -s -X POST "$BASE_URL/epcis/capture" \
         -H "Content-Type: application/json" \
-        -d "$DOCUMENT")
+        -d "$REQUEST")
     
     CAPTURE_ID=$(echo "$RESPONSE" | jq -r '.captureID // "error"')
     STATUS=$(echo "$RESPONSE" | jq -r '.status // "error"')
