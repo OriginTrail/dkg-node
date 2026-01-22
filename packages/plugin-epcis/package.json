@@ -1,0 +1,26 @@
+{
+  "name": "@dkg/plugin-epcis",
+  "version": "0.0.1",
+  "description": "",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "dev": "tsup src/*.ts --format cjs,esm --dts --watch",
+    "build": "tsup src/*.ts --format cjs,esm --dts",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint . --max-warnings 0",
+    "test": "mocha --loader ../../node_modules/tsx/dist/loader.mjs 'tests/**/*.spec.ts'"
+  },
+  "dependencies": {
+    "@dkg/plugin-swagger": "^0.0.2",
+    "@dkg/plugins": "^0.0.2",
+    "ajv": "^8.17.0",
+    "ajv-formats": "^3.0.0"
+  },
+  "devDependencies": {
+    "@dkg/eslint-config": "*",
+    "@dkg/typescript-config": "*",
+    "tsup": "^8.5.0"
+  }
+}
