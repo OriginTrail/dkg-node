@@ -191,20 +191,40 @@ export default defineDkgPlugin((ctx, mcp) => {
         };
       }
 
-      // Use validated query type
-      const queryType = validation.queryType || "SELECT";
+      // Use validated query type (must be defined after successful validation)
+      if (!validation.queryType) {
+        throw new Error("Internal error: queryType missing after successful validation");
+      }
+      const queryType = validation.queryType;
 
       try {
         console.log(`Executing SPARQL ${queryType} query...`);
         const queryResult = await ctx.dkg.graph.query(query, queryType);
 
-        const resultText = JSON.stringify(queryResult, null, 2);
+        // Format result based on query type:
+        // - SELECT returns { data: [...bindings] }
+        // - CONSTRUCT returns { data: "<ntriples string>" }
+        const isConstructQuery = queryType === "CONSTRUCT";
+        const hasDataProperty = typeof queryResult === "object" && queryResult !== null && "data" in queryResult;
+        
+        let resultText: string;
+        let codeBlockLang: string;
+        
+        if (isConstructQuery && hasDataProperty && typeof queryResult.data === "string") {
+          // CONSTRUCT: extract N-triples string directly
+          resultText = queryResult.data;
+          codeBlockLang = "ntriples";
+        } else {
+          // SELECT or fallback: JSON format
+          resultText = JSON.stringify(queryResult, null, 2);
+          codeBlockLang = "json";
+        }
 
         return {
           content: [
             {
               type: "text",
-              text: `✅ Query executed successfully\n\n**Results:**\n\`\`\`json\n${resultText}\n\`\`\``,
+              text: `✅ Query executed successfully\n\n**Results:**\n\`\`\`${codeBlockLang}\n${resultText}\n\`\`\``,
             },
           ],
         };

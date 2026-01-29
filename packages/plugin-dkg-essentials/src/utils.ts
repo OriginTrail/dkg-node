@@ -89,14 +89,15 @@ export function validateSparqlQuery(query: string): { valid: boolean; error?: st
 
     // Only allow query types supported by the DKG node
     const allowedQueryTypes = ["SELECT", "CONSTRUCT"];
-    if (!allowedQueryTypes.includes(parsed.queryType)) {
+    const normalizedQueryType = parsed.queryType?.toUpperCase();
+    if (!normalizedQueryType || !allowedQueryTypes.includes(normalizedQueryType)) {
       return {
         valid: false,
         error: `Only SELECT and CONSTRUCT queries are supported. Received: ${parsed.queryType}`,
       };
     }
 
-    return { valid: true, queryType: parsed.queryType };
+    return { valid: true, queryType: normalizedQueryType };
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     return {
