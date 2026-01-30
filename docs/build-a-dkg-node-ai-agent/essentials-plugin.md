@@ -126,7 +126,7 @@ did:dkg:otp:20430/0xABCDEF0123456789/12345/67890
 }
 ```
 
-### 3) **DKG SPARQL query tool**
+#### 3) **DKG SPARQL query tool**
 
 **Purpose**\
 Execute SPARQL queries on the DKG to search, filter, and retrieve knowledge. Supports both SELECT queries (tabular results) and CONSTRUCT queries (graph/N-triples output).
