@@ -16,6 +16,7 @@ The **DKG Node Essentials Plugin** ships preinstalled with every DKG Node. It pr
 
 * **DKG Knowledge Asset create tool** - basic too to publish Knowledge assets from a JSON-LD object with `public` or `private` visibility
 * **DKG Knowledge Asset get** tool - retrieve a Knowledge asset by it's **UAL**.
+* **DKG SPARQL Query Tool** - execute SPARQL SELECT and CONSTRUCT queries on the DKG to search and retrieve knowledge.
 
 Publishing Knowledge assets with the "public" visibility, will replicate their content to the entirety of the DKG - making it **publicly visible**. When creating private knowledge assets, their content never leaves your node - only knowledge asset registration material (such as the cryptographic hash and UALs) will be published publicly.
 
