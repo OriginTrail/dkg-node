@@ -29,8 +29,10 @@
   "dependencies": {
     "@dkg/plugin-swagger": "^0.0.2",
     "@dkg/plugins": "^0.0.2",
+    "@mistralai/mistralai": "^1.3.0",
     "busboy": "^1.6.0",
-    "sparqljs": "^3.7.3"
+    "sparqljs": "^3.7.3",
+    "undici": "^6.19.0"
   },
   "devDependencies": {
     "@dkg/eslint-config": "*",

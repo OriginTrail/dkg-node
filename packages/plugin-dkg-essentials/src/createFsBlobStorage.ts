@@ -21,10 +21,11 @@ const createFsBlobStorage = (blobsDirectory: string): BlobStorage => {
           lastModified: stats.mtime,
         }))
         .catch(() => null),
-    put: (id, content /* , _metadata */) => {
-      const blobStream = Writable.toWeb(
-        fs.createWriteStream(path.join(blobsDirectory, id)),
-      );
+    put: async (id, content /* , _metadata */) => {
+      const filePath = path.join(blobsDirectory, id);
+      // Ensure parent directories exist for nested paths
+      await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+      const blobStream = Writable.toWeb(fs.createWriteStream(filePath));
       return content.pipeTo(blobStream);
     },
     get: async (id) =>
