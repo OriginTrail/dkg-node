@@ -4,7 +4,13 @@
 import { describe, it, beforeEach, afterEach } from "mocha";
 import { expect } from "chai";
 import sinon from "sinon";
-import { documentToMarkdownPlugin } from "../dist/index.js";
+import {
+  documentToMarkdownPlugin,
+  createDocumentToMarkdownPlugin,
+  createProvider,
+  getAvailableProviders,
+  isProviderAvailable,
+} from "../dist/index.js";
 import {
   createExpressApp,
   createInMemoryBlobStorage,
@@ -83,7 +89,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
       expect(tool!.description).to.include("PDF");
       expect(tool!.description).to.include("DOCX");
       expect(tool!.description).to.include("PPTX");
-      expect(tool!.description).to.include("Mistral OCR");
+      expect(tool!.description).to.include("OCR");
       expect(tool!.inputSchema).to.not.equal(undefined);
     });
 
@@ -97,6 +103,102 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
       expect(schema.properties).to.have.property("fileBase64");
       expect(schema.properties).to.have.property("filename");
       expect(schema.properties).to.have.property("options");
+    });
+  });
+
+  describe("Provider Registry", () => {
+    it("should list available providers", () => {
+      const providers = getAvailableProviders();
+      expect(providers).to.include("mistral");
+      expect(providers).to.be.an("array");
+    });
+
+    it("should check provider availability", () => {
+      expect(isProviderAvailable("mistral")).to.equal(true);
+      expect(isProviderAvailable("unknown")).to.equal(false);
+    });
+
+    it("should throw for unknown provider", () => {
+      expect(() => createProvider("unknown")).to.throw(
+        /Unknown document conversion provider/,
+      );
+    });
+
+    it("should create mistral provider when API key is set", () => {
+      process.env.MISTRAL_API_KEY = "test-api-key";
+      const provider = createProvider("mistral");
+      expect(provider.name).to.equal("mistral");
+    });
+
+    it("should throw when mistral API key is missing", () => {
+      delete process.env.MISTRAL_API_KEY;
+      expect(() => createProvider("mistral")).to.throw(/MISTRAL_API_KEY/);
+    });
+  });
+
+  describe("Custom Plugin Configuration", () => {
+    it("should accept custom provider via config", async () => {
+      // Create a mock provider
+      const mockProvider = {
+        name: "mock-provider",
+        convert: sinon.stub().resolves({
+          markdown: "# Test",
+          images: [],
+          pageCount: 1,
+        }),
+      };
+
+      const customPlugin = createDocumentToMarkdownPlugin({
+        provider: mockProvider,
+      });
+
+      const { server, client, connect } = await createMcpServerClientPair();
+      customPlugin(mockDkgContext, server, express.Router());
+      await connect();
+
+      const tools = await client.listTools().then((t) => t.tools);
+      expect(tools.some((t) => t.name === "document-to-markdown")).to.equal(
+        true,
+      );
+    });
+
+    it("should use custom provider for conversion", async () => {
+      // Create a mock provider that returns specific content
+      const mockProvider = {
+        name: "mock-provider",
+        convert: sinon.stub().resolves({
+          markdown: "# Mock Converted Content",
+          images: [],
+          pageCount: 3,
+        }),
+      };
+
+      const customPlugin = createDocumentToMarkdownPlugin({
+        provider: mockProvider,
+      });
+
+      const { server, client, connect } = await createMcpServerClientPair();
+      const freshBlobStorage = createInMemoryBlobStorage();
+      customPlugin(
+        { dkg: createMockDkgClient(), blob: freshBlobStorage },
+        server,
+        express.Router(),
+      );
+      await connect();
+
+      const result = await client.callTool({
+        name: "document-to-markdown",
+        arguments: {
+          filename: "test.pdf",
+          fileBase64: "dGVzdCBjb250ZW50",
+        },
+      });
+
+      expect(result.content).to.be.an("array");
+      const text = (result.content as any[])[0].text;
+      expect(text).to.include("Mock Converted Content");
+      expect(text).to.include("Pages Processed:** 3");
+      expect(mockProvider.convert.calledOnce).to.equal(true);
     });
   });
 
