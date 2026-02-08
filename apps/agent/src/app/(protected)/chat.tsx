@@ -26,6 +26,7 @@ import {
   type ToolCall,
   type ToolCallResultContent,
   makeCompletionRequest,
+  makeStreamingCompletionRequest,
   toContents,
 } from "@/shared/chat";
 import {
@@ -49,6 +50,7 @@ export default function ChatPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<string | null>(null);
 
   const pendingToolCalls = useRef<Set<string>>(new Set()); // Track tool calls that need responses before calling LLM
   const toolKAContents = useRef<Map<string, any[]>>(new Map()); // Track KAs across tool calls in a single request
@@ -117,6 +119,8 @@ export default function ChatPage() {
   }
 
   async function requestCompletion() {
+    if (isWeb) return requestCompletionStreaming();
+
     if (!mcp.token) throw new Error("Unauthorized");
 
     setIsGenerating(true);
@@ -166,6 +170,168 @@ export default function ChatPage() {
     }
   }
 
+  async function requestCompletionStreaming() {
+    if (!mcp.token) throw new Error("Unauthorized");
+
+    setIsGenerating(true);
+    try {
+      let currentMessages: ChatMessage[] = [];
+      await new Promise<void>((resolve) => {
+        setMessages((prevMessages) => {
+          currentMessages = prevMessages;
+          resolve();
+          return prevMessages;
+        });
+      });
+
+      let accumulatedContent = "";
+      let receivedToolCalls: ToolCall[] | null = null;
+      let rafId: number | null = null;
+
+      await makeStreamingCompletionRequest(
+        { messages: currentMessages, tools: tools.enabled },
+        { bearerToken: mcp.token },
+        {
+          onDelta(content) {
+            accumulatedContent += content;
+            // Throttle UI updates with requestAnimationFrame
+            if (rafId === null) {
+              rafId = requestAnimationFrame(() => {
+                setStreamingContent(accumulatedContent);
+                rafId = null;
+              });
+            }
+          },
+          onToolCalls(toolCalls) {
+            receivedToolCalls = toolCalls;
+          },
+          onDone() {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            // Flush final content
+            setStreamingContent(null);
+
+            const allKAContents: any[] = [];
+            toolKAContents.current.forEach((kaContents) => {
+              allKAContents.push(...kaContents);
+            });
+            toolKAContents.current.clear();
+
+            const completion: ChatMessage = {
+              role: "assistant",
+              content: accumulatedContent,
+              tool_calls: receivedToolCalls ?? undefined,
+            };
+
+            if (allKAContents.length > 0) {
+              completion.content = toContents(completion.content);
+              completion.content.push(...allKAContents);
+            }
+
+            setMessages((prev) => [...prev, completion]);
+
+            if (receivedToolCalls && receivedToolCalls.length > 0) {
+              receivedToolCalls.forEach((tc: any) => {
+                pendingToolCalls.current.add(tc.id);
+              });
+            }
+          },
+          onError(message) {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            setStreamingContent(null);
+            showAlert({
+              type: "error",
+              title: "LLM Error",
+              message,
+              timeout: 5000,
+            });
+          },
+        },
+      );
+    } catch (error) {
+      setStreamingContent(null);
+      showAlert({
+        type: "error",
+        title: "LLM Error",
+        message: error instanceof Error ? error.message : String(error),
+        timeout: 5000,
+      });
+    } finally {
+      setIsGenerating(false);
+      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
+    }
+  }
+
+  async function sendMessageStreaming(newMessage: ChatMessage) {
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+
+    if (!mcp.token) throw new Error("Unauthorized");
+
+    setIsGenerating(true);
+    try {
+      let accumulatedContent = "";
+      let receivedToolCalls: ToolCall[] | null = null;
+      let rafId: number | null = null;
+
+      await makeStreamingCompletionRequest(
+        { messages: [...messages, newMessage], tools: tools.enabled },
+        { bearerToken: mcp.token },
+        {
+          onDelta(content) {
+            accumulatedContent += content;
+            if (rafId === null) {
+              rafId = requestAnimationFrame(() => {
+                setStreamingContent(accumulatedContent);
+                rafId = null;
+              });
+            }
+          },
+          onToolCalls(toolCalls) {
+            receivedToolCalls = toolCalls;
+          },
+          onDone() {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            setStreamingContent(null);
+
+            const completion: ChatMessage = {
+              role: "assistant",
+              content: accumulatedContent,
+              tool_calls: receivedToolCalls ?? undefined,
+            };
+
+            setMessages((prev) => [...prev, completion]);
+
+            if (receivedToolCalls && receivedToolCalls.length > 0) {
+              receivedToolCalls.forEach((tc: any) => {
+                pendingToolCalls.current.add(tc.id);
+              });
+            }
+          },
+          onError(message) {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            setStreamingContent(null);
+            showAlert({
+              type: "error",
+              title: "LLM Error",
+              message,
+              timeout: 5000,
+            });
+          },
+        },
+      );
+    } catch (error) {
+      setStreamingContent(null);
+      showAlert({
+        type: "error",
+        title: "LLM Error",
+        message: error instanceof Error ? error.message : String(error),
+        timeout: 5000,
+      });
+    } finally {
+      setIsGenerating(false);
+      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
+    }
+  }
+
   async function cancelToolCall(tc: ToolCall & { id: string }) {
     tools.saveCallInfo(tc.id, { input: tc.args, status: "cancelled" });
 
@@ -177,6 +343,8 @@ export default function ChatPage() {
   }
 
   async function sendMessage(newMessage: ChatMessage) {
+    if (isWeb) return sendMessageStreaming(newMessage);
+
     setMessages((prevMessages) => [...prevMessages, newMessage]);
 
     if (!mcp.token) throw new Error("Unauthorized");
@@ -438,7 +606,12 @@ export default function ChatPage() {
                   </Chat.Message>
                 );
               })}
-              {isGenerating && <Chat.Thinking />}
+              {isGenerating && streamingContent === null && <Chat.Thinking />}
+              {streamingContent !== null && (
+                <Chat.Message icon="assistant">
+                  <Chat.Message.Content.Text text={streamingContent} />
+                </Chat.Message>
+              )}
             </Chat.Messages>
           </Container>
 

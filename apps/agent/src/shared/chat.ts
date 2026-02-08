@@ -6,6 +6,7 @@ import type {
   BaseFunctionCallOptions,
   ToolDefinition,
 } from "@langchain/core/language_models/base";
+import type { ToolCallChunk } from "@langchain/core/messages/tool";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
 export type { ToolDefinition };
@@ -189,6 +190,306 @@ export const makeCompletionRequest = async (
     if (r.status === 403) throw new Error("Forbidden");
     throw new Error(`Unexpected status code: ${r.status}`);
   });
+
+// --- SSE Streaming ---
+
+export type StreamCallbacks = {
+  onDelta: (content: string) => void;
+  onToolCalls: (toolCalls: ToolCall[]) => void;
+  onDone: () => void;
+  onError: (message: string) => void;
+};
+
+type SSEEvent =
+  | { event: "delta"; data: { content: string } }
+  | { event: "tool_calls"; data: { tool_calls: ToolCall[] } }
+  | { event: "done"; data: Record<string, never> }
+  | { event: "error"; data: { message: string } };
+
+function writeSSE(
+  res: { write: (chunk: string) => void; flush?: () => void },
+  event: SSEEvent,
+) {
+  res.write(`event: ${event.event}\ndata: ${JSON.stringify(event.data)}\n\n`);
+  // Flush buffered data to the network immediately (compression middleware adds this)
+  if (typeof res.flush === "function") res.flush();
+}
+
+/**
+ * Server-side: streams an LLM completion over SSE using Express req/res.
+ * Tool call chunks are accumulated and sent as a batch after the stream ends.
+ * Falls back to `.invoke()` if `.stream()` fails (e.g. SelfHosted providers).
+ */
+export const processStreamingCompletion = async (
+  req: { body: CompletionRequest },
+  res: {
+    writeHead: (status: number, headers: Record<string, string>) => void;
+    flushHeaders: () => void;
+    write: (chunk: string) => boolean;
+    flush?: () => void;
+    end: () => void;
+    on: (event: string, cb: () => void) => void;
+    socket?: { setNoDelay?: (noDelay: boolean) => void } | null;
+  },
+) => {
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+  res.flushHeaders();
+
+  // Disable Nagle's algorithm for real-time chunk delivery
+  res.socket?.setNoDelay?.(true);
+
+  let clientDisconnected = false;
+  res.on("close", () => {
+    clientDisconnected = true;
+  });
+
+  try {
+    const body = req.body;
+    if (!body?.messages) {
+      writeSSE(res, {
+        event: "error",
+        data: { message: "Invalid request: missing messages" },
+      });
+      res.end();
+      return;
+    }
+
+    const provider = await llmProvider();
+    const messages = [
+      {
+        role: "system" as const,
+        content: process.env.LLM_SYSTEM_PROMPT || DEFAULT_SYSTEM_PROMPT,
+      },
+      ...body.messages,
+    ];
+    const options = { ...body.options, tools: body.tools };
+
+    try {
+      const stream = await provider.stream(messages, options);
+
+      // Accumulate tool call chunks by index
+      const toolCallChunksByIndex = new Map<
+        number,
+        { name: string; args: string; id: string }
+      >();
+
+      for await (const chunk of stream) {
+        if (clientDisconnected) break;
+
+        // Emit text content
+        const content = chunk.content;
+        if (typeof content === "string" && content.length > 0) {
+          writeSSE(res, { event: "delta", data: { content } });
+        } else if (Array.isArray(content)) {
+          for (const part of content) {
+            if (
+              part &&
+              typeof part === "object" &&
+              "type" in part &&
+              part.type === "text" &&
+              "text" in part &&
+              typeof part.text === "string" &&
+              part.text.length > 0
+            ) {
+              writeSSE(res, { event: "delta", data: { content: part.text } });
+            }
+          }
+        }
+
+        // Accumulate tool call chunks
+        if (chunk.tool_call_chunks && chunk.tool_call_chunks.length > 0) {
+          for (const tcc of chunk.tool_call_chunks as ToolCallChunk[]) {
+            const idx = tcc.index ?? 0;
+            const existing = toolCallChunksByIndex.get(idx);
+            if (existing) {
+              if (tcc.name) existing.name += tcc.name;
+              if (tcc.args) existing.args += tcc.args;
+              if (tcc.id) existing.id += tcc.id;
+            } else {
+              toolCallChunksByIndex.set(idx, {
+                name: tcc.name ?? "",
+                args: tcc.args ?? "",
+                id: tcc.id ?? "",
+              });
+            }
+          }
+        }
+      }
+
+      // Emit accumulated tool calls
+      if (toolCallChunksByIndex.size > 0) {
+        const toolCalls: ToolCall[] = [];
+        for (const [, tc] of toolCallChunksByIndex) {
+          let args: Record<string, unknown> = {};
+          try {
+            args = tc.args ? JSON.parse(tc.args) : {};
+          } catch {
+            // Malformed JSON from partial streaming — send raw
+            args = {};
+          }
+          toolCalls.push({
+            name: tc.name,
+            args,
+            id: tc.id,
+            type: "tool_call",
+          });
+        }
+        writeSSE(res, {
+          event: "tool_calls",
+          data: { tool_calls: toolCalls },
+        });
+      }
+
+      writeSSE(res, { event: "done", data: {} });
+    } catch (streamError) {
+      // Fallback: invoke and emit full response as a single delta
+      try {
+        const result = await provider.invoke(messages, options);
+        const content = result.content;
+        if (typeof content === "string") {
+          writeSSE(res, { event: "delta", data: { content } });
+        } else if (Array.isArray(content)) {
+          for (const part of content) {
+            if (
+              part &&
+              typeof part === "object" &&
+              "type" in part &&
+              part.type === "text" &&
+              "text" in part &&
+              typeof part.text === "string"
+            ) {
+              writeSSE(res, {
+                event: "delta",
+                data: { content: part.text },
+              });
+            }
+          }
+        }
+        if (result.tool_calls && result.tool_calls.length > 0) {
+          writeSSE(res, {
+            event: "tool_calls",
+            data: { tool_calls: result.tool_calls as ToolCall[] },
+          });
+        }
+        writeSSE(res, { event: "done", data: {} });
+      } catch (invokeError) {
+        writeSSE(res, {
+          event: "error",
+          data: {
+            message:
+              invokeError instanceof Error
+                ? invokeError.message
+                : "Unknown error",
+          },
+        });
+      }
+    }
+  } catch (setupError) {
+    // Catch errors in setup (provider init, etc.)
+    writeSSE(res, {
+      event: "error",
+      data: {
+        message:
+          setupError instanceof Error ? setupError.message : "Unknown error",
+      },
+    });
+  }
+
+  res.end();
+};
+
+/**
+ * Client-side: makes a streaming completion request via SSE and dispatches
+ * parsed events to callbacks. Uses native `fetch` (not expo/fetch) for
+ * ReadableStream support.
+ */
+export const makeStreamingCompletionRequest = async (
+  req: CompletionRequest,
+  opts: {
+    bearerToken?: string;
+    signal?: AbortSignal;
+  },
+  callbacks: StreamCallbacks,
+) => {
+  // Use the MCP server origin (Express), not the app URL (may be Expo dev server)
+  const serverOrigin = new URL(process.env.EXPO_PUBLIC_MCP_URL).origin;
+  const response = await globalThis.fetch(serverOrigin + "/llm", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${opts.bearerToken}`,
+      Accept: "text/event-stream",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(req),
+    signal: opts.signal,
+  });
+
+  if (response.status === 401) throw new Error("Unauthorized");
+  if (response.status === 403) throw new Error("Forbidden");
+  if (!response.ok) throw new Error(`Unexpected status code: ${response.status}`);
+
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("No readable stream in response");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  let currentEvent = "";
+  let currentData = "";
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      // Parse complete SSE messages from buffer
+      const lines = buffer.split("\n");
+      buffer = lines.pop() ?? ""; // Keep incomplete last line
+
+      for (const line of lines) {
+        if (line.startsWith("event: ")) {
+          currentEvent = line.slice(7).trim();
+        } else if (line.startsWith("data: ")) {
+          currentData = line.slice(6);
+        } else if (line === "") {
+          // Empty line = end of SSE message
+          if (currentEvent && currentData) {
+            try {
+              const parsed = JSON.parse(currentData);
+              switch (currentEvent) {
+                case "delta":
+                  callbacks.onDelta(parsed.content);
+                  break;
+                case "tool_calls":
+                  callbacks.onToolCalls(parsed.tool_calls);
+                  break;
+                case "done":
+                  callbacks.onDone();
+                  break;
+                case "error":
+                  callbacks.onError(parsed.message);
+                  break;
+              }
+            } catch {
+              // Skip malformed SSE data
+            }
+          }
+          currentEvent = "";
+          currentData = "";
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock();
+  }
+};
 
 export const DEFAULT_SYSTEM_PROMPT = `
 You are a DKG Agent that helps users interact with the OriginTrail Decentralized Knowledge Graph (DKG) using available Model Context Protocol (MCP) tools.
