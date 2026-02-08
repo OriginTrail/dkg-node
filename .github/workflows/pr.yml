@@ -55,6 +55,7 @@ jobs:
           EXPO_PUBLIC_APP_URL=http://localhost:9200
           DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
           OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          LLM_MODEL=gpt-5-mini
           DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
           DKG_BLOCKCHAIN=otp:2043
           DKG_OTNODE_URL=https://positron.origin-trail.network
