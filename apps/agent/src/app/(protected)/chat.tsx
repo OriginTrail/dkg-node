@@ -1,5 +1,5 @@
-import { useCallback, useRef, useState } from "react";
-import { View, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { View, Text, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
 import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
 import { fetch } from "expo/fetch";
@@ -56,6 +56,18 @@ export default function ChatPage() {
   const toolKAContents = useRef<Map<string, any[]>>(new Map()); // Track KAs across tool calls in a single request
 
   const chatMessagesRef = useRef<ScrollView>(null);
+
+  const streamingTextStyle = useMemo(
+    () => ({
+      color: colors.text,
+      fontSize: 16,
+      fontFamily: "Manrope_400Regular",
+      lineHeight: 24,
+      marginTop: 0,
+      marginBottom: 16,
+    }),
+    [colors.text],
+  );
 
   async function callTool(tc: ToolCall & { id: string }) {
     tools.saveCallInfo(tc.id, { input: tc.args, status: "loading" });
@@ -257,12 +269,12 @@ export default function ChatPage() {
       });
     } finally {
       setIsGenerating(false);
-      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
     }
   }
 
   async function sendMessageStreaming(newMessage: ChatMessage) {
     setMessages((prevMessages) => [...prevMessages, newMessage]);
+    setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
 
     if (!mcp.token) throw new Error("Unauthorized");
 
@@ -328,7 +340,6 @@ export default function ChatPage() {
       });
     } finally {
       setIsGenerating(false);
-      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
     }
   }
 
@@ -609,7 +620,7 @@ export default function ChatPage() {
               {isGenerating && streamingContent === null && <Chat.Thinking />}
               {streamingContent !== null && (
                 <Chat.Message icon="assistant">
-                  <Chat.Message.Content.Text text={streamingContent} />
+                  <Text style={streamingTextStyle}>{streamingContent}</Text>
                 </Chat.Message>
               )}
             </Chat.Messages>
