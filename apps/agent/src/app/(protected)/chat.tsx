@@ -1,5 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import { View, Text, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { View, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
 import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
 import { fetch } from "expo/fetch";
@@ -19,6 +19,7 @@ import Container from "@/components/layout/Container";
 import Header from "@/components/layout/Header";
 import Chat from "@/components/Chat";
 import { SourceKAResolver } from "@/components/Chat/Message/SourceKAs/CollapsibleItem";
+import Markdown from "@/components/Markdown";
 import { useAlerts } from "@/components/Alerts";
 
 import {
@@ -38,6 +39,27 @@ import {
 import { toError } from "@/shared/errors";
 import useSettings from "@/hooks/useSettings";
 
+function normalizeStreamingMarkdown(content: string): string {
+  const fencePattern = /^(`{3,})[^`]*$/gm;
+  let count = 0;
+  let lastFenceLength = 3;
+  let match: RegExpExecArray | null;
+  while ((match = fencePattern.exec(content)) !== null) {
+    lastFenceLength = match[1]!.length;
+    count++;
+  }
+  if (count % 2 === 1) {
+    return content + "\n" + "`".repeat(lastFenceLength);
+  }
+  return content;
+}
+
+function stripThinkTags(content: string): string {
+  let result = content.replaceAll(/<think>.*?<\/think>/gs, "");
+  result = result.replace(/<think>(?:(?!<\/think>).)*$/s, "");
+  return result;
+}
+
 export default function ChatPage() {
   const colors = useColors();
   const { isNativeMobile, isWeb, width } = usePlatform();
@@ -56,18 +78,6 @@ export default function ChatPage() {
   const toolKAContents = useRef<Map<string, any[]>>(new Map()); // Track KAs across tool calls in a single request
 
   const chatMessagesRef = useRef<ScrollView>(null);
-
-  const streamingTextStyle = useMemo(
-    () => ({
-      color: colors.text,
-      fontSize: 16,
-      fontFamily: "Manrope_400Regular",
-      lineHeight: 24,
-      marginTop: 0,
-      marginBottom: 16,
-    }),
-    [colors.text],
-  );
 
   async function callTool(tc: ToolCall & { id: string }) {
     tools.saveCallInfo(tc.id, { input: tc.args, status: "loading" });
@@ -620,7 +630,9 @@ export default function ChatPage() {
               {isGenerating && streamingContent === null && <Chat.Thinking />}
               {streamingContent !== null && (
                 <Chat.Message icon="assistant">
-                  <Text style={streamingTextStyle}>{streamingContent}</Text>
+                  <Markdown>
+                    {normalizeStreamingMarkdown(stripThinkTags(streamingContent))}
+                  </Markdown>
                 </Chat.Message>
               )}
             </Chat.Messages>
