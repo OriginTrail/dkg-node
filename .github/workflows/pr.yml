@@ -23,6 +23,7 @@ jobs:
     timeout-minutes: 45
     env:
       TURBO_TELEMETRY_DISABLED: 1
+      LLM_MODEL: gpt-5-mini
 
     strategy:
       matrix:
