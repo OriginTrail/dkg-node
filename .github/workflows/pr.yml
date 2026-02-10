@@ -49,69 +49,46 @@ jobs:
           # Create main .env file for agent (mainnet by default)
           # Use absolute path for DATABASE_URL to work from any directory
           # IMPORTANT: No quotes around DATABASE_URL path!
-          cat > apps/agent/.env << EOF
-          PORT=9200
-          EXPO_PUBLIC_MCP_URL=http://localhost:9200
-          EXPO_PUBLIC_APP_URL=http://localhost:9200
-          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL=gpt-5-mini
-          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-          DKG_BLOCKCHAIN=otp:2043
-          DKG_OTNODE_URL=https://positron.origin-trail.network
-          EOF
-          sed -i 's/^[[:space:]]*//' apps/agent/.env
+          # Write env files using echo to avoid heredoc indentation issues
+          echo 'PORT=9200' > apps/agent/.env
+          echo 'EXPO_PUBLIC_MCP_URL="http://localhost:9200"' >> apps/agent/.env
+          echo 'EXPO_PUBLIC_APP_URL="http://localhost:9200"' >> apps/agent/.env
+          echo "DATABASE_URL=\"${GITHUB_WORKSPACE}/apps/agent/test.db\"" >> apps/agent/.env
+          echo "OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\"" >> apps/agent/.env
+          echo 'LLM_MODEL="gpt-5-mini"' >> apps/agent/.env
+          echo "DKG_PUBLISH_WALLET=\"${{ secrets.DKG_Node_Private_key }}\"" >> apps/agent/.env
+          echo 'DKG_BLOCKCHAIN="otp:2043"' >> apps/agent/.env
+          echo 'DKG_OTNODE_URL="https://positron.origin-trail.network"' >> apps/agent/.env
 
           # Create root .env file for turbo dev (when running from root directory)
-          # This is needed because turbo dev runs from root and dotenv looks for .env in cwd
-          cat > .env << EOF
-          PORT=9200
-          EXPO_PUBLIC_MCP_URL=http://localhost:9200
-          EXPO_PUBLIC_APP_URL=http://localhost:9200
-          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL=gpt-5-mini
-          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-          DKG_BLOCKCHAIN=otp:2043
-          DKG_OTNODE_URL=https://positron.origin-trail.network
-          EOF
-          sed -i 's/^[[:space:]]*//' .env
+          cp apps/agent/.env .env
 
           # Create development override file
-          cat > apps/agent/.env.development.local << 'EOF'
-          # These values will override the .env file during the development
-          EXPO_PUBLIC_APP_URL=http://localhost:8081
-          EOF
-          sed -i 's/^[[:space:]]*//' apps/agent/.env.development.local
+          echo '# These values will override the .env file during the development' > apps/agent/.env.development.local
+          echo 'EXPO_PUBLIC_APP_URL="http://localhost:8081"' >> apps/agent/.env.development.local
 
           # Create testnet environment file
           mkdir -p apps/agent/tests
-          cat > apps/agent/tests/.env.testing.testnet.local << EOF
-          PORT=9200
-          EXPO_PUBLIC_MCP_URL=http://localhost:9200
-          EXPO_PUBLIC_APP_URL=http://localhost:9200
-          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL=gpt-5-mini
-          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-          DKG_BLOCKCHAIN=otp:20430
-          DKG_OTNODE_URL=https://v6-pegasus-node-02.origin-trail.network
-          EOF
-          sed -i 's/^[[:space:]]*//' apps/agent/tests/.env.testing.testnet.local
+          echo 'PORT=9200' > apps/agent/tests/.env.testing.testnet.local
+          echo 'EXPO_PUBLIC_MCP_URL="http://localhost:9200"' >> apps/agent/tests/.env.testing.testnet.local
+          echo 'EXPO_PUBLIC_APP_URL="http://localhost:9200"' >> apps/agent/tests/.env.testing.testnet.local
+          echo "DATABASE_URL=\"${GITHUB_WORKSPACE}/apps/agent/test.db\"" >> apps/agent/tests/.env.testing.testnet.local
+          echo "OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\"" >> apps/agent/tests/.env.testing.testnet.local
+          echo 'LLM_MODEL="gpt-5-mini"' >> apps/agent/tests/.env.testing.testnet.local
+          echo "DKG_PUBLISH_WALLET=\"${{ secrets.DKG_Node_Private_key }}\"" >> apps/agent/tests/.env.testing.testnet.local
+          echo 'DKG_BLOCKCHAIN="otp:20430"' >> apps/agent/tests/.env.testing.testnet.local
+          echo 'DKG_OTNODE_URL="https://v6-pegasus-node-02.origin-trail.network"' >> apps/agent/tests/.env.testing.testnet.local
 
           # Create mainnet environment file
-          cat > apps/agent/tests/.env.testing.mainnet.local << EOF
-          PORT=9200
-          EXPO_PUBLIC_MCP_URL=http://localhost:9200
-          EXPO_PUBLIC_APP_URL=http://localhost:9200
-          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL=gpt-5-mini
-          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-          DKG_BLOCKCHAIN=otp:2043
-          DKG_OTNODE_URL=https://positron.origin-trail.network
-          EOF
-          sed -i 's/^[[:space:]]*//' apps/agent/tests/.env.testing.mainnet.local
+          echo 'PORT=9200' > apps/agent/tests/.env.testing.mainnet.local
+          echo 'EXPO_PUBLIC_MCP_URL="http://localhost:9200"' >> apps/agent/tests/.env.testing.mainnet.local
+          echo 'EXPO_PUBLIC_APP_URL="http://localhost:9200"' >> apps/agent/tests/.env.testing.mainnet.local
+          echo "DATABASE_URL=\"${GITHUB_WORKSPACE}/apps/agent/test.db\"" >> apps/agent/tests/.env.testing.mainnet.local
+          echo "OPENAI_API_KEY=\"${{ secrets.OPENAI_API_KEY }}\"" >> apps/agent/tests/.env.testing.mainnet.local
+          echo 'LLM_MODEL="gpt-5-mini"' >> apps/agent/tests/.env.testing.mainnet.local
+          echo "DKG_PUBLISH_WALLET=\"${{ secrets.DKG_Node_Private_key }}\"" >> apps/agent/tests/.env.testing.mainnet.local
+          echo 'DKG_BLOCKCHAIN="otp:2043"' >> apps/agent/tests/.env.testing.mainnet.local
+          echo 'DKG_OTNODE_URL="https://positron.origin-trail.network"' >> apps/agent/tests/.env.testing.mainnet.local
 
           echo "Environment files created successfully!"
 
