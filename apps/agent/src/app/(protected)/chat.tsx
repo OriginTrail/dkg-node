@@ -192,31 +192,18 @@ export default function ChatPage() {
     }
   }
 
-  async function requestCompletionStreaming() {
-    if (!mcp.token) throw new Error("Unauthorized");
+  async function streamCompletion(messagesToSend: ChatMessage[]) {
+    let accumulatedContent = "";
+    let receivedToolCalls: ToolCall[] | null = null;
+    let rafId: number | null = null;
 
-    setIsGenerating(true);
     try {
-      let currentMessages: ChatMessage[] = [];
-      await new Promise<void>((resolve) => {
-        setMessages((prevMessages) => {
-          currentMessages = prevMessages;
-          resolve();
-          return prevMessages;
-        });
-      });
-
-      let accumulatedContent = "";
-      let receivedToolCalls: ToolCall[] | null = null;
-      let rafId: number | null = null;
-
       await makeStreamingCompletionRequest(
-        { messages: currentMessages, tools: tools.enabled },
-        { bearerToken: mcp.token },
+        { messages: messagesToSend, tools: tools.enabled },
+        { bearerToken: mcp.token! },
         {
           onDelta(content) {
             accumulatedContent += content;
-            // Throttle UI updates with requestAnimationFrame
             if (rafId === null) {
               rafId = requestAnimationFrame(() => {
                 setStreamingContent(accumulatedContent);
@@ -229,7 +216,6 @@ export default function ChatPage() {
           },
           onDone() {
             if (rafId !== null) cancelAnimationFrame(rafId);
-            // Flush final content
             setStreamingContent(null);
 
             const allKAContents: any[] = [];
@@ -269,6 +255,27 @@ export default function ChatPage() {
           },
         },
       );
+    } finally {
+      // Cancel any pending RAF to prevent stale UI updates after errors
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    }
+  }
+
+  async function requestCompletionStreaming() {
+    if (!mcp.token) throw new Error("Unauthorized");
+
+    setIsGenerating(true);
+    try {
+      let currentMessages: ChatMessage[] = [];
+      await new Promise<void>((resolve) => {
+        setMessages((prevMessages) => {
+          currentMessages = prevMessages;
+          resolve();
+          return prevMessages;
+        });
+      });
+
+      await streamCompletion(currentMessages);
     } catch (error) {
       setStreamingContent(null);
       showAlert({
@@ -290,56 +297,7 @@ export default function ChatPage() {
 
     setIsGenerating(true);
     try {
-      let accumulatedContent = "";
-      let receivedToolCalls: ToolCall[] | null = null;
-      let rafId: number | null = null;
-
-      await makeStreamingCompletionRequest(
-        { messages: [...messages, newMessage], tools: tools.enabled },
-        { bearerToken: mcp.token },
-        {
-          onDelta(content) {
-            accumulatedContent += content;
-            if (rafId === null) {
-              rafId = requestAnimationFrame(() => {
-                setStreamingContent(accumulatedContent);
-                rafId = null;
-              });
-            }
-          },
-          onToolCalls(toolCalls) {
-            receivedToolCalls = toolCalls;
-          },
-          onDone() {
-            if (rafId !== null) cancelAnimationFrame(rafId);
-            setStreamingContent(null);
-
-            const completion: ChatMessage = {
-              role: "assistant",
-              content: accumulatedContent,
-              tool_calls: receivedToolCalls ?? undefined,
-            };
-
-            setMessages((prev) => [...prev, completion]);
-
-            if (receivedToolCalls && receivedToolCalls.length > 0) {
-              receivedToolCalls.forEach((tc: any) => {
-                pendingToolCalls.current.add(tc.id);
-              });
-            }
-          },
-          onError(message) {
-            if (rafId !== null) cancelAnimationFrame(rafId);
-            setStreamingContent(null);
-            showAlert({
-              type: "error",
-              title: "LLM Error",
-              message,
-              timeout: 5000,
-            });
-          },
-        },
-      );
+      await streamCompletion([...messages, newMessage]);
     } catch (error) {
       setStreamingContent(null);
       showAlert({

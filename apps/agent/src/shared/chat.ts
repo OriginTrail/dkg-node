@@ -446,6 +446,7 @@ export const makeStreamingCompletionRequest = async (
 
   let currentEvent = "";
   let currentData = "";
+  let streamFinalized = false;
 
   try {
     while (true) {
@@ -476,9 +477,11 @@ export const makeStreamingCompletionRequest = async (
                   callbacks.onToolCalls(parsed.tool_calls);
                   break;
                 case "done":
+                  streamFinalized = true;
                   callbacks.onDone();
                   break;
                 case "error":
+                  streamFinalized = true;
                   callbacks.onError(parsed.message);
                   break;
               }
@@ -490,6 +493,11 @@ export const makeStreamingCompletionRequest = async (
           currentData = "";
         }
       }
+    }
+
+    // Stream ended without an explicit done/error event (server crash, network drop)
+    if (!streamFinalized) {
+      callbacks.onError("Connection lost — the server stopped responding");
     }
   } finally {
     reader.releaseLock();
