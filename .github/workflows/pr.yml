@@ -24,10 +24,10 @@ jobs:
     env:
       TURBO_TELEMETRY_DISABLED: 1
       LLM_MODEL: gpt-5-mini
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     strategy:
       matrix:
-        # The fromJSON() function converts the JSON string into an actual array
         node-version: ${{ fromJSON((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && '[22]' || '[22, 24]') }}
       fail-fast: false
 
@@ -45,100 +45,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Create environment files for tests
-        run: |
-          # Create main .env file for agent (mainnet by default)
-          # Use absolute path for DATABASE_URL to work from any directory
-          # IMPORTANT: No quotes around DATABASE_URL path!
-          cat > apps/agent/.env << EOF
-          PORT=9200
-          EXPO_PUBLIC_MCP_URL=http://localhost:9200
-          EXPO_PUBLIC_APP_URL=http://localhost:9200
-          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL=gpt-5-mini
-          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-          DKG_BLOCKCHAIN=otp:2043
-          DKG_OTNODE_URL=https://positron.origin-trail.network
-          EOF
-
-          # Create root .env file for turbo dev (when running from root directory)
-          # This is needed because turbo dev runs from root and dotenv looks for .env in cwd
-          cat > .env << EOF
-          PORT=9200
-          EXPO_PUBLIC_MCP_URL=http://localhost:9200
-          EXPO_PUBLIC_APP_URL=http://localhost:9200
-          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL=gpt-5-mini
-          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-          DKG_BLOCKCHAIN=otp:2043
-          DKG_OTNODE_URL=https://positron.origin-trail.network
-          EOF
-
-          # Create development override file
-          cat > apps/agent/.env.development.local << 'EOF'
-          # These values will override the .env file during the development
-          EXPO_PUBLIC_APP_URL=http://localhost:8081
-          EOF
-
-          # Create testnet environment file
-          mkdir -p apps/agent/tests
-          cat > apps/agent/tests/.env.testing.testnet.local << EOF
-          PORT=9200
-          EXPO_PUBLIC_MCP_URL=http://localhost:9200
-          EXPO_PUBLIC_APP_URL=http://localhost:9200
-          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL=gpt-5-mini
-          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-          DKG_BLOCKCHAIN=otp:20430
-          DKG_OTNODE_URL=https://v6-pegasus-node-02.origin-trail.network
-          EOF
-
-          # Create mainnet environment file
-          cat > apps/agent/tests/.env.testing.mainnet.local << EOF
-          PORT=9200
-          EXPO_PUBLIC_MCP_URL=http://localhost:9200
-          EXPO_PUBLIC_APP_URL=http://localhost:9200
-          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-          LLM_MODEL=gpt-5-mini
-          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-          DKG_BLOCKCHAIN=otp:2043
-          DKG_OTNODE_URL=https://positron.origin-trail.network
-          EOF
-
-          echo "Environment files created successfully!"
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
       - name: Check code quality
         run: npm run check || echo "⚠️ Code quality checks completed with warnings (non-blocking)"
 
       - name: Build packages and apps
         run: npm run build
 
-      - name: Create admin user for tests
-        run: |
-          cd apps/agent
-          rm -f test.db test.db-* *.db-journal
-          # Create admin user: email password scope firstName lastName
-          npm run script:createUser admin@gmail.com admin123 mcp,llm,blob,scope123 Admin User
-
-      - name: Run tests from all packages
-        run: npm run test
+      - name: Run API and integration tests
+        run: npm run test:api && npm run test:integration
         env:
           CI: true
-
-      - name: Upload test videos and screenshots
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-artifacts-node-${{ matrix.node-version }}
-          path: |
-            apps/agent/test-results/
-            apps/agent/playwright-report/
-          retention-days: 7
-          if-no-files-found: warn

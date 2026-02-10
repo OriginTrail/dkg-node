@@ -13,6 +13,7 @@ import swaggerPlugin from "@dkg/plugin-swagger";
 import { mockDkgPublisherPlugin } from "./mock-dkg-publisher";
 import { redisManager } from "./redis-manager";
 import { userCredentialsSchema } from "../../../src/shared/auth";
+import { processStreamingCompletion } from "../../../src/shared/chat";
 import { verify } from "@node-rs/argon2";
 import { users } from "../../../src/server/database/sqlite";
 import { eq } from "drizzle-orm";
@@ -151,6 +152,13 @@ export async function createTestServer(config: TestServerConfig = {}): Promise<{
         api.use("/mcp", authorized(["mcp"]));
         api.use("/llm", authorized(["llm"]));
         api.use("/blob", authorized(["blob"]));
+      },
+      // Streaming LLM middleware — same as real server
+      (_, __, api) => {
+        api.post("/llm", (req, res, next) => {
+          if (!req.headers.accept?.includes("text/event-stream")) return next();
+          processStreamingCompletion(req, res);
+        });
       },
       dkgEssentialsPlugin,
       // DKG Publisher Plugin for API contract testing
