@@ -73,6 +73,7 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [streamingContent, setStreamingContent] = useState<string | null>(null);
+  const [messagesViewHeight, setMessagesViewHeight] = useState(0);
 
   const pendingToolCalls = useRef<Set<string>>(new Set()); // Track tool calls that need responses before calling LLM
   const toolKAContents = useRef<Map<string, any[]>>(new Map()); // Track KAs across tool calls in a single request
@@ -450,6 +451,7 @@ export default function ChatPage() {
             <Header handleLogout={() => mcp.disconnect()} />
             <Chat.Messages
               ref={chatMessagesRef}
+              onLayout={(e) => setMessagesViewHeight(e.nativeEvent.layout.height)}
               style={[
                 {
                   width: "100%",
@@ -462,6 +464,9 @@ export default function ChatPage() {
                 },
               ]}
             >
+              {messages.length > 0 && (
+                <View style={{ height: messagesViewHeight * 0.15 }} />
+              )}
               {messages.map((m, i) => {
                 if (m.role !== "user" && m.role !== "assistant") return null;
 
@@ -592,6 +597,9 @@ export default function ChatPage() {
                     {normalizeStreamingMarkdown(stripThinkTags(streamingContent))}
                   </Markdown>
                 </Chat.Message>
+              )}
+              {messages.length > 0 && (
+                <View style={{ height: messagesViewHeight * 0.85 }} />
               )}
             </Chat.Messages>
           </Container>
