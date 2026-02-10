@@ -86,7 +86,12 @@ const llmProviderFromEnv = async () => {
   if (!isValidLLMProvider(provider)) {
     throw new Error(`Unsupported LLM provider: ${provider}`);
   }
-  const model = process.env.LLM_MODEL || "gpt-4o-mini";
+  const model = process.env.LLM_MODEL;
+  if (!model) {
+    throw new Error(
+      "LLM_MODEL environment variable is not set. Please define it in your .env file",
+    );
+  }
   const temperature = Number(process.env.LLM_TEMPERATURE || "0");
   if (isNaN(temperature)) {
     throw new Error(`Invalid LLM temperature: ${temperature}`);
