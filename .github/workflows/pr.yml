@@ -49,65 +49,69 @@ jobs:
           # Create main .env file for agent (mainnet by default)
           # Use absolute path for DATABASE_URL to work from any directory
           # IMPORTANT: No quotes around DATABASE_URL path!
-          # IMPORTANT: No leading spaces - heredoc content must start at column 0!
           cat > apps/agent/.env << EOF
-PORT=9200
-EXPO_PUBLIC_MCP_URL=http://localhost:9200
-EXPO_PUBLIC_APP_URL=http://localhost:9200
-DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-LLM_MODEL=gpt-5-mini
-DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-DKG_BLOCKCHAIN=otp:2043
-DKG_OTNODE_URL=https://positron.origin-trail.network
-EOF
+          PORT=9200
+          EXPO_PUBLIC_MCP_URL=http://localhost:9200
+          EXPO_PUBLIC_APP_URL=http://localhost:9200
+          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          LLM_MODEL=gpt-5-mini
+          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
+          DKG_BLOCKCHAIN=otp:2043
+          DKG_OTNODE_URL=https://positron.origin-trail.network
+          EOF
+          sed -i 's/^[[:space:]]*//' apps/agent/.env
 
           # Create root .env file for turbo dev (when running from root directory)
           # This is needed because turbo dev runs from root and dotenv looks for .env in cwd
           cat > .env << EOF
-PORT=9200
-EXPO_PUBLIC_MCP_URL=http://localhost:9200
-EXPO_PUBLIC_APP_URL=http://localhost:9200
-DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-LLM_MODEL=gpt-5-mini
-DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-DKG_BLOCKCHAIN=otp:2043
-DKG_OTNODE_URL=https://positron.origin-trail.network
-EOF
+          PORT=9200
+          EXPO_PUBLIC_MCP_URL=http://localhost:9200
+          EXPO_PUBLIC_APP_URL=http://localhost:9200
+          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          LLM_MODEL=gpt-5-mini
+          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
+          DKG_BLOCKCHAIN=otp:2043
+          DKG_OTNODE_URL=https://positron.origin-trail.network
+          EOF
+          sed -i 's/^[[:space:]]*//' .env
 
           # Create development override file
           cat > apps/agent/.env.development.local << 'EOF'
-# These values will override the .env file during the development
-EXPO_PUBLIC_APP_URL=http://localhost:8081
-EOF
+          # These values will override the .env file during the development
+          EXPO_PUBLIC_APP_URL=http://localhost:8081
+          EOF
+          sed -i 's/^[[:space:]]*//' apps/agent/.env.development.local
 
           # Create testnet environment file
           mkdir -p apps/agent/tests
           cat > apps/agent/tests/.env.testing.testnet.local << EOF
-PORT=9200
-EXPO_PUBLIC_MCP_URL=http://localhost:9200
-EXPO_PUBLIC_APP_URL=http://localhost:9200
-DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-LLM_MODEL=gpt-5-mini
-DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-DKG_BLOCKCHAIN=otp:20430
-DKG_OTNODE_URL=https://v6-pegasus-node-02.origin-trail.network
-EOF
+          PORT=9200
+          EXPO_PUBLIC_MCP_URL=http://localhost:9200
+          EXPO_PUBLIC_APP_URL=http://localhost:9200
+          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          LLM_MODEL=gpt-5-mini
+          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
+          DKG_BLOCKCHAIN=otp:20430
+          DKG_OTNODE_URL=https://v6-pegasus-node-02.origin-trail.network
+          EOF
+          sed -i 's/^[[:space:]]*//' apps/agent/tests/.env.testing.testnet.local
 
           # Create mainnet environment file
           cat > apps/agent/tests/.env.testing.mainnet.local << EOF
-PORT=9200
-EXPO_PUBLIC_MCP_URL=http://localhost:9200
-EXPO_PUBLIC_APP_URL=http://localhost:9200
-DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
-LLM_MODEL=gpt-5-mini
-DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
-DKG_BLOCKCHAIN=otp:2043
-DKG_OTNODE_URL=https://positron.origin-trail.network
-EOF
+          PORT=9200
+          EXPO_PUBLIC_MCP_URL=http://localhost:9200
+          EXPO_PUBLIC_APP_URL=http://localhost:9200
+          DATABASE_URL=${GITHUB_WORKSPACE}/apps/agent/test.db
+          OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
+          LLM_MODEL=gpt-5-mini
+          DKG_PUBLISH_WALLET=${{ secrets.DKG_Node_Private_key }}
+          DKG_BLOCKCHAIN=otp:2043
+          DKG_OTNODE_URL=https://positron.origin-trail.network
+          EOF
+          sed -i 's/^[[:space:]]*//' apps/agent/tests/.env.testing.mainnet.local
 
           echo "Environment files created successfully!"
 
