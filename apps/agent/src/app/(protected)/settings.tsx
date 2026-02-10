@@ -176,9 +176,10 @@ const sections = [
       const { showDialog } = useDialog();
 
       const update = useCallback(
-        async (value: boolean) => {
+        async (autoApprove: boolean, showPanels: boolean) => {
           try {
-            await settings.set("autoApproveMcpTools", value);
+            await settings.set("autoApproveMcpTools", autoApprove);
+            await settings.set("showMcpToolExecutionPanels", showPanels);
             await settings.reload();
             showDialog({
               type: "success",
@@ -199,7 +200,8 @@ const sections = [
 
       return (
         <McpAutoapproveForm
-          currentValue={settings.autoApproveMcpTools}
+          currentAutoApprove={settings.autoApproveMcpTools}
+          currentShowPanels={settings.showMcpToolExecutionPanels}
           onSubmit={update}
         />
       );
