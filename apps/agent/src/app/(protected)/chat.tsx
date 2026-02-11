@@ -54,6 +54,8 @@ function normalizeStreamingMarkdown(content: string): string {
   return content;
 }
 
+const SCROLL_TOP_GAP = 28; // px from viewport top to user message after scroll (matches contentContainerStyle.paddingTop)
+
 function stripThinkTags(content: string): string {
   let result = content.replaceAll(/<think>.*?<\/think>/gs, "");
   result = result.replace(/<think>(?:(?!<\/think>).)*$/s, "");
@@ -79,6 +81,12 @@ export default function ChatPage() {
   const toolKAContents = useRef<Map<string, any[]>>(new Map()); // Track KAs across tool calls in a single request
 
   const chatMessagesRef = useRef<ScrollView>(null);
+  const lastUserMessageYRef = useRef(0);
+  const scrollPendingRef = useRef(false);
+  const scrollTargetRef = useRef<number | null>(null);
+  const messagesViewHeightRef = useRef(0);
+
+  const [contentMinHeight, setContentMinHeight] = useState(0);
 
   async function callTool(tc: ToolCall & { id: string }) {
     tools.saveCallInfo(tc.id, { input: tc.args, status: "loading" });
@@ -189,7 +197,6 @@ export default function ChatPage() {
       }
     } finally {
       setIsGenerating(false);
-      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
     }
   }
 
@@ -291,8 +298,8 @@ export default function ChatPage() {
   }
 
   async function sendMessageStreaming(newMessage: ChatMessage) {
+    scrollPendingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
-    setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
 
     if (!mcp.token) throw new Error("Unauthorized");
 
@@ -325,6 +332,7 @@ export default function ChatPage() {
   async function sendMessage(newMessage: ChatMessage) {
     if (isWeb) return sendMessageStreaming(newMessage);
 
+    scrollPendingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
 
     if (!mcp.token) throw new Error("Unauthorized");
@@ -351,7 +359,6 @@ export default function ChatPage() {
       }
     } finally {
       setIsGenerating(false);
-      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
     }
   }
 
@@ -425,6 +432,22 @@ export default function ChatPage() {
     [mcp, showAlert],
   );
 
+  const lastUserMsgIdx = messages.reduce(
+    (a, m, i) => (m.role === "user" ? i : a),
+    -1,
+  );
+
+  const handleContentSizeChange = useCallback((_w: number, h: number) => {
+    if (scrollTargetRef.current !== null) {
+      const targetY = scrollTargetRef.current;
+      // Only scroll once content is tall enough for the scroll position to work
+      if (h >= targetY + messagesViewHeightRef.current) {
+        scrollTargetRef.current = null;
+        chatMessagesRef.current?.scrollTo({ y: targetY, animated: true });
+      }
+    }
+  }, []);
+
   const isLandingScreen = !messages.length && !isNativeMobile;
   console.debug("Messages:", messages);
   console.debug("Tools (enabled):", tools.enabled);
@@ -451,7 +474,17 @@ export default function ChatPage() {
             <Header handleLogout={() => mcp.disconnect()} />
             <Chat.Messages
               ref={chatMessagesRef}
-              onLayout={(e) => setMessagesViewHeight(e.nativeEvent.layout.height)}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                setMessagesViewHeight(h);
+                messagesViewHeightRef.current = h;
+              }}
+              onContentSizeChange={handleContentSizeChange}
+              contentContainerStyle={{
+                paddingTop: 28,
+                paddingBottom: 16,
+                ...(contentMinHeight > 0 && { minHeight: contentMinHeight }),
+              }}
               style={[
                 {
                   width: "100%",
@@ -464,9 +497,6 @@ export default function ChatPage() {
                 },
               ]}
             >
-              {messages.length > 0 && (
-                <View style={{ height: messagesViewHeight * 0.15 }} />
-              )}
               {messages.map((m, i) => {
                 if (m.role !== "user" && m.role !== "assistant") return null;
 
@@ -504,9 +534,8 @@ export default function ChatPage() {
                 const isLastMessage = i === messages.length - 1;
                 const isIdle = !isGenerating && !m.tool_calls?.length;
 
-                return (
+                const messageContent = (
                   <Chat.Message
-                    key={i}
                     icon={m.role as "user" | "assistant"}
                     style={{ gap: 8 }}
                   >
@@ -514,30 +543,30 @@ export default function ChatPage() {
                     <Chat.Message.SourceKAs kas={kas} resolver={kaResolver} />
 
                     {/* Images */}
-                    {images.map((image, i) => (
+                    {images.map((image, j) => (
                       <Chat.Message.Content.Image
-                        key={i}
+                        key={j}
                         url={image.uri}
                         authToken={mcp.token}
                       />
                     ))}
 
                     {/* Files */}
-                    {files.map((file, i) => (
-                      <Chat.Message.Content.File key={i} file={file} />
+                    {files.map((file, j) => (
+                      <Chat.Message.Content.File key={j} file={file} />
                     ))}
 
                     {/* Text (markdown) */}
-                    {text.map((c, i) => (
+                    {text.map((c, j) => (
                       <Chat.Message.Content.Text
-                        key={i}
+                        key={j}
                         text={c.replaceAll(/<think>.*?<\/think>/gs, "")}
                       />
                     ))}
 
                     {/* Tool calls */}
-                    {m.tool_calls?.map((_tc, i) => {
-                      const tcId = _tc.id || i.toString();
+                    {m.tool_calls?.map((_tc, j) => {
+                      const tcId = _tc.id || j.toString();
                       const tc = {
                         ..._tc,
                         id: tcId,
@@ -584,11 +613,36 @@ export default function ChatPage() {
                           tools.reset();
                           pendingToolCalls.current.clear();
                           toolKAContents.current.clear();
+                          lastUserMessageYRef.current = 0;
+                          scrollPendingRef.current = false;
+                          scrollTargetRef.current = null;
+                          setContentMinHeight(0);
                         }}
                       />
                     )}
                   </Chat.Message>
                 );
+
+                if (i === lastUserMsgIdx) {
+                  return (
+                    <View
+                      key={i}
+                      onLayout={(e) => {
+                        const y = e.nativeEvent.layout.y;
+                        lastUserMessageYRef.current = y;
+                        if (scrollPendingRef.current) {
+                          scrollPendingRef.current = false;
+                          scrollTargetRef.current = Math.max(0, y - SCROLL_TOP_GAP);
+                          setContentMinHeight(y + messagesViewHeight);
+                        }
+                      }}
+                    >
+                      {messageContent}
+                    </View>
+                  );
+                }
+
+                return <View key={i}>{messageContent}</View>;
               })}
               {isGenerating && streamingContent === null && <Chat.Thinking />}
               {streamingContent !== null && (
@@ -597,9 +651,6 @@ export default function ChatPage() {
                     {normalizeStreamingMarkdown(stripThinkTags(streamingContent))}
                   </Markdown>
                 </Chat.Message>
-              )}
-              {messages.length > 0 && (
-                <View style={{ height: messagesViewHeight * 0.85 }} />
               )}
             </Chat.Messages>
           </Container>
