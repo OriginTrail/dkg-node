@@ -32,6 +32,7 @@ export interface EPCISDocument {
     receivedAt: string;
     captureID: string;
     eventCount: number;
+    UAL?: string;
   }
   
   export interface CaptureStatusResponse {

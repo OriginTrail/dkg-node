@@ -8,7 +8,16 @@ import type { CaptureResponse } from "./model/types";
 const PUBLISHER_POST_TIMEOUT_MS = 10000;
 const PUBLISHER_GET_TIMEOUT_MS = 5000;
 
-// Helper function to send JSON-LD to publisher
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
+
+// Helper for delay
+function delay(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// Helper function to send JSON-LD to publisher with retries
 async function sendToPublisher(
   jsonLd: any,
   metadata?: { source?: string; sourceId?: string },
@@ -19,33 +28,62 @@ async function sendToPublisher(
 ): Promise<{ id: number; status: string; attemptCount: number }> {
   const publisherUrl = process.env.PUBLISHER_URL || "http://localhost:9200";
 
-  try {
-    const response = await fetch(`${publisherUrl}/api/dkg/assets`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: jsonLd,
-        metadata: metadata || { source: "EPCIS" },
-        publishOptions: {
-          privacy: publishOptions?.privacy ?? "private",
-          epochs: publishOptions?.epochs ?? 12,
-        },
-      }),
-      signal: AbortSignal.timeout(PUBLISHER_POST_TIMEOUT_MS),
-    });
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch(`${publisherUrl}/api/dkg/assets`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content: jsonLd,
+          metadata: metadata || { source: "EPCIS" },
+          publishOptions: {
+            privacy: publishOptions?.privacy ?? "private",
+            epochs: publishOptions?.epochs ?? 12,
+          },
+        }),
+        signal: AbortSignal.timeout(PUBLISHER_POST_TIMEOUT_MS),
+      });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Publisher request failed");
-    }
+      if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
+        throw new Error("Publisher not available");
+      }
 
-    return response.json();
-  } catch (error: any) {
-    if (error.name === "TimeoutError") {
-      throw new Error("Publisher request timed out");
+      return await response.json();
+    } catch (error: any) {
+      console.warn(`[EPCIS] Publisher attempt ${attempt}/${MAX_RETRIES} failed`);
+      
+      if (attempt < MAX_RETRIES) {
+        await delay(RETRY_DELAY_MS * Math.pow(2, attempt - 1));
+        continue;
+      }
     }
-    throw error;
   }
+
+  throw new Error("Publisher not available");
+}
+
+// Fallback: publish directly to DKG
+async function publishDirectToDKG(
+  ctx: any,
+  jsonLd: any,
+  publishOptions?: { privacy?: "private" | "public"; epochs?: number }
+): Promise<{ ual: string }> {
+  const privacy = publishOptions?.privacy ?? "private";
+  const wrapped = { [privacy]: jsonLd };
+  
+  console.log(`[EPCIS] Publishing directly to DKG (fallback)...`);
+  
+  const result = await ctx.dkg.asset.create(wrapped, {
+    epochsNum: publishOptions?.epochs ?? 12,
+    minimumNumberOfFinalizationConfirmations: 3,
+    minimumNumberOfNodeReplications: 1,
+  });
+
+  if (!result?.UAL) {
+    throw new Error("DKG publish failed - no UAL returned");
+  }
+
+  return { ual: result.UAL };
 }
 
 export default defineDkgPlugin((ctx, mcp, api) => {
@@ -98,7 +136,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
                 summary,
                 count: results?.data.length || 0,
                 events: results || [],
-                //query: sparqlQuery,
               }, null, 2)
             }
           ],
@@ -110,7 +147,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               type: "text", 
               text: JSON.stringify({
                 error: "Query failed",
-                message: error.message,
               }, null, 2)
             }
           ],
@@ -176,7 +212,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               type: "text", 
               text: JSON.stringify({
                 error: "Tracking failed",
-                message: error.message,
               }, null, 2)
             }
           ],
@@ -210,12 +245,13 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           }),
         }),
         response: {
-          description: "Capture accepted",
+          description: "Capture accepted (202) or published directly (201)",
           schema: z.object({
             status: z.string(),
             receivedAt: z.string(),
             captureID: z.string(),
             eventCount: z.number(),
+            UAL: z.string().optional(),
           }),
         },
       },
@@ -233,30 +269,55 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             } as any);
           }
 
-          // Send to publisher with user-provided options (or defaults)
-          const result = await sendToPublisher(
-            epcisDocument,
-            {
-              source: "EPCIS",
-              sourceId: `epcis-${Date.now()}`,
-            },
-            publishOptions
-          );
+          // Generate request ID for tracing
+          const requestId = `epcis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+          console.log(`[EPCIS] [${requestId}] Capture request received, ${validation.eventCount} event(s)`);
+
+          let result: any;
+          let usedFallback = false;
+
+          // Try publisher first (with retries)
+          try {
+            result = await sendToPublisher(
+              epcisDocument,
+              { source: "EPCIS", sourceId: requestId },
+              publishOptions
+            );
+            console.log(`[EPCIS] [${requestId}] Queued via publisher, captureID: ${result.id}`);
+          } catch (publisherError: any) {
+            console.warn(`[EPCIS] [${requestId}] Publisher not available, trying direct DKG fallback`);
+            
+            // Fallback to direct DKG publish
+            try {
+              const directResult = await publishDirectToDKG(ctx, epcisDocument, publishOptions);
+              result = { id: `direct-${Date.now()}`, ual: directResult.ual };
+              usedFallback = true;
+              console.log(`[EPCIS] [${requestId}] Published directly to DKG, UAL: ${result.ual}`);
+            } catch (fallbackError: any) {
+              console.error(`[EPCIS] [${requestId}] Both publisher and DKG fallback failed`);
+              return res.status(503).json({
+                error: "Publishing unavailable",
+                message: "Both publisher service and direct DKG publishing failed",
+                requestId
+              } as any);
+            }
+          }
 
           // Return capture response
           const response: CaptureResponse = {
-            status: "202",
+            status: usedFallback ? "201" : "202",
             receivedAt: new Date().toISOString(),
             captureID: String(result.id),
             eventCount: validation.eventCount || 0,
+            ...(result.ual && { UAL: result.ual }),
           };
 
-          res.status(202).json(response);
+          res.status(usedFallback ? 201 : 202).json(response);
         } catch (error: any) {
-          console.error("[EPCIS Capture] Error:", error);
+          console.error("[EPCIS Capture] Unexpected error:", error);
           res.status(500).json({
-            error: "Failed to process capture",
-            //message: error.message,
+            error: "Internal server error",
+            message: "An unexpected error occurred while processing the capture",
           } as any);
         }
       }
@@ -341,7 +402,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           console.error("[EPCIS Status] Error:", error);
           res.status(500).json({
             error: "Failed to get capture status",
-            //message: error.message,
           } as any);
         }
       }
@@ -426,7 +486,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           res.status(500).json({
             success: false,
             error: "Failed to query events",
-            message: error.message,
           } as any);
         }
       }
