@@ -10,7 +10,8 @@ Before you consider a task "done", you must:
 
 1. **Keep the change minimal and consistent**
    - Follow existing patterns in the surrounding code.
-   - Prefer small, reviewable diffs (aim for < 300 lines); split large tasks into subtasks/commits.
+   - A single task should fit in a single commit.
+   - Each commit should change <= 300 lines; if more is needed, split into subtasks and multiple commits.
    - New production files should be < 300 lines; split into modules if needed.
 
 2. **Quality gates** — Run these checks and fix any failures:
@@ -25,7 +26,37 @@ Before you consider a task "done", you must:
 
 4. **Docs** — If you add a new plugin/tool/route/env var, document it briefly (README or the relevant plugin docs).
 
-5. **Commit** — Propose a commit message using conventional format: `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`
+5. **Commit** — Always propose a commit message in the final response using:
+   - `[feat/docs/bug/improvement] <Descriptive title>`
+   - Optional extra lines:
+     - `<Longer description>`
+     - `<Required by design doc XYZ>`
+
+---
+
+## Task Tracking (Required)
+
+- If `tasks/` exists in the repo, create or update a task Markdown file for every non-trivial feature.
+- Work on one task at a time.
+- Number tasks sequentially (`1`, `2`, `3`), and use suffixes for parallel subtasks (`2a`, `2b`, `2c`).
+- Task files must include subtasks and progress updates.
+- Use Mermaid diagrams when architecture or flow needs to be explained.
+
+### Task Template
+
+```markdown
+# Task: [<task number (last + 1)>] <feature>
+
+## Goal
+- <short goal>
+
+## Subtasks
+- [ ] <subtask 1>
+- [ ] <subtask 2>
+
+## Notes
+- <risks, decisions, links>
+```
 
 ---
 
