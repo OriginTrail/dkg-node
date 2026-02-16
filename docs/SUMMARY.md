@@ -5,7 +5,7 @@
 
 ## Getting Started
 
-* [Installation](getting-started/decentralized-knowledge-graph-dkg.md)
+* [Installation — Edge Node](getting-started/decentralized-knowledge-graph-dkg.md)
 * [Interacting with your DKG Agent](getting-started/interacting-with-your-dkg-agent.md)
 * [DKG Node Services](getting-started/dkg-node-services.md)
 * [Basic Knowledge Asset operations](getting-started/basic-knowledge-asset-operations.md)
