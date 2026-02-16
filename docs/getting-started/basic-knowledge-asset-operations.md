@@ -9,7 +9,7 @@ description: >-
 
 ## **Creating and retrieving your first Knowledge Asset**
 
-This simple exercise demonstrates the basic end-to-end flow of the DKG - from AI-assisted publishing to knowledge retrieval (something like "Hello world"). I
+This simple exercise demonstrates the basic end-to-end flow of the DKG — from AI-assisted publishing via the [Edge Node](decentralized-knowledge-graph-dkg.md) to knowledge retrieval (something like "Hello world").
 
 ### Create your first Knowledge Assets
 
