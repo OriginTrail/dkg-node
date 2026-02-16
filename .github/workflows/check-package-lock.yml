@@ -10,10 +10,18 @@ concurrency:
 on:
   push:
     branches:
-      - main # Run on push to main branch only
+      - main
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - '**/package.json'
   pull_request:
     branches:
-      - "**" # Run on PR to any branch
+      - "**"
+    paths:
+      - 'package.json'
+      - 'package-lock.json'
+      - '**/package.json'
 
 jobs:
   verify-package-lock:

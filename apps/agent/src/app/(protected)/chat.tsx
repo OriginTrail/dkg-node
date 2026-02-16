@@ -19,6 +19,7 @@ import Container from "@/components/layout/Container";
 import Header from "@/components/layout/Header";
 import Chat from "@/components/Chat";
 import { SourceKAResolver } from "@/components/Chat/Message/SourceKAs/CollapsibleItem";
+import Markdown from "@/components/Markdown";
 import { useAlerts } from "@/components/Alerts";
 
 import {
@@ -26,6 +27,7 @@ import {
   type ToolCall,
   type ToolCallResultContent,
   makeCompletionRequest,
+  makeStreamingCompletionRequest,
   toContents,
 } from "@/shared/chat";
 import {
@@ -36,6 +38,29 @@ import {
 } from "@/shared/files";
 import { toError } from "@/shared/errors";
 import useSettings from "@/hooks/useSettings";
+
+function normalizeStreamingMarkdown(content: string): string {
+  const fencePattern = /^(`{3,})[^`]*$/gm;
+  let count = 0;
+  let lastFenceLength = 3;
+  let match: RegExpExecArray | null;
+  while ((match = fencePattern.exec(content)) !== null) {
+    lastFenceLength = match[1]!.length;
+    count++;
+  }
+  if (count % 2 === 1) {
+    return content + "\n" + "`".repeat(lastFenceLength);
+  }
+  return content;
+}
+
+const SCROLL_TOP_GAP = 28; // px from viewport top to user message after scroll (matches contentContainerStyle.paddingTop)
+
+function stripThinkTags(content: string): string {
+  let result = content.replaceAll(/<think>.*?<\/think>/gs, "");
+  result = result.replace(/<think>(?:(?!<\/think>).)*$/s, "");
+  return result;
+}
 
 export default function ChatPage() {
   const colors = useColors();
@@ -49,11 +74,19 @@ export default function ChatPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<string | null>(null);
+  const [messagesViewHeight, setMessagesViewHeight] = useState(0);
 
   const pendingToolCalls = useRef<Set<string>>(new Set()); // Track tool calls that need responses before calling LLM
   const toolKAContents = useRef<Map<string, any[]>>(new Map()); // Track KAs across tool calls in a single request
 
   const chatMessagesRef = useRef<ScrollView>(null);
+  const lastUserMessageYRef = useRef(0);
+  const scrollPendingRef = useRef(false);
+  const scrollTargetRef = useRef<number | null>(null);
+  const messagesViewHeightRef = useRef(0);
+
+  const [contentMinHeight, setContentMinHeight] = useState(0);
 
   async function callTool(tc: ToolCall & { id: string }) {
     tools.saveCallInfo(tc.id, { input: tc.args, status: "loading" });
@@ -117,6 +150,8 @@ export default function ChatPage() {
   }
 
   async function requestCompletion() {
+    if (isWeb) return requestCompletionStreaming();
+
     if (!mcp.token) throw new Error("Unauthorized");
 
     setIsGenerating(true);
@@ -162,7 +197,125 @@ export default function ChatPage() {
       }
     } finally {
       setIsGenerating(false);
-      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
+    }
+  }
+
+  async function streamCompletion(messagesToSend: ChatMessage[]) {
+    let accumulatedContent = "";
+    let receivedToolCalls: ToolCall[] | null = null;
+    let rafId: number | null = null;
+
+    try {
+      await makeStreamingCompletionRequest(
+        { messages: messagesToSend, tools: tools.enabled },
+        { bearerToken: mcp.token! },
+        {
+          onDelta(content) {
+            accumulatedContent += content;
+            if (rafId === null) {
+              rafId = requestAnimationFrame(() => {
+                setStreamingContent(accumulatedContent);
+                rafId = null;
+              });
+            }
+          },
+          onToolCalls(toolCalls) {
+            receivedToolCalls = toolCalls;
+          },
+          onDone() {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            setStreamingContent(null);
+
+            const allKAContents: any[] = [];
+            toolKAContents.current.forEach((kaContents) => {
+              allKAContents.push(...kaContents);
+            });
+            toolKAContents.current.clear();
+
+            const completion: ChatMessage = {
+              role: "assistant",
+              content: accumulatedContent,
+              tool_calls: receivedToolCalls ?? undefined,
+            };
+
+            if (allKAContents.length > 0) {
+              completion.content = toContents(completion.content);
+              completion.content.push(...allKAContents);
+            }
+
+            setMessages((prev) => [...prev, completion]);
+
+            if (receivedToolCalls && receivedToolCalls.length > 0) {
+              receivedToolCalls.forEach((tc: any) => {
+                pendingToolCalls.current.add(tc.id);
+              });
+            }
+          },
+          onError(message) {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            setStreamingContent(null);
+            showAlert({
+              type: "error",
+              title: "LLM Error",
+              message,
+              timeout: 5000,
+            });
+          },
+        },
+      );
+    } finally {
+      // Cancel any pending RAF to prevent stale UI updates after errors
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    }
+  }
+
+  async function requestCompletionStreaming() {
+    if (!mcp.token) throw new Error("Unauthorized");
+
+    setIsGenerating(true);
+    try {
+      let currentMessages: ChatMessage[] = [];
+      await new Promise<void>((resolve) => {
+        setMessages((prevMessages) => {
+          currentMessages = prevMessages;
+          resolve();
+          return prevMessages;
+        });
+      });
+
+      await streamCompletion(currentMessages);
+    } catch (error) {
+      setStreamingContent(null);
+      showAlert({
+        type: "error",
+        title: "LLM Error",
+        message: error instanceof Error ? error.message : String(error),
+        timeout: 5000,
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  async function sendMessageStreaming(newMessage: ChatMessage) {
+    scrollPendingRef.current = true;
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+
+    if (!mcp.token) throw new Error("Unauthorized");
+
+    setIsGenerating(true);
+    try {
+      await streamCompletion([...messages, newMessage]);
+    } catch (error) {
+      setStreamingContent(null);
+      showAlert({
+        type: "error",
+        title: "LLM Error",
+        message: error instanceof Error ? error.message : String(error),
+        timeout: 5000,
+      });
+    } finally {
+      setIsGenerating(false);
     }
   }
 
@@ -177,6 +330,9 @@ export default function ChatPage() {
   }
 
   async function sendMessage(newMessage: ChatMessage) {
+    if (isWeb) return sendMessageStreaming(newMessage);
+
+    scrollPendingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
 
     if (!mcp.token) throw new Error("Unauthorized");
@@ -203,7 +359,6 @@ export default function ChatPage() {
       }
     } finally {
       setIsGenerating(false);
-      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
     }
   }
 
@@ -277,6 +432,22 @@ export default function ChatPage() {
     [mcp, showAlert],
   );
 
+  const lastUserMsgIdx = messages.reduce(
+    (a, m, i) => (m.role === "user" ? i : a),
+    -1,
+  );
+
+  const handleContentSizeChange = useCallback((_w: number, h: number) => {
+    if (scrollTargetRef.current !== null) {
+      const targetY = scrollTargetRef.current;
+      // Only scroll once content is tall enough for the scroll position to work
+      if (h >= targetY + messagesViewHeightRef.current) {
+        scrollTargetRef.current = null;
+        chatMessagesRef.current?.scrollTo({ y: targetY, animated: true });
+      }
+    }
+  }, []);
+
   const isLandingScreen = !messages.length && !isNativeMobile;
   console.debug("Messages:", messages);
   console.debug("Tools (enabled):", tools.enabled);
@@ -303,6 +474,17 @@ export default function ChatPage() {
             <Header handleLogout={() => mcp.disconnect()} />
             <Chat.Messages
               ref={chatMessagesRef}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                setMessagesViewHeight(h);
+                messagesViewHeightRef.current = h;
+              }}
+              onContentSizeChange={handleContentSizeChange}
+              contentContainerStyle={{
+                paddingTop: 28,
+                paddingBottom: 16,
+                ...(contentMinHeight > 0 && { minHeight: contentMinHeight }),
+              }}
               style={[
                 {
                   width: "100%",
@@ -352,9 +534,8 @@ export default function ChatPage() {
                 const isLastMessage = i === messages.length - 1;
                 const isIdle = !isGenerating && !m.tool_calls?.length;
 
-                return (
+                const messageContent = (
                   <Chat.Message
-                    key={i}
                     icon={m.role as "user" | "assistant"}
                     style={{ gap: 8 }}
                   >
@@ -362,30 +543,30 @@ export default function ChatPage() {
                     <Chat.Message.SourceKAs kas={kas} resolver={kaResolver} />
 
                     {/* Images */}
-                    {images.map((image, i) => (
+                    {images.map((image, j) => (
                       <Chat.Message.Content.Image
-                        key={i}
+                        key={j}
                         url={image.uri}
                         authToken={mcp.token}
                       />
                     ))}
 
                     {/* Files */}
-                    {files.map((file, i) => (
-                      <Chat.Message.Content.File key={i} file={file} />
+                    {files.map((file, j) => (
+                      <Chat.Message.Content.File key={j} file={file} />
                     ))}
 
                     {/* Text (markdown) */}
-                    {text.map((c, i) => (
+                    {text.map((c, j) => (
                       <Chat.Message.Content.Text
-                        key={i}
+                        key={j}
                         text={c.replaceAll(/<think>.*?<\/think>/gs, "")}
                       />
                     ))}
 
                     {/* Tool calls */}
-                    {m.tool_calls?.map((_tc, i) => {
-                      const tcId = _tc.id || i.toString();
+                    {m.tool_calls?.map((_tc, j) => {
+                      const tcId = _tc.id || j.toString();
                       const tc = {
                         ..._tc,
                         id: tcId,
@@ -432,13 +613,45 @@ export default function ChatPage() {
                           tools.reset();
                           pendingToolCalls.current.clear();
                           toolKAContents.current.clear();
+                          lastUserMessageYRef.current = 0;
+                          scrollPendingRef.current = false;
+                          scrollTargetRef.current = null;
+                          setContentMinHeight(0);
                         }}
                       />
                     )}
                   </Chat.Message>
                 );
+
+                if (i === lastUserMsgIdx) {
+                  return (
+                    <View
+                      key={i}
+                      onLayout={(e) => {
+                        const y = e.nativeEvent.layout.y;
+                        lastUserMessageYRef.current = y;
+                        if (scrollPendingRef.current) {
+                          scrollPendingRef.current = false;
+                          scrollTargetRef.current = Math.max(0, y - SCROLL_TOP_GAP);
+                          setContentMinHeight(y + messagesViewHeight);
+                        }
+                      }}
+                    >
+                      {messageContent}
+                    </View>
+                  );
+                }
+
+                return <View key={i}>{messageContent}</View>;
               })}
-              {isGenerating && <Chat.Thinking />}
+              {isGenerating && streamingContent === null && <Chat.Thinking />}
+              {streamingContent !== null && (
+                <Chat.Message icon="assistant">
+                  <Markdown>
+                    {normalizeStreamingMarkdown(stripThinkTags(streamingContent))}
+                  </Markdown>
+                </Chat.Message>
+              )}
             </Chat.Messages>
           </Container>
 
