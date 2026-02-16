@@ -672,7 +672,7 @@ export default function ChatPage() {
                 }
 
                 const isLastMessage = i === messages.length - 1;
-                const isIdle = !isBusy && !m.tool_calls?.length;
+                const isIdle = !isGenerating && !m.tool_calls?.length;
 
                 const messageContent = (
                   <Chat.Message
@@ -904,7 +904,7 @@ export default function ChatPage() {
                 }}
                 toolExecutionMode={toolExecutionMode}
                 onToolExecutionModeChange={handleToolExecutionModeChange}
-                disabled={isBusy}
+                disabled={isGenerating}
                 style={[{ maxWidth: 800 }, isWeb && { pointerEvents: "auto" }]}
               />
             </Container>
