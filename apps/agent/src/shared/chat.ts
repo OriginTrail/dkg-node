@@ -274,6 +274,9 @@ export const processStreamingCompletion = async (
     ];
     const options = { ...body.options, tools: body.tools };
 
+    // Track whether any content was sent to the client
+    let hasSentContent = false;
+
     try {
       const stream = await provider.stream(messages, options);
 
@@ -290,6 +293,7 @@ export const processStreamingCompletion = async (
         const content = chunk.content;
         if (typeof content === "string" && content.length > 0) {
           writeSSE(res, { event: "delta", data: { content } });
+          hasSentContent = true;
         } else if (Array.isArray(content)) {
           for (const part of content) {
             if (
@@ -302,6 +306,7 @@ export const processStreamingCompletion = async (
               part.text.length > 0
             ) {
               writeSSE(res, { event: "delta", data: { content: part.text } });
+              hasSentContent = true;
             }
           }
         }
@@ -352,46 +357,58 @@ export const processStreamingCompletion = async (
 
       writeSSE(res, { event: "done", data: {} });
     } catch (streamError) {
-      // Fallback: invoke and emit full response as a single delta
-      try {
-        const result = await provider.invoke(messages, options);
-        const content = result.content;
-        if (typeof content === "string") {
-          writeSSE(res, { event: "delta", data: { content } });
-        } else if (Array.isArray(content)) {
-          for (const part of content) {
-            if (
-              part &&
-              typeof part === "object" &&
-              "type" in part &&
-              part.type === "text" &&
-              "text" in part &&
-              typeof part.text === "string"
-            ) {
-              writeSSE(res, {
-                event: "delta",
-                data: { content: part.text },
-              });
-            }
-          }
-        }
-        if (result.tool_calls && result.tool_calls.length > 0) {
-          writeSSE(res, {
-            event: "tool_calls",
-            data: { tool_calls: result.tool_calls as ToolCall[] },
-          });
-        }
-        writeSSE(res, { event: "done", data: {} });
-      } catch (invokeError) {
+      if (hasSentContent) {
+        // Partial content was already sent — don't re-invoke and risk
+        // duplicated/mixed output. Send an error so the UI can recover.
         writeSSE(res, {
           event: "error",
           data: {
             message:
-              invokeError instanceof Error
-                ? invokeError.message
-                : "Unknown error",
+              "Stream interrupted — please retry your message",
           },
         });
+      } else {
+        // No content sent yet — safe to fallback to a full invoke
+        try {
+          const result = await provider.invoke(messages, options);
+          const content = result.content;
+          if (typeof content === "string") {
+            writeSSE(res, { event: "delta", data: { content } });
+          } else if (Array.isArray(content)) {
+            for (const part of content) {
+              if (
+                part &&
+                typeof part === "object" &&
+                "type" in part &&
+                part.type === "text" &&
+                "text" in part &&
+                typeof part.text === "string"
+              ) {
+                writeSSE(res, {
+                  event: "delta",
+                  data: { content: part.text },
+                });
+              }
+            }
+          }
+          if (result.tool_calls && result.tool_calls.length > 0) {
+            writeSSE(res, {
+              event: "tool_calls",
+              data: { tool_calls: result.tool_calls as ToolCall[] },
+            });
+          }
+          writeSSE(res, { event: "done", data: {} });
+        } catch (invokeError) {
+          writeSSE(res, {
+            event: "error",
+            data: {
+              message:
+                invokeError instanceof Error
+                  ? invokeError.message
+                  : "Unknown error",
+            },
+          });
+        }
       }
     }
   } catch (setupError) {
