@@ -11,10 +11,12 @@ import {
 
 export type Settings = {
   autoApproveMcpTools: boolean;
+  showMcpToolExecutionPanels: boolean;
 };
 
 const defaultSettings: Settings = {
-  autoApproveMcpTools: false,
+  autoApproveMcpTools: true,
+  showMcpToolExecutionPanels: false,
 } satisfies Record<string, boolean | string | number | Record<string, unknown>>;
 
 const SettingsContext = createContext<{

@@ -10,12 +10,14 @@ export default function Checkbox(
     onValueChange?: (value: boolean) => void;
     style?: StyleProp<ViewStyle>;
     testID?: string;
+    disabled?: boolean;
   }>,
 ) {
   const colors = useColors();
 
   return (
     <Pressable
+      disabled={props.disabled}
       style={[
         {
           padding: 6,
@@ -25,6 +27,7 @@ export default function Checkbox(
           gap: 4,
         },
         props.style,
+        props.disabled && { opacity: 0.4 },
       ]}
       onPress={() => props.onValueChange?.(!props.value)}
       testID={props.testID}
