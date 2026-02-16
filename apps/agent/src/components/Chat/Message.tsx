@@ -15,7 +15,7 @@ export default function ChatMessage({
 }) {
   return (
     <View
-      style={{ gap: 16, flexDirection: "row", width: "100%", marginBottom: 16 }}
+      style={{ gap: 16, flexDirection: "row", width: "100%", marginBottom: 28 }}
     >
       <View style={{ width: 32 }}>
         {icon === "user" && <IconUser />}
