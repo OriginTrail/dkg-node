@@ -4,7 +4,7 @@ description: DKG Edge Node
 
 # Installation
 
-The **DKG Edge Node** is your gateway to verifiable AI. An intuitive, app-style node that lets you create and interact with verifiable knowledge effortlessly. With the DKG Edge Node you can build reliable AI applications powered by the Decentralized Knowledge Graph (DKG) with ease.
+The **DKG Edge Node** is your gateway to verifiable AI. It's an intuitive, app-style node that lets you create and interact with verifiable knowledge effortlessly. With the DKG Edge Node you can build reliable AI applications powered by the Decentralized Knowledge Graph (DKG) with ease.
 
 The DKG Edge Node runs on devices at the “edge” (e.g., laptops, phones, IoT, and even servers, if deployed that way). It enables local knowledge processing, private-graph handling, and integration with AI-pipelines (via APIs like dRAG), allowing owners to retain control of their data while still contributing to the global DKG.
 
@@ -216,7 +216,7 @@ dkg-cli create-user
 * Contains sensitive data (wallet keys, passwords, API keys)
 * Never commit to version control
 
-**Services and Ports**\
+**Services and ports**\
 The following list provides an overview of which services are running locally and the ports they listen on:
 
 * **8081** — Web UI & API
