@@ -13,9 +13,9 @@ The DKG grows through human participation. Researchers, developers, and citizens
 **Core operations**
 
 * **Publishing knowledge:** Turning data into structured, verifiable Knowledge Assets
-* **Knowledge Discovery:** Querying, traversing, and monetizing knowledge in the decentralized graph and its _paranets_
+* **Knowledge discovery:** Querying, traversing, and monetizing knowledge in the decentralized graph and its _paranets_
 * **Trusted sharing:** Cryptographically verify authenticity and provenance of knowledge
-* **Neuro-symbolic Reasoning**: Infer new facts based on rules, leveraging graph-based reasoning in combination with LLMs and GenAI models
+* **Neuro-symbolic reasoning**: Infer new facts based on rules, leveraging graph-based reasoning in combination with LLMs and GenAI models
 
 We encourage developers to [try out the DKG Node](getting-started/decentralized-knowle-dge-graph-dkg.md) and build their first DKG based agent with it, to get a feel of what the technology can do.
 
