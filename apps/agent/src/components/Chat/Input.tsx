@@ -14,6 +14,7 @@ import Button from "@/components/Button";
 import Popover from "@/components/Popover";
 import ArrowUpIcon from "@/components/icons/ArrowUpIcon";
 import AttachFileIcon from "@/components/icons/AttachFileIcon";
+import ChevronDownIcon from "@/components/icons/ChevronDownIcon";
 import ToolsIcon from "@/components/icons/ToolsIcon";
 import useColors from "@/hooks/useColors";
 import { ChatMessage, toContents } from "@/shared/chat";
@@ -173,11 +174,11 @@ export default function ChatInput({
                 >
                   {activeMode.title}
                 </Text>
-                <Text
-                  style={{ color: colors.placeholder, fontSize: 11 }}
-                >
-                  {isModeDropdownOpen ? "^" : "v"}
-                </Text>
+                <ChevronDownIcon
+                  width={12}
+                  height={8}
+                  stroke={colors.placeholder}
+                />
               </Pressable>
 
               {isModeDropdownOpen && (
