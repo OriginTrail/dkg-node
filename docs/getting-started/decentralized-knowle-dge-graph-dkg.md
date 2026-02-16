@@ -9,7 +9,9 @@ The **DKG Edge Node** is your gateway to verifiable AI. It's an intuitive, app-s
 The DKG Edge Node runs on devices at the “edge” (e.g., laptops, phones, IoT, and even servers, if deployed that way). It enables local knowledge processing, private-graph handling, and integration with AI-pipelines (via APIs like dRAG), allowing owners to retain control of their data while still contributing to the global DKG.
 
 {% hint style="info" %}
-If you are new to OriginTrail, DKG, knowledge graphs, or blockchains, we highly recommend becoming familiar with the [DKG—Key concepts](../dkg-key-concepts.md) before proceeding.
+If you are new to OriginTrail, DKG, knowledge graphs, or blockchains, we highly recommend becoming familiar with the [DKG—Key concepts](../dkg-key-concepts.md) before proceeding.&#x20;
+
+To understand the difference between the DKG Edge Node and Core Node [check here](../dkg-knowledge-hub/learn-more/introduction/edge-vs.-core-node-rules-and-token-thresholds.md).
 {% endhint %}
 
 ### What are we installing today?
