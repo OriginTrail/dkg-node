@@ -6,7 +6,7 @@ description: How to setup a local and shared development environment
 
 ## Running node engines on the DKG testnet (recommended)
 
-We recommend following the [Installation guide](../../../getting-started/decentralized-knowle-dge-graph-dkg.md) for testnet setup instructions.
+We recommend following the [Installation guide](../../../getting-started/decentralized-knowledge-graph-dkg.md) for testnet setup instructions.
 
 ## Running a local DKG network
 

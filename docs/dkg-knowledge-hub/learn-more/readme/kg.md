@@ -62,4 +62,4 @@ For the moment, we restrict this document only to a high-level introduction and 
 
 **Knowledge graphs are commonly deployed within the domain of one organization and are designed to capture knowledge from various sources both from within and outside of the organization.** These centralized knowledge graphs generate huge value for their owners, yet a decentralized globally shared knowledge graph brings orders of magnitude higher value to everyone participating.
 
-We present the **OriginTrail Decentralized Knowledge Graph (DKG)** as the first permissionless, global, open decentralized knowledge graph. Learn more about the [OriginTrail DKG here](decentralized-knowle-dge-graph-dkg.md).
+We present the **OriginTrail Decentralized Knowledge Graph (DKG)** as the first permissionless, global, open decentralized knowledge graph. Learn more about the [OriginTrail DKG here](decentralized-knowledge-graph-dkg.md).

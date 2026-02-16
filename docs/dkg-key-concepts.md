@@ -15,7 +15,7 @@ The DKG enables AI-agents and applications to query, connect, and build upon dis
 
 The DKG Network is comprised of network nodes, running on different servers and devices. **There are** [**two primary node types**](dkg-knowledge-hub/learn-more/introduction/edge-vs.-core-node-rules-and-token-thresholds.md) **that enable the network’s operation**. The first is **the DKG Core Node**, which hosts the public DKG, persistently stores and serves knowledge assets, participates in random-sampling proofs and token incentives, and requires a minimum stake (e.g., 50,000 TRAC) to participate.\
 \
-The second is the [**DKG Edge Node**](getting-started/decentralized-knowle-dge-graph-dkg.md), which runs on devices at the “edge” (e.g., laptops, phones, IoT, and even servers, if deployed that way) and enables local knowledge processing, private-graph handling, and integration with AI-pipelines (via APIs like dRAG), allowing owners to retain control of their data while still contributing to the global DKG.
+The second is the [**DKG Edge Node**](getting-started/decentralized-knowledge-graph-dkg.md), which runs on devices at the “edge” (e.g., laptops, phones, IoT, and even servers, if deployed that way) and enables local knowledge processing, private-graph handling, and integration with AI-pipelines (via APIs like dRAG), allowing owners to retain control of their data while still contributing to the global DKG.
 
 Together, Core and Edge Nodes form the network and exchange knowledge, facilitated by the blockchain. They share the same codebase, however, so **it is possible to turn a DKG Edge Node into a DKG Core Node (more on that** [**here**](dkg-knowledge-hub/learn-more/introduction/edge-vs.-core-node-rules-and-token-thresholds.md)**)**.
 
@@ -125,4 +125,4 @@ The next building block of the DKG is **AI para-networks** or **paranets**.
 
 **AI para-networks** or **paranets** are autonomously operated structures in the DKG, owned by their community as a paranet operator. In paranets, we find **assemblies of Knowledge Assets** driving use cases with associated **paranet-specific AI services** and an **incentivization model** to reward knowledge miners fueling its growth.
 
-**To see the DKG in action, continue to the** [**Installation section**](getting-started/decentralized-knowle-dge-graph-dkg.md)**.**
+**To see the DKG in action, continue to the** [**Installation section**](getting-started/decentralized-knowledge-graph-dkg.md)**.**

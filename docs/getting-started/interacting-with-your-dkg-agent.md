@@ -1,12 +1,12 @@
 # Interacting with your DKG Agent
 
 {% hint style="info" %}
-This section assumes you have finished [Installation](decentralized-knowle-dge-graph-dkg.md) and will guide you through trying out the basic DKG Agent that comes bundled with the DKG Node.
+This section assumes you have finished [Installation](decentralized-knowledge-graph-dkg.md) and will guide you through trying out the basic DKG Agent that comes bundled with the DKG Node.
 {% endhint %}
 
 Each DKG node includes a **collocated neuro-symbolic AI agent** that combines neural model capabilities (e.g., LLMs) with symbolic reasoning over RDF-based graph data. This enables DKG nodes not only to publish and query semantic knowledge but also to perform knowledge graph reasoning, summarization, and data transformation tasks directly on locally or remotely stored knowledge.
 
-The **DKG Agent** is built around a modular **plugin system** centered on the **Model Context Protocol (MCP)**. Plugins define how the agent interacts with external tools, APIs, and reasoning systems. A generic DKG Node ships with a base set of plugins for common operations — such as knowledge publishing, retrieval, and validation — **while developers can extend functionality by creating custom plugins**.&#x20;
+The **DKG Agent** is built around a modular **plugin system** centered on the **Model Context Protocol (MCP)**. Plugins define how the agent interacts with external tools, APIs, and reasoning systems. A generic DKG Node ships with a base set of plugins for common operations — such as knowledge publishing, retrieval, and validation — **while developers can extend functionality by creating custom plugins**.
 
 Each plugin may expose both **MCP endpoints** (for agentic interoperability) and **classic REST/gRPC APIs** (for programmatic access). Example plugin types include ontology-specific retrieval tools (e.g., “social media query” modules), **knowledge-mining pipelines** for crafting Knowledge Assets aligned with domain ontologies, and **reasoning plugins** that apply declarative rule sets to infer new knowledge.
 
@@ -16,13 +16,13 @@ If you want to jump right into building your custom plugins, head over to the ["
 
 Your DKG Node comes with a built-in agent interface serving two core purposes:
 
-* **Secure authentication portal** → OAuth 2.1 login system for accessing your DKG Node&#x20;
+* **Secure authentication portal** → OAuth 2.1 login system for accessing your DKG Node
 * **AI agent interface** → Direct chat with your DKG-Node-powered agent
 
 The interface is built with **React Native (Expo)** for cross-platform compatibility, enabling a seamless interaction with your agent and the Decentralized Knowledge Graph (DKG).
 
 {% hint style="info" %}
-If you are following this guide, make sure your [**DKG Node is running**](decentralized-knowle-dge-graph-dkg.md#id-7.-start-the-node), if it’s not already active.
+If you are following this guide, make sure your [**DKG Node is running**](decentralized-knowledge-graph-dkg.md#id-7.-start-the-node), if it’s not already active.
 {% endhint %}
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-08-13 at 10.17.48.png" alt=""><figcaption></figcaption></figure>
@@ -91,4 +91,3 @@ Your DKG Node **uses a** **standard MCP server** (with OAuth 2.1 over HTTPS), so
 **Microsoft Copilot Studio**
 
 * Follow [Microsoft’s MCP integration docs](https://learn.microsoft.com/en-us/microsoft-copilot-studio/mcp-add-existing-server-to-agent).
-

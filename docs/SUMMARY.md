@@ -5,7 +5,7 @@
 
 ## Getting Started
 
-* [Installation](getting-started/decentralized-knowle-dge-graph-dkg.md)
+* [Installation](getting-started/decentralized-knowledge-graph-dkg.md)
 * [Interacting with your DKG Agent](getting-started/interacting-with-your-dkg-agent.md)
 * [DKG Node Services](getting-started/dkg-node-services.md)
 * [Basic Knowledge Asset operations](getting-started/basic-knowledge-asset-operations.md)
@@ -69,7 +69,7 @@
 
 * [Learn more](dkg-knowledge-hub/learn-more/README.md)
   * [Understanding OriginTrail](dkg-knowledge-hub/learn-more/readme/README.md)
-    * [OriginTrail Decentralized Knowledge Graph (DKG)](dkg-knowledge-hub/learn-more/readme/decentralized-knowle-dge-graph-dkg.md)
+    * [OriginTrail Decentralized Knowledge Graph (DKG)](dkg-knowledge-hub/learn-more/readme/decentralized-knowledge-graph-dkg.md)
     * [Development principles](dkg-knowledge-hub/learn-more/readme/development-principles.md)
     * [Linked data & knowledge graphs](dkg-knowledge-hub/learn-more/readme/kg.md)
     * [Core DKG concepts](dkg-knowledge-hub/learn-more/readme/dkg-key-concepts.md)
