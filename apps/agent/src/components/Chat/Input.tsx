@@ -1,7 +1,9 @@
-import { ComponentProps, useCallback, useState } from "react";
+import { ComponentProps, useState } from "react";
 import {
   View,
+  Text,
   TextInput,
+  Pressable,
   StyleProp,
   ViewStyle,
   StyleSheet,
@@ -11,51 +13,44 @@ import * as DocumentPicker from "expo-document-picker";
 import Button from "@/components/Button";
 import Popover from "@/components/Popover";
 import ArrowUpIcon from "@/components/icons/ArrowUpIcon";
-import MicrophoneIcon from "@/components/icons/MicrophoneIcon";
 import AttachFileIcon from "@/components/icons/AttachFileIcon";
 import ToolsIcon from "@/components/icons/ToolsIcon";
 import useColors from "@/hooks/useColors";
 import { ChatMessage, toContents } from "@/shared/chat";
 import { toError } from "@/shared/errors";
 import { FileDefinition } from "@/shared/files";
+import {
+  type ToolExecutionMode,
+  TOOL_EXECUTION_MODE_OPTIONS,
+} from "@/shared/toolExecutionMode";
 
 import ChatInputFilesSelected from "./Input/FilesSelected";
 import ChatInputToolsSelector from "./Input/ToolsSelector";
-import ChatInputAttachmentChip from "./Input/AttachmentChip";
 
 export default function ChatInput({
   onSendMessage,
-  onUploadFiles = (assets) =>
-    assets.map((a) => ({
-      id: a.uri,
-      uri: a.uri,
-      name: a.name,
-      mimeType: a.mimeType,
-    })),
+  onUploadFiles,
   onUploadError,
-  onAttachFiles = (files) =>
-    files.map((f) => ({
-      type: "file",
-      file: {
-        filename: f.name,
-        file_data: f.uri,
-      },
-    })),
+  onAttachFiles,
   onFileRemoved,
   authToken,
-  tools = {},
+  tools,
+  toolExecutionMode = "ask",
+  onToolExecutionModeChange,
   onToolTick,
   onToolServerTick,
   disabled,
   style,
 }: {
   onSendMessage: (message: ChatMessage) => void;
-  onUploadFiles?: (
+  onUploadFiles: (
     files: DocumentPicker.DocumentPickerAsset[],
   ) => FileDefinition[] | Promise<FileDefinition[]>;
   onUploadError?: (error: Error) => void;
-  onAttachFiles?: (files: FileDefinition[]) => ChatMessage["content"];
+  onAttachFiles: (files: FileDefinition[]) => ChatMessage["content"];
   onFileRemoved?: (file: FileDefinition) => void;
+  toolExecutionMode?: ToolExecutionMode;
+  onToolExecutionModeChange?: (mode: ToolExecutionMode) => void;
   /* Required for previewing uploaded images */
   authToken?: string;
   disabled?: boolean;
@@ -65,22 +60,48 @@ export default function ChatInput({
   const [message, setMessage] = useState("");
   const [selectedFiles, setSelectedFiles] = useState<FileDefinition[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
+  const isBusy = disabled || isUploading;
+  const trimmedMessage = message.trim();
+  const canSend = !!trimmedMessage && !isBusy;
 
-  const onSubmit = useCallback(() => {
+  const activeMode = TOOL_EXECUTION_MODE_OPTIONS.find(
+    (m) => m.value === toolExecutionMode,
+  )!;
+
+  const onSubmit = () => {
+    if (!canSend) return;
     onSendMessage({
       role: "user",
       content: [
         ...toContents(selectedFiles.length ? onAttachFiles(selectedFiles) : []),
-        { type: "text", text: message.trim() },
+        { type: "text", text: trimmedMessage },
       ],
     });
     setMessage("");
     setSelectedFiles([]);
-  }, [message, selectedFiles, onSendMessage, onAttachFiles]);
+  };
+
+  const onAttachFilesPress = async () => {
+    setIsUploading(true);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        base64: true,
+        multiple: true,
+      });
+      if (!result.assets) return;
+      const newFiles = await onUploadFiles(result.assets);
+      setSelectedFiles((oldFiles) => [...new Set([...oldFiles, ...newFiles])]);
+    } catch (error) {
+      onUploadError?.(toError(error));
+    } finally {
+      setIsUploading(false);
+    }
+  };
 
   return (
-    <View style={[{ width: "100%", position: "relative" }, style]}>
-      {!!selectedFiles.length && (
+    <View style={[styles.root, style]}>
+      {selectedFiles.length > 0 && (
         <ChatInputFilesSelected
           selectedFiles={selectedFiles}
           authToken={authToken}
@@ -93,140 +114,257 @@ export default function ChatInput({
         />
       )}
 
-      <View style={styles.inputContainer}>
+      <View
+        style={[
+          styles.composer,
+          { backgroundColor: colors.input, borderColor: colors.backgroundFlat },
+        ]}
+      >
         <TextInput
-          style={[
-            styles.input,
-            { backgroundColor: colors.input, color: colors.text },
-          ]}
+          style={[styles.input, { color: colors.text }]}
           placeholder="Ask anything..."
           placeholderTextColor={colors.placeholder}
           onChangeText={setMessage}
           value={message}
-          multiline={false}
           testID="chat-input"
           onKeyPress={({ nativeEvent }) => {
-            if (nativeEvent.key === "Enter") {
-              // Submit on Enter key press
-              if (message.trim() && !disabled) {
-                onSubmit();
-              }
-            }
+            if (nativeEvent.key === "Enter" && canSend) onSubmit();
           }}
         />
-        <View style={styles.inputButtons}>
-          <Button
-            color="secondary"
-            flat
-            icon={MicrophoneIcon}
-            iconMode="fill"
-            style={styles.inputButton}
-            disabled={disabled}
-          />
+
+        <View style={styles.toolbar}>
+          <View style={styles.toolbarLeft}>
+            <Pressable
+              style={[
+                styles.inlineChip,
+                { backgroundColor: colors.card, opacity: isBusy ? 0.6 : 1 },
+              ]}
+              disabled={isBusy}
+              testID="chat-attach-file-button"
+              onPress={onAttachFilesPress}
+            >
+              <AttachFileIcon
+                stroke={colors.placeholder}
+                width={14}
+                height={14}
+              />
+              <Text style={[styles.inlineChipText, { color: colors.text }]}>
+                Attach
+              </Text>
+            </Pressable>
+
+            <View style={styles.modeSelectorContainer}>
+              <Pressable
+                style={[
+                  styles.modeSelectorTrigger,
+                  {
+                    borderColor: colors.backgroundFlat,
+                    backgroundColor: colors.card,
+                    opacity: isBusy ? 0.6 : 1,
+                  },
+                ]}
+                onPress={() => setIsModeDropdownOpen((o) => !o)}
+                disabled={isBusy}
+                testID="chat-tool-mode-dropdown-button"
+              >
+                <Text
+                  numberOfLines={1}
+                  style={[styles.modeSelectorTriggerText, { color: colors.text }]}
+                >
+                  {activeMode.title}
+                </Text>
+                <Text
+                  style={{ color: colors.placeholder, fontSize: 11 }}
+                >
+                  {isModeDropdownOpen ? "^" : "v"}
+                </Text>
+              </Pressable>
+
+              {isModeDropdownOpen && (
+                <View
+                  style={[
+                    styles.modeSelectorMenu,
+                    {
+                      borderColor: colors.input,
+                      backgroundColor: colors.card,
+                    },
+                  ]}
+                >
+                  {TOOL_EXECUTION_MODE_OPTIONS.map((option) => {
+                    return (
+                      <Pressable
+                        key={option.value}
+                        style={[
+                          styles.modeSelectorOption,
+                          option.value === toolExecutionMode && {
+                            backgroundColor: colors.backgroundFlat,
+                          },
+                        ]}
+                        onPress={() => {
+                          onToolExecutionModeChange?.(option.value);
+                          setIsModeDropdownOpen(false);
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.modeSelectorOptionTitle,
+                            { color: colors.text },
+                          ]}
+                        >
+                          {option.title}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.modeSelectorOptionDescription,
+                            { color: colors.placeholder },
+                          ]}
+                        >
+                          {option.description}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </View>
+
+            <Popover
+              from={(isOpen, setIsOpen) => (
+                <Pressable
+                  style={[
+                    styles.iconChip,
+                    {
+                      backgroundColor: isOpen ? colors.backgroundFlat : colors.card,
+                    },
+                  ]}
+                  onPress={() => setIsOpen((o) => !o)}
+                >
+                  <ToolsIcon stroke={colors.placeholder} width={16} height={16} />
+                </Pressable>
+              )}
+            >
+              <ChatInputToolsSelector
+                tools={tools}
+                onToolTick={onToolTick}
+                onToolServerTick={onToolServerTick}
+              />
+            </Popover>
+          </View>
           <Button
             color="primary"
             icon={ArrowUpIcon}
-            style={styles.inputButton}
-            disabled={!message.trim() || disabled || isUploading}
+            style={styles.actionButton}
+            disabled={!canSend}
             onPress={onSubmit}
             testID="chat-send-button"
           />
         </View>
       </View>
-      <View style={styles.inputTools}>
-        <Button
-          disabled={disabled || isUploading}
-          color="secondary"
-          flat
-          icon={AttachFileIcon}
-          text="Attach file(s)"
-          style={{ height: "100%" }}
-          testID="chat-attach-file-button"
-          onPress={() => {
-            setIsUploading(true);
-            DocumentPicker.getDocumentAsync({
-              base64: true,
-              multiple: true,
-            })
-              .then((r) => {
-                if (!r.assets) return [];
-                return onUploadFiles(r.assets);
-              })
-              .then((newFiles) =>
-                setSelectedFiles((oldFiles) => [
-                  ...new Set([...oldFiles, ...newFiles]),
-                ]),
-              )
-              .catch((error) => onUploadError?.(toError(error)))
-              .finally(() => setIsUploading(false));
-          }}
-        />
-        <Popover
-          from={(isOpen, setIsOpen) => (
-            <Button
-              color="secondary"
-              flat
-              icon={ToolsIcon}
-              style={{
-                height: "100%",
-                aspectRatio: 1,
-                backgroundColor: isOpen ? colors.card : "transparent",
-              }}
-              onPress={() => setIsOpen((o) => !o)}
-            />
-          )}
-        >
-          <ChatInputToolsSelector
-            tools={tools}
-            onToolTick={onToolTick}
-            onToolServerTick={onToolServerTick}
-          />
-        </Popover>
-      </View>
     </View>
   );
 }
 
-ChatInput.FilesSelected = ChatInputFilesSelected;
-ChatInput.ToolsSelector = ChatInputToolsSelector;
-ChatInput.AttachmentChip = ChatInputAttachmentChip;
-
 const styles = StyleSheet.create({
-  inputContainer: {
-    position: "relative",
-    height: 56,
+  root: {
     width: "100%",
+    position: "relative",
+  },
+  composer: {
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 8,
+    gap: 8,
   },
   input: {
-    borderRadius: 50,
-    paddingLeft: 20,
-    paddingRight: 116,
-    paddingVertical: 16,
-    height: 56,
+    borderRadius: 14,
+    minHeight: 46,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
     fontSize: 16,
     lineHeight: 24,
   },
-  inputButtons: {
-    position: "absolute",
-    right: 0,
-    padding: 4,
-    gap: 4,
-    flexDirection: "row",
-    height: "100%",
-  },
-  inputButton: {
-    height: "100%",
-    aspectRatio: 1,
-  },
-  inputTools: {
-    position: "relative",
-    width: "100%",
-    height: 40,
-    display: "flex",
+  toolbar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginVertical: 8,
-    paddingHorizontal: 8,
+    gap: 8,
+  },
+  toolbarLeft: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  inlineChip: {
+    height: 30,
+    borderRadius: 15,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  inlineChipText: {
+    fontFamily: "Manrope_500Medium",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  iconChip: {
+    height: 30,
+    width: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modeSelectorContainer: {
+    position: "relative",
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: 280,
+    zIndex: 20,
+  },
+  modeSelectorTrigger: {
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  modeSelectorTriggerText: {
+    fontFamily: "Manrope_500Medium",
+    fontSize: 12,
+    lineHeight: 16,
+    flexShrink: 1,
+  },
+  modeSelectorMenu: {
+    position: "absolute",
+    bottom: 38,
+    left: 0,
+    width: 280,
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: "hidden",
+  },
+  modeSelectorOption: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 2,
+  },
+  modeSelectorOptionTitle: {
+    fontFamily: "Manrope_500Medium",
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  modeSelectorOptionDescription: {
+    fontFamily: "Manrope_400Regular",
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  actionButton: {
+    width: 32,
+    height: 32,
   },
 });

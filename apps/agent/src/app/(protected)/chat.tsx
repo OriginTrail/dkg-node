@@ -36,6 +36,11 @@ import {
 } from "@/shared/files";
 import { toError } from "@/shared/errors";
 import useSettings from "@/hooks/useSettings";
+import {
+  type ToolExecutionMode,
+  toToolExecutionMode,
+  toToolExecutionSettings,
+} from "@/shared/toolExecutionMode";
 
 export default function ChatPage() {
   const colors = useColors();
@@ -55,6 +60,19 @@ export default function ChatPage() {
   const dispatchedHiddenCalls = useRef<Set<string>>(new Set()); // Track auto-dispatched hidden tool calls
 
   const chatMessagesRef = useRef<ScrollView>(null);
+  const toolExecutionMode = toToolExecutionMode(settings);
+  const autoApproveTools = toolExecutionMode !== "ask";
+  const showToolExecutionPanels = toolExecutionMode === "auto_show";
+
+  const handleToolExecutionModeChange = useCallback(
+    async (mode: ToolExecutionMode) => {
+      const s = toToolExecutionSettings(mode);
+      await settings.set("autoApproveMcpTools", s.autoApproveMcpTools);
+      await settings.set("showMcpToolExecutionPanels", s.showMcpToolExecutionPanels);
+      await settings.reload();
+    },
+    [settings],
+  );
 
   async function callTool(tc: ToolCall & { id: string }) {
     tools.saveCallInfo(tc.id, { input: tc.args, status: "loading" });
@@ -93,7 +111,7 @@ export default function ChatPage() {
       });
   }
 
-  // Auto-execute tool calls when panels are hidden (auto-approve on + show panels off).
+  // Auto-execute tool calls when panels are hidden (mode: auto_silent).
   // Deps intentionally exclude tools/callTool — dispatchedHiddenCalls ref prevents double-dispatch.
   useEffect(() => {
     for (const m of messages) {
@@ -105,8 +123,8 @@ export default function ChatPage() {
         if (tools.getCallInfo(tcId)) continue;
 
         const isAutoApproved =
-          settings.autoApproveMcpTools || tools.isAllowedForSession(tc.name);
-        if (!isAutoApproved || settings.showMcpToolExecutionPanels) continue;
+          autoApproveTools || tools.isAllowedForSession(tc.name);
+        if (!isAutoApproved || showToolExecutionPanels) continue;
 
         dispatchedHiddenCalls.current.add(tcId);
         tools.allowForSession(tc.name);
@@ -114,7 +132,7 @@ export default function ChatPage() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, settings.autoApproveMcpTools, settings.showMcpToolExecutionPanels]);
+  }, [messages, autoApproveTools, showToolExecutionPanels]);
 
   function addToolResultAndCheckCompletion(toolResult: ChatMessage) {
     const kaContents: any[] = [];
@@ -303,7 +321,7 @@ export default function ChatPage() {
 
   // True when hidden tool calls are in-flight (not yet dispatched or still loading)
   const hasHiddenPendingTools =
-    !settings.showMcpToolExecutionPanels &&
+    !showToolExecutionPanels &&
     messages.some(
       (m) =>
         m.role === "assistant" &&
@@ -311,9 +329,7 @@ export default function ChatPage() {
           const tcId = tc.id || "";
           if (!tcId) return false;
           const info = tools.getCallInfo(tcId);
-          const isAutoApproved =
-            settings.autoApproveMcpTools ||
-            tools.isAllowedForSession(tc.name);
+          const isAutoApproved = autoApproveTools || tools.isAllowedForSession(tc.name);
           return isAutoApproved && (!info || info.status === "loading");
         }),
     );
@@ -397,12 +413,8 @@ export default function ChatPage() {
                 const allToolCallsHidden =
                   hasToolCalls &&
                   m.tool_calls!.every((tc) => {
-                    const isAutoApproved =
-                      settings.autoApproveMcpTools ||
-                      tools.isAllowedForSession(tc.name);
-                    return (
-                      isAutoApproved && !settings.showMcpToolExecutionPanels
-                    );
+                    const isAutoApproved = autoApproveTools || tools.isAllowedForSession(tc.name);
+                    return isAutoApproved && !showToolExecutionPanels;
                   });
 
                 const hasVisibleText = text.some((t) => t.trim());
@@ -461,14 +473,10 @@ export default function ChatPage() {
                       };
 
                       const isAutoApproved =
-                        settings.autoApproveMcpTools ||
-                        tools.isAllowedForSession(tc.name);
+                        autoApproveTools || tools.isAllowedForSession(tc.name);
 
                       // Hide panel when auto-approved and panels are off
-                      if (
-                        isAutoApproved &&
-                        !settings.showMcpToolExecutionPanels
-                      ) {
+                      if (isAutoApproved && !showToolExecutionPanels) {
                         return null;
                       }
 
@@ -620,6 +628,8 @@ export default function ChatPage() {
                 onToolServerTick={(_, enabled) => {
                   tools.toggleAll(enabled);
                 }}
+                toolExecutionMode={toolExecutionMode}
+                onToolExecutionModeChange={handleToolExecutionModeChange}
                 disabled={isBusy}
                 style={[{ maxWidth: 800 }, isWeb && { pointerEvents: "auto" }]}
               />
