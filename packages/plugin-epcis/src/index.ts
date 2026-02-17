@@ -503,7 +503,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
           res.json({
             success: true,
-            //query: sparqlQuery,
             results: results || [],
             count: resultCount,
             pagination: {
