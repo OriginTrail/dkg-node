@@ -1,4 +1,4 @@
-import { ComponentProps, useState } from "react";
+import { ComponentProps, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -40,6 +40,28 @@ import { getChatInputKeyAction } from "../../shared/chatInputKeyPress";
 import ChatInputFilesSelected from "./Input/FilesSelected";
 import ChatInputToolsSelector from "./Input/ToolsSelector";
 
+const CHAT_INPUT_SCROLLBAR_HIDE_DELAY_MS = 5000;
+const CHAT_INPUT_SCROLLBAR_TRACK_INSET = 8;
+const CHAT_INPUT_SCROLLBAR_MIN_THUMB_HEIGHT = 24;
+const CHAT_INPUT_TEST_ID = "chat-input";
+const CHAT_INPUT_SELECTOR = `[data-testid="${CHAT_INPUT_TEST_ID}"]`;
+
+type ScrollbarEventLike = {
+  currentTarget?: unknown;
+  preventDefault?: () => void;
+  stopPropagation?: () => void;
+  nativeEvent?: {
+    pageY?: unknown;
+    preventDefault?: () => void;
+  };
+};
+
+const isHTMLElement = (value: unknown): value is HTMLElement =>
+  typeof HTMLElement !== "undefined" && value instanceof HTMLElement;
+
+const toInputDimension = (size: number) =>
+  Math.max(CHAT_INPUT_MIN_HEIGHT, Math.ceil(size));
+
 export default function ChatInput({
   onSendMessage,
   onUploadFiles,
@@ -75,6 +97,21 @@ export default function ChatInput({
   const [isUploading, setIsUploading] = useState(false);
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const [inputHeight, setInputHeight] = useState(CHAT_INPUT_MIN_HEIGHT);
+  const [isCustomScrollbarVisible, setIsCustomScrollbarVisible] = useState(false);
+  const [customScrollbarThumbTop, setCustomScrollbarThumbTop] = useState(
+    CHAT_INPUT_SCROLLBAR_TRACK_INSET,
+  );
+  const [customScrollbarThumbHeight, setCustomScrollbarThumbHeight] = useState(0);
+  const hideScrollbarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const inputScrollTopRef = useRef(0);
+  const inputScrollableElementRef = useRef<HTMLElement | null>(null);
+  const scrollbarDragStateRef = useRef<{
+    startPageY: number;
+    startScrollTop: number;
+  } | null>(null);
+  const restoreUserSelectRef = useRef<string | null>(null);
   const isBusy = disabled || isUploading;
   const isWeb = Platform.OS === "web";
   const isInputAtMaxHeight = inputHeight >= CHAT_INPUT_MAX_HEIGHT;
@@ -85,10 +122,212 @@ export default function ChatInput({
     (m) => m.value === toolExecutionMode,
   )!;
 
+  const clearHideScrollbarTimeout = () => {
+    if (!hideScrollbarTimeoutRef.current) return;
+    clearTimeout(hideScrollbarTimeoutRef.current);
+    hideScrollbarTimeoutRef.current = null;
+  };
+
+  const hideCustomScrollbar = () => {
+    setIsCustomScrollbarVisible(false);
+    clearHideScrollbarTimeout();
+  };
+
+  const scheduleHideCustomScrollbar = () => {
+    clearHideScrollbarTimeout();
+    hideScrollbarTimeoutRef.current = setTimeout(() => {
+      setIsCustomScrollbarVisible(false);
+      hideScrollbarTimeoutRef.current = null;
+    }, CHAT_INPUT_SCROLLBAR_HIDE_DELAY_MS);
+  };
+
+  const updateCustomScrollbar = ({
+    scrollTop,
+    contentHeight,
+    viewportHeight,
+  }: {
+    scrollTop: number;
+    contentHeight: number;
+    viewportHeight: number;
+  }) => {
+    const isScrollable =
+      isWeb &&
+      viewportHeight >= CHAT_INPUT_MAX_HEIGHT &&
+      contentHeight > viewportHeight + 1;
+    if (!isScrollable) {
+      setCustomScrollbarThumbTop(CHAT_INPUT_SCROLLBAR_TRACK_INSET);
+      setCustomScrollbarThumbHeight(0);
+      hideCustomScrollbar();
+      return;
+    }
+
+    const trackHeight = Math.max(
+      0,
+      viewportHeight - CHAT_INPUT_SCROLLBAR_TRACK_INSET * 2,
+    );
+    if (trackHeight <= 0) return;
+
+    const thumbHeight = Math.max(
+      CHAT_INPUT_SCROLLBAR_MIN_THUMB_HEIGHT,
+      Math.min(trackHeight, (viewportHeight / contentHeight) * trackHeight),
+    );
+    const maxScrollTop = Math.max(1, contentHeight - viewportHeight);
+    const clampedScrollTop = Math.min(maxScrollTop, Math.max(0, scrollTop));
+    const maxThumbOffset = Math.max(0, trackHeight - thumbHeight);
+    const thumbTop =
+      CHAT_INPUT_SCROLLBAR_TRACK_INSET +
+      (clampedScrollTop / maxScrollTop) * maxThumbOffset;
+
+    setCustomScrollbarThumbTop(thumbTop);
+    setCustomScrollbarThumbHeight(thumbHeight);
+  };
+
+  const getInputScrollableElement = (event?: unknown) => {
+    const eventLike = event as ScrollbarEventLike | undefined;
+    if (isHTMLElement(eventLike?.currentTarget)) return eventLike.currentTarget;
+    if (inputScrollableElementRef.current) return inputScrollableElementRef.current;
+
+    if (typeof document === "undefined") return null;
+    const inputElement = document.querySelector(CHAT_INPUT_SELECTOR);
+    return isHTMLElement(inputElement) ? inputElement : null;
+  };
+
+  const getEventPageY = (event: unknown) => {
+    const pageY = (event as ScrollbarEventLike | undefined)?.nativeEvent?.pageY;
+    return typeof pageY === "number" ? pageY : null;
+  };
+
+  const getInputScrollMetrics = (scrollElement: HTMLElement) => {
+    const contentHeight = toInputDimension(scrollElement.scrollHeight);
+    const viewportHeight = toInputDimension(scrollElement.clientHeight);
+
+    const trackHeight = Math.max(
+      1,
+      viewportHeight - CHAT_INPUT_SCROLLBAR_TRACK_INSET * 2,
+    );
+    const thumbHeight = Math.max(
+      CHAT_INPUT_SCROLLBAR_MIN_THUMB_HEIGHT,
+      Math.min(trackHeight, (viewportHeight / contentHeight) * trackHeight),
+    );
+    const maxThumbOffset = Math.max(1, trackHeight - thumbHeight);
+    const maxScrollTop = Math.max(1, contentHeight - viewportHeight);
+
+    return { contentHeight, viewportHeight, maxThumbOffset, maxScrollTop };
+  };
+
+  const syncCustomScrollbarFromElement = ({
+    scrollElement,
+    scrollTop = scrollElement.scrollTop,
+  }: {
+    scrollElement: HTMLElement;
+    scrollTop?: number;
+  }) => {
+    const { contentHeight, viewportHeight } = getInputScrollMetrics(scrollElement);
+    const normalizedScrollTop = Math.max(0, scrollTop);
+
+    inputScrollTopRef.current = normalizedScrollTop;
+    updateCustomScrollbar({
+      scrollTop: normalizedScrollTop,
+      contentHeight,
+      viewportHeight,
+    });
+  };
+
+  const restoreDocumentUserSelect = () => {
+    if (typeof document === "undefined" || restoreUserSelectRef.current === null) {
+      return;
+    }
+    document.body.style.userSelect = restoreUserSelectRef.current;
+    restoreUserSelectRef.current = null;
+  };
+
+  const cancelEventSelection = (event: unknown) => {
+    const eventLike = event as ScrollbarEventLike | undefined;
+    eventLike?.preventDefault?.();
+    eventLike?.stopPropagation?.();
+    eventLike?.nativeEvent?.preventDefault?.();
+  };
+
+  const onScrollbarThumbResponderGrant = (event: unknown) => {
+    if (!isWeb || !isInputAtMaxHeight) return;
+
+    const inputScrollableElement = getInputScrollableElement();
+    if (!inputScrollableElement) return;
+
+    const pageY = getEventPageY(event);
+    if (pageY === null) return;
+
+    cancelEventSelection(event);
+    clearHideScrollbarTimeout();
+    setIsCustomScrollbarVisible(true);
+
+    inputScrollableElementRef.current = inputScrollableElement;
+    scrollbarDragStateRef.current = {
+      startPageY: pageY,
+      startScrollTop: inputScrollableElement.scrollTop,
+    };
+
+    if (typeof document !== "undefined") {
+      restoreUserSelectRef.current = document.body.style.userSelect;
+      document.body.style.userSelect = "none";
+    }
+  };
+
+  const onScrollbarThumbResponderMove = (event: unknown) => {
+    if (!isWeb || !isInputAtMaxHeight) return;
+
+    const dragState = scrollbarDragStateRef.current;
+    const inputScrollableElement = inputScrollableElementRef.current;
+    if (!dragState || !inputScrollableElement) return;
+
+    const pageY = getEventPageY(event);
+    if (pageY === null) return;
+
+    cancelEventSelection(event);
+
+    const { maxThumbOffset, maxScrollTop } =
+      getInputScrollMetrics(inputScrollableElement);
+    const deltaY = pageY - dragState.startPageY;
+    const nextScrollTop = Math.min(
+      maxScrollTop,
+      Math.max(0, dragState.startScrollTop + (deltaY / maxThumbOffset) * maxScrollTop),
+    );
+
+    inputScrollableElement.scrollTop = nextScrollTop;
+    syncCustomScrollbarFromElement({
+      scrollElement: inputScrollableElement,
+      scrollTop: nextScrollTop,
+    });
+  };
+
+  const onScrollbarThumbResponderRelease = () => {
+    if (!scrollbarDragStateRef.current) return;
+
+    scrollbarDragStateRef.current = null;
+    restoreDocumentUserSelect();
+    scheduleHideCustomScrollbar();
+  };
+
+  useEffect(() => {
+    return () => {
+      clearHideScrollbarTimeout();
+      scrollbarDragStateRef.current = null;
+      restoreDocumentUserSelect();
+    };
+  }, []);
+
   const onMessageChange = (nextMessage: string) => {
     if (isWeb && nextMessage.length < message.length) {
       const estimatedHeight = getChatInputHeightFromText(nextMessage);
-      setInputHeight((oldHeight) => Math.min(oldHeight, estimatedHeight));
+      setInputHeight((oldHeight) => {
+        const nextHeight = Math.min(oldHeight, estimatedHeight);
+        updateCustomScrollbar({
+          scrollTop: inputScrollTopRef.current,
+          contentHeight: estimatedHeight,
+          viewportHeight: nextHeight,
+        });
+        return nextHeight;
+      });
     }
 
     setMessage(nextMessage);
@@ -106,6 +345,10 @@ export default function ChatInput({
     setMessage("");
     setSelectedFiles([]);
     setInputHeight(CHAT_INPUT_MIN_HEIGHT);
+    setCustomScrollbarThumbTop(CHAT_INPUT_SCROLLBAR_TRACK_INSET);
+    setCustomScrollbarThumbHeight(0);
+    inputScrollTopRef.current = 0;
+    hideCustomScrollbar();
   };
 
   const onAttachFilesPress = async () => {
@@ -146,41 +389,92 @@ export default function ChatInput({
           { backgroundColor: colors.input, borderColor: colors.backgroundFlat },
         ]}
       >
-        <TextInput
-          style={[
-            styles.input,
-            isWeb && styles.inputMultiline,
-            isWeb && { height: inputHeight },
-            { color: colors.text },
-          ]}
-          placeholder="Ask anything..."
-          placeholderTextColor={colors.placeholder}
-          onChangeText={onMessageChange}
-          value={message}
-          multiline={isWeb}
-          scrollEnabled={!isWeb || isInputAtMaxHeight}
-          testID="chat-input"
-          onContentSizeChange={(
-            event: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
-          ) => {
-            if (!isWeb) return;
-            setInputHeight(getChatInputHeight(event.nativeEvent.contentSize.height));
-          }}
-          onKeyPress={(event) => {
-            const action = getChatInputKeyAction(
-              event.nativeEvent as { key?: string; shiftKey?: boolean },
-            );
-            if (action !== "submit") return;
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={[
+              styles.input,
+              isWeb && styles.inputMultiline,
+              isWeb && { height: inputHeight },
+              { color: colors.text },
+            ]}
+            placeholder="Ask anything..."
+            placeholderTextColor={colors.placeholder}
+            onChangeText={onMessageChange}
+            value={message}
+            multiline={isWeb}
+            scrollEnabled={!isWeb || isInputAtMaxHeight}
+            testID={CHAT_INPUT_TEST_ID}
+            onContentSizeChange={(
+              event: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
+            ) => {
+              if (!isWeb) return;
 
-            // Keep Enter as submit on web multiline input.
-            (
-              event as unknown as {
-                preventDefault?: () => void;
-              }
-            ).preventDefault?.();
-            if (canSend) onSubmit();
-          }}
-        />
+              const nextContentHeight = toInputDimension(
+                event.nativeEvent.contentSize.height,
+              );
+              const nextHeight = getChatInputHeight(nextContentHeight);
+
+              setInputHeight(nextHeight);
+              updateCustomScrollbar({
+                scrollTop: inputScrollTopRef.current,
+                contentHeight: nextContentHeight,
+                viewportHeight: nextHeight,
+              });
+            }}
+            onScroll={(event) => {
+              if (!isWeb || !isInputAtMaxHeight) return;
+
+              const inputScrollableElement = getInputScrollableElement(event);
+              if (!inputScrollableElement) return;
+              inputScrollableElementRef.current = inputScrollableElement;
+
+              syncCustomScrollbarFromElement({
+                scrollElement: inputScrollableElement,
+              });
+              setIsCustomScrollbarVisible(true);
+              scheduleHideCustomScrollbar();
+            }}
+            onKeyPress={(event) => {
+              const action = getChatInputKeyAction(
+                event.nativeEvent as { key?: string; shiftKey?: boolean },
+              );
+              if (action !== "submit") return;
+
+              // Keep Enter as submit on web multiline input.
+              (
+                event as unknown as {
+                  preventDefault?: () => void;
+                }
+              ).preventDefault?.();
+              if (canSend) onSubmit();
+            }}
+          />
+
+          {isWeb &&
+            isInputAtMaxHeight &&
+            isCustomScrollbarVisible &&
+            customScrollbarThumbHeight > 0 && (
+              <View pointerEvents="box-none" style={styles.inputScrollbarTrack}>
+                <View
+                  style={[
+                    styles.inputScrollbarThumb,
+                    {
+                      top: customScrollbarThumbTop,
+                      height: customScrollbarThumbHeight,
+                      backgroundColor: colors.placeholder,
+                    },
+                  ]}
+                  onStartShouldSetResponder={() => true}
+                  onMoveShouldSetResponder={() => true}
+                  onResponderGrant={onScrollbarThumbResponderGrant}
+                  onResponderMove={onScrollbarThumbResponderMove}
+                  onResponderRelease={onScrollbarThumbResponderRelease}
+                  onResponderTerminate={onScrollbarThumbResponderRelease}
+                  onResponderTerminationRequest={() => false}
+                />
+              </View>
+            )}
+        </View>
 
         <View style={styles.toolbar}>
           <View style={styles.toolbarLeft}>
@@ -333,8 +627,28 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: CHAT_INPUT_LINE_HEIGHT,
   },
+  inputContainer: {
+    position: "relative",
+  },
   inputMultiline: {
     textAlignVertical: "top",
+    paddingRight: 16,
+    borderRightWidth: 2,
+    borderRightColor: "transparent",
+  },
+  inputScrollbarTrack: {
+    position: "absolute",
+    top: 0,
+    right: 5,
+    bottom: 0,
+    width: 8,
+  },
+  inputScrollbarThumb: {
+    position: "absolute",
+    right: 0,
+    width: 6,
+    borderRadius: 999,
+    opacity: 0.72,
   },
   toolbar: {
     flexDirection: "row",
