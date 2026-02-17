@@ -16,7 +16,6 @@ export interface EpcisQueryParams {
   to?: string;
   bizStep?: string;
   bizLocation?: string;
-  // ual?: string;  // TODO: Re-enable when UAL query is implemented
   /** If true, searches all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) */
   fullTrace?: boolean;
 }
@@ -37,7 +36,7 @@ function normalizeBizStep(value: string): string {
   if (typeof value !== "string" || value.length === 0) {
     throw new Error("Invalid bizStep value");
   }
-  
+
   if (!value.includes('://')) {
     return `https://ref.gs1.org/cbv/BizStep-${value}`;
   }
@@ -50,10 +49,6 @@ export class EpcisQueryService {
    * All provided filters are combined with AND logic
    */
   buildQuery(params: EpcisQueryParams): string {
-    // Special case: UAL lookup returns all triples for that graph
-    /*if (params.ual) {
-      return this.getEventByUal(params.ual);
-    }*/
 
     const wherePatterns: string[] = [];
     const filterClauses: string[] = [];
@@ -134,21 +129,4 @@ WHERE {
 ORDER BY DESC(?eventTime)
 LIMIT 100`;
   }
-
-  /**
-   * Query event by UAL (get full event details)
-   */
-  /*private getEventByUal(ual: string): string {
-    // Basic UAL format validation
-    if (!ual.startsWith('did:')) {
-      throw new Error('Invalid UAL format');
-    }
-    return `${PREFIXES}
-SELECT ?predicate ?object
-WHERE {
-  GRAPH <${escapeSparql(ual)}> {
-    ?subject ?predicate ?object .
-  }
-}`;
-  }*/
 }

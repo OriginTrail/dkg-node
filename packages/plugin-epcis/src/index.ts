@@ -51,7 +51,7 @@ async function sendToPublisher(
       return await response.json();
     } catch (error: any) {
       console.warn(`[EPCIS] Publisher attempt ${attempt}/${MAX_RETRIES} failed`);
-      
+
       if (attempt < MAX_RETRIES) {
         await delay(RETRY_DELAY_MS * Math.pow(2, attempt - 1));
         continue;
@@ -70,9 +70,9 @@ async function publishDirectToDKG(
 ): Promise<{ ual: string }> {
   const privacy = publishOptions?.privacy ?? "private";
   const wrapped = { [privacy]: jsonLd };
-  
+
   console.log(`[EPCIS] Publishing directly to DKG (fallback)...`);
-  
+
   const result = await ctx.dkg.asset.create(wrapped, {
     epochsNum: publishOptions?.epochs ?? 12,
     minimumNumberOfFinalizationConfirmations: 3,
@@ -98,7 +98,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
     "epcis-query",
     {
       title: "Query EPCIS Events",
-      description: 
+      description:
         "Query EPCIS supply chain events from the OriginTrail DKG. " +
         "Can filter by EPC (product identifier), from date to date, business step, or location. " +
         "Use fullTrace=true to search across all event types (transformations, aggregations) for complete supply chain traceability.",
@@ -124,14 +124,14 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
 
-        const summary = results?.length 
-          ? `Found ${results.length} EPCIS event(s)` 
+        const summary = results?.length
+          ? `Found ${results.length} EPCIS event(s)`
           : "No events found matching the criteria";
 
         return {
           content: [
-            { 
-              type: "text", 
+            {
+              type: "text",
               text: JSON.stringify({
                 summary,
                 count: results?.data.length || 0,
@@ -143,8 +143,8 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       } catch (error: any) {
         return {
           content: [
-            { 
-              type: "text", 
+            {
+              type: "text",
               text: JSON.stringify({
                 error: "Query failed",
               }, null, 2)
@@ -161,7 +161,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
     "epcis-track-item",
     {
       title: "Track Item Journey",
-      description: 
+      description:
         "Track a single item's complete journey through the supply chain. " +
         "Finds all events where this EPC appears - as observed item, transformation input/output, or in aggregations. " +
         "Returns events in chronological order showing the item's full lifecycle.",
@@ -194,8 +194,8 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         return {
           content: [
-            { 
-              type: "text", 
+            {
+              type: "text",
               text: JSON.stringify({
                 summary,
                 epc: input.epc,
@@ -208,8 +208,8 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       } catch (error: any) {
         return {
           content: [
-            { 
-              type: "text", 
+            {
+              type: "text",
               text: JSON.stringify({
                 error: "Tracking failed",
               }, null, 2)
@@ -286,7 +286,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             console.log(`[EPCIS] [${requestId}] Queued via publisher, captureID: ${result.id}`);
           } catch (publisherError: any) {
             console.warn(`[EPCIS] [${requestId}] Publisher not available, trying direct DKG fallback`);
-            
+
             // Fallback to direct DKG publish
             try {
               const directResult = await publishDirectToDKG(ctx, epcisDocument, publishOptions);
@@ -437,9 +437,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             description: "Filter by business location",
             example: "urn:epc:id:sgln:0614141.00001.0",
           }),
-          /*ual: z.string().optional().openapi({
-            description: "Get event by specific UAL",
-          }),*/
           fullTrace: z.string().optional().openapi({
             description: "If 'true', search all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) for full supply chain traceability",
             example: "true",
@@ -466,7 +463,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             to: to as string,
             bizStep: bizStep as string,
             bizLocation: bizLocation as string,
-            //ual: ual as string,
             fullTrace: fullTrace === 'true',
           });
 
@@ -491,5 +487,60 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       }
     )
   );
-  
+
+  // GET /epcis/asset/:ual - Retrieve EPCIS document by UAL
+  api.get(
+    "/epcis/asset/*ual",
+    openAPIRoute(
+      {
+        tag: "EPCIS",
+        summary: "Get EPCIS Document by UAL",
+        description: "Retrieve a complete EPCIS document from DKG by its UAL",
+        params: z.object({
+          ual: z.union([z.string(), z.array(z.string())]).openapi({
+            description: "The UAL of the published EPCIS document",
+            example: "did:dkg:otp:2043/0x1234.../123456",
+          }),
+        }),
+        response: {
+          description: "EPCIS document content",
+          schema: z.object({
+            success: z.boolean(),
+            ual: z.string(),
+            data: z.any(),
+          }),
+        },
+      },
+      async (req, res) => {
+        try {
+          const ual = Array.isArray(req.params.ual)
+            ? req.params.ual.join('/')
+            : req.params.ual;
+
+          if (!ual.startsWith("did:dkg:")) {
+            return res.status(400).json({
+              success: false,
+              error: "Invalid UAL format",
+            } as any);
+          }
+
+          const assetResult = await ctx.dkg.asset.get(ual, {
+            contentType: "all",
+          });
+
+          res.json({
+            success: true,
+            ual,
+            data: assetResult,
+          });
+        } catch (error: any) {
+          console.error("[EPCIS Asset] Get error:", error);
+          res.status(404).json({
+            success: false,
+            error: "Asset not found",
+          } as any);
+        }
+      }
+    )
+  );
 });
