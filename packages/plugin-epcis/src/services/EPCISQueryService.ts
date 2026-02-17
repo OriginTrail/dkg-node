@@ -18,6 +18,10 @@ export interface EpcisQueryParams {
   bizLocation?: string;
   /** If true, searches all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) */
   fullTrace?: boolean;
+  /** Number of results per page (default: 100, max: 1000) */
+  limit?: number;
+  /** Number of results to skip (for pagination) */
+  offset?: number;
 }
 
 /**
@@ -116,6 +120,10 @@ export class EpcisQueryService {
     optionalClauses.push('OPTIONAL { ?event epcis:disposition ?disposition . }');
     optionalClauses.push('OPTIONAL { ?event epcis:readPoint ?readPoint . }');
 
+    // Pagination with defaults and max limits
+    const limit = Math.min(params.limit ?? 100, 1000);  // Default 100, max 1000
+    const offset = params.offset ?? 0;
+
     // Assemble the query
     return `${PREFIXES}
 SELECT ?ual ?eventType ?eventTime ?epc ?bizStep ?disposition ?readPoint ?bizLocation
@@ -127,6 +135,7 @@ WHERE {
   ${filterClauses.join('\n  ')}
 }
 ORDER BY DESC(?eventTime)
-LIMIT 100`;
+LIMIT ${limit}
+OFFSET ${offset}`;
   }
 }

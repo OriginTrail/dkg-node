@@ -109,6 +109,8 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         bizStep: z.string().optional().describe("Business step (e.g., 'receiving', 'shipping', 'assembling')"),
         bizLocation: z.string().optional().describe("Business location URI"),
         fullTrace: z.boolean().optional().describe("If true, search all EPC fields for full traceability"),
+        limit: z.number().optional().describe("Number of results per page (default: 100, max: 1000)"),
+        offset: z.number().optional().describe("Number of results to skip for pagination"),
       },
     },
     async (input) => {
@@ -120,12 +122,18 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           bizStep: input.bizStep,
           bizLocation: input.bizLocation,
           fullTrace: input.fullTrace,
+          limit: input.limit,
+          offset: input.offset,
         });
 
         const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
 
-        const summary = results?.length
-          ? `Found ${results.length} EPCIS event(s)`
+        const effectiveLimit = Math.min(input.limit ?? 100, 1000);
+        const effectiveOffset = input.offset ?? 0;
+        const resultCount = results?.data?.length || 0;
+
+        const summary = resultCount
+          ? `Found ${resultCount} EPCIS event(s)`
           : "No events found matching the criteria";
 
         return {
@@ -134,8 +142,12 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               type: "text",
               text: JSON.stringify({
                 summary,
-                count: results?.data.length || 0,
+                count: resultCount,
                 events: results || [],
+            pagination: {
+              limit: effectiveLimit,
+              offset: effectiveOffset,
+            },
               }, null, 2)
             }
           ],
@@ -441,20 +453,31 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             description: "If 'true', search all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) for full supply chain traceability",
             example: "true",
           }),
+          limit: z.string().optional().openapi({
+            description: "Number of results per page (default: 100, max: 1000)",
+            example: "50",
+          }),
+          offset: z.string().optional().openapi({
+            description: "Number of results to skip for pagination",
+            example: "0",
+          }),
         }),
         response: {
           description: "Query results",
           schema: z.object({
             success: z.boolean(),
-            query: z.string().optional(),
             results: z.array(z.any()),
             count: z.number(),
+            pagination: z.object({
+              limit: z.number(),
+              offset: z.number(),
+            }),
           }),
         },
       },
       async (req, res) => {
         try {
-          const { epc, from, to, bizStep, bizLocation, /*ual,*/ fullTrace } = req.query;
+          const { epc, from, to, bizStep, bizLocation, fullTrace, limit, offset } = req.query;
 
           // Build the SPARQL query based on parameters
           const sparqlQuery = queryService.buildQuery({
@@ -464,6 +487,8 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             bizStep: bizStep as string,
             bizLocation: bizLocation as string,
             fullTrace: fullTrace === 'true',
+            limit: limit ? parseInt(limit as string, 10) : undefined,
+            offset: offset ? parseInt(offset as string, 10) : undefined,
           });
 
           console.log("[EPCIS Events] Executing SPARQL query:", sparqlQuery);
@@ -471,11 +496,20 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           // Execute query against DKG
           const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
 
+          // Calculate pagination values
+          const effectiveLimit = Math.min(limit ? parseInt(limit as string, 10) : 100, 1000);
+          const effectiveOffset = offset ? parseInt(offset as string, 10) : 0;
+          const resultCount = results?.length || 0;
+
           res.json({
             success: true,
             //query: sparqlQuery,
             results: results || [],
-            count: results?.length || 0,
+            count: resultCount,
+            pagination: {
+              limit: effectiveLimit,
+              offset: effectiveOffset,
+            },
           });
         } catch (error: any) {
           console.error("[EPCIS Events] Query error:", error);
