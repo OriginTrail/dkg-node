@@ -190,13 +190,13 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
 
-        const eventCount = results?.length || 0;
+        const eventCount = results?.data?.length || 0;
         let summary = `Tracking: ${input.epc}\n`;
         summary += `Found ${eventCount} event(s) in the supply chain.\n\n`;
 
         if (eventCount > 0) {
           summary += "Journey Timeline:\n";
-          results.forEach((event: any, idx: number) => {
+          results.data.forEach((event: any, idx: number) => {
             const time = event.eventTime || "Unknown time";
             const step = event.bizStep?.split("-").pop() || event.eventType?.split("/").pop() || "Unknown";
             const location = event.bizLocation || event.readPoint || "Unknown location";
