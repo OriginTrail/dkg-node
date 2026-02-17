@@ -109,6 +109,10 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         bizStep: z.string().optional().describe("Business step (e.g., 'receiving', 'shipping', 'assembling')"),
         bizLocation: z.string().optional().describe("Business location URI"),
         fullTrace: z.boolean().optional().describe("If true, search all EPC fields for full traceability"),
+        parentID: z.string().optional().describe("Parent ID for AggregationEvent queries"),
+        childEPC: z.string().optional().describe("Child EPC for AggregationEvent queries"),
+        inputEPC: z.string().optional().describe("Input EPC for TransformationEvent queries"),
+        outputEPC: z.string().optional().describe("Output EPC for TransformationEvent queries"),
         limit: z.number().optional().describe("Number of results per page (default: 100, max: 1000)"),
         offset: z.number().optional().describe("Number of results to skip for pagination"),
       },
@@ -122,6 +126,10 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           bizStep: input.bizStep,
           bizLocation: input.bizLocation,
           fullTrace: input.fullTrace,
+          parentID: input.parentID,
+          childEPC: input.childEPC,
+          inputEPC: input.inputEPC,
+          outputEPC: input.outputEPC,
           limit: input.limit,
           offset: input.offset,
         });
@@ -450,8 +458,24 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             example: "urn:epc:id:sgln:0614141.00001.0",
           }),
           fullTrace: z.string().optional().openapi({
-            description: "If 'true', search all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) for full supply chain traceability",
+            description: "If 'true', search all EPC fields for full supply chain traceability",
             example: "true",
+          }),
+          parentID: z.string().optional().openapi({
+            description: "Filter by parent ID (AggregationEvent)",
+            example: "urn:epc:id:sscc:0614141.0000000001",
+          }),
+          childEPC: z.string().optional().openapi({
+            description: "Filter by child EPC (AggregationEvent)",
+            example: "urn:epc:id:sgtin:0614141.107346.2017",
+          }),
+          inputEPC: z.string().optional().openapi({
+            description: "Filter by input EPC (TransformationEvent)",
+            example: "urn:epc:id:sgtin:0614141.107346.2017",
+          }),
+          outputEPC: z.string().optional().openapi({
+            description: "Filter by output EPC (TransformationEvent)",
+            example: "urn:epc:id:sgtin:0614141.099999.9001",
           }),
           limit: z.string().optional().openapi({
             description: "Number of results per page (default: 100, max: 1000)",
@@ -477,7 +501,18 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       },
       async (req, res) => {
         try {
-          const { epc, from, to, bizStep, bizLocation, fullTrace, limit, offset } = req.query;
+          const { epc, from, to, bizStep, bizLocation, fullTrace, parentID, childEPC, inputEPC, outputEPC, limit, offset } = req.query;
+
+          // Validate: reject empty string values for filter parameters
+          const filters = { epc, from, to, bizStep, bizLocation, parentID, childEPC, inputEPC, outputEPC };
+          for (const [key, value] of Object.entries(filters)) {
+            if (value !== undefined && value === '') {
+              return res.status(400).json({
+                success: false,
+                error: `Parameter '${key}' cannot be empty`,
+              } as any);
+            }
+          }
 
           // Build the SPARQL query based on parameters
           const sparqlQuery = queryService.buildQuery({
@@ -487,6 +522,10 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             bizStep: bizStep as string,
             bizLocation: bizLocation as string,
             fullTrace: fullTrace === 'true',
+            parentID: parentID as string,
+            childEPC: childEPC as string,
+            inputEPC: inputEPC as string,
+            outputEPC: outputEPC as string,
             limit: limit ? parseInt(limit as string, 10) : undefined,
             offset: offset ? parseInt(offset as string, 10) : undefined,
           });

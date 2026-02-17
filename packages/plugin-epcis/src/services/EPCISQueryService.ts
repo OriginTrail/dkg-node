@@ -18,6 +18,14 @@ export interface EpcisQueryParams {
   bizLocation?: string;
   /** If true, searches all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) */
   fullTrace?: boolean;
+  /** Filter by parent ID (AggregationEvent) */
+  parentID?: string;
+  /** Filter by child EPCs (AggregationEvent) */
+  childEPC?: string;
+  /** Filter by input EPCs (TransformationEvent) */
+  inputEPC?: string;
+  /** Filter by output EPCs (TransformationEvent) */
+  outputEPC?: string;
   /** Number of results per page (default: 100, max: 1000) */
   limit?: number;
   /** Number of results to skip (for pagination) */
@@ -84,6 +92,26 @@ export class EpcisQueryService {
       optionalClauses.push('OPTIONAL { ?event epcis:epcList ?epc . }');
     }
 
+    // Parent ID filter (AggregationEvent)
+    if (params.parentID) {
+      wherePatterns.push(`?event epcis:parentID "${escapeSparql(params.parentID)}" .`);
+    }
+
+    // Child EPCs filter (AggregationEvent)
+    if (params.childEPC) {
+      wherePatterns.push(`?event epcis:childEPCs "${escapeSparql(params.childEPC)}" .`);
+    }
+
+    // Input EPCs filter (TransformationEvent)
+    if (params.inputEPC) {
+      wherePatterns.push(`?event epcis:inputEPCList "${escapeSparql(params.inputEPC)}" .`);
+    }
+
+    // Output EPCs filter (TransformationEvent)
+    if (params.outputEPC) {
+      wherePatterns.push(`?event epcis:outputEPCList "${escapeSparql(params.outputEPC)}" .`);
+    }
+
     // BizStep filter (accepts shorthand like "assembling" or full URI)
     if (params.bizStep) {
       const bizStepUri = normalizeBizStep(params.bizStep);
@@ -119,14 +147,23 @@ export class EpcisQueryService {
     // Always optional fields
     optionalClauses.push('OPTIONAL { ?event epcis:disposition ?disposition . }');
     optionalClauses.push('OPTIONAL { ?event epcis:readPoint ?readPoint . }');
+    optionalClauses.push('OPTIONAL { ?event epcis:action ?action . }');
+    optionalClauses.push('OPTIONAL { ?event epcis:parentID ?parentID . }');
+    optionalClauses.push('OPTIONAL { ?event epcis:childEPCs ?childEPCs . }');
+    optionalClauses.push('OPTIONAL { ?event epcis:inputEPCList ?inputEPCList . }');
+    optionalClauses.push('OPTIONAL { ?event epcis:outputEPCList ?outputEPCList . }');
 
     // Pagination with defaults and max limits
     const limit = Math.min(params.limit ?? 100, 1000);  // Default 100, max 1000
     const offset = params.offset ?? 0;
 
-    // Assemble the query
+    // Assemble the query with GROUP_CONCAT for array fields
     return `${PREFIXES}
-SELECT ?ual ?eventType ?eventTime ?epc ?bizStep ?disposition ?readPoint ?bizLocation
+SELECT ?ual ?eventType ?eventTime ?bizStep ?bizLocation ?disposition ?readPoint ?action ?parentID
+  (GROUP_CONCAT(DISTINCT ?epc; SEPARATOR=", ") AS ?epcList)
+  (GROUP_CONCAT(DISTINCT ?childEPCs; SEPARATOR=", ") AS ?childEPCList)
+  (GROUP_CONCAT(DISTINCT ?inputEPCList; SEPARATOR=", ") AS ?inputEPCs)
+  (GROUP_CONCAT(DISTINCT ?outputEPCList; SEPARATOR=", ") AS ?outputEPCs)
 WHERE {
   GRAPH ?ual {
     ${wherePatterns.join('\n    ')}
@@ -134,6 +171,7 @@ WHERE {
   }
   ${filterClauses.join('\n  ')}
 }
+GROUP BY ?ual ?eventType ?eventTime ?bizStep ?bizLocation ?disposition ?readPoint ?action ?parentID
 ORDER BY DESC(?eventTime)
 LIMIT ${limit}
 OFFSET ${offset}`;
