@@ -2,6 +2,7 @@ import { defineDkgPlugin } from "@dkg/plugins";
 import { openAPIRoute, z } from "@dkg/plugin-swagger";
 import { EpcisValidationService } from "./services/EPCISValidationService";
 import { EpcisQueryService } from "./services/EPCISQueryService";
+import { formatSourceKAs } from "./utils/sourceKA";
 import type { CaptureResponse } from "./model/types";
 
 // Timeout for internal publisher requests (30s for POST, 5s for GET)
@@ -138,28 +139,36 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         const effectiveLimit = Math.min(input.limit ?? 100, 1000);
         const effectiveOffset = input.offset ?? 0;
-        const resultCount = results?.data?.length || 0;
+        const resultData = results?.data || [];
+        const resultCount = resultData.length;
 
         const summary = resultCount
           ? `Found ${resultCount} EPCIS event(s)`
           : "No events found matching the criteria";
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                summary,
-                count: resultCount,
-                events: results || [],
-            pagination: {
-              limit: effectiveLimit,
-              offset: effectiveOffset,
-            },
-              }, null, 2)
-            }
-          ],
-        };
+        // Build content array with optional source KAs
+        const content: { type: "text"; text: string }[] = [
+          {
+            type: "text",
+            text: JSON.stringify({
+              summary,
+              count: resultCount,
+              events: results || [],
+              pagination: {
+                limit: effectiveLimit,
+                offset: effectiveOffset,
+              },
+            }, null, 2)
+          }
+        ];
+
+        // Append source Knowledge Assets if available
+        const sourceKAs = formatSourceKAs(resultData);
+        if (sourceKAs) {
+          content.push(sourceKAs);
+        }
+
+        return { content };
       } catch (error: any) {
         return {
           content: [
@@ -198,13 +207,14 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
 
-        const eventCount = results?.data?.length || 0;
+        const resultData = results?.data || [];
+        const eventCount = resultData.length;
         let summary = `Tracking: ${input.epc}\n`;
         summary += `Found ${eventCount} event(s) in the supply chain.\n\n`;
 
         if (eventCount > 0) {
           summary += "Journey Timeline:\n";
-          results.data.forEach((event: any, idx: number) => {
+          resultData.forEach((event: any, idx: number) => {
             const time = event.eventTime || "Unknown time";
             const step = event.bizStep?.split("-").pop() || event.eventType?.split("/").pop() || "Unknown";
             const location = event.bizLocation || event.readPoint || "Unknown location";
@@ -212,19 +222,26 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           });
         }
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                summary,
-                epc: input.epc,
-                eventCount,
-                events: results || [],
-              }, null, 2)
-            }
-          ],
-        };
+        // Build content array with optional source KAs
+        const content: { type: "text"; text: string }[] = [
+          {
+            type: "text",
+            text: JSON.stringify({
+              summary,
+              epc: input.epc,
+              eventCount,
+              events: results || [],
+            }, null, 2)
+          }
+        ];
+
+        // Append source Knowledge Assets if available
+        const sourceKAs = formatSourceKAs(resultData);
+        if (sourceKAs) {
+          content.push(sourceKAs);
+        }
+
+        return { content };
       } catch (error: any) {
         return {
           content: [
