@@ -4,9 +4,12 @@ import {
   Text,
   TextInput,
   Pressable,
+  NativeSyntheticEvent,
+  TextInputContentSizeChangeEventData,
   StyleProp,
   ViewStyle,
   StyleSheet,
+  Platform,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 
@@ -24,6 +27,15 @@ import {
   type ToolExecutionMode,
   TOOL_EXECUTION_MODE_OPTIONS,
 } from "@/shared/toolExecutionMode";
+import {
+  CHAT_INPUT_MAX_HEIGHT,
+  CHAT_INPUT_LINE_HEIGHT,
+  CHAT_INPUT_MIN_HEIGHT,
+  CHAT_INPUT_VERTICAL_PADDING,
+  getChatInputHeight,
+  getChatInputHeightFromText,
+} from "../../shared/chatInputHeight";
+import { getChatInputKeyAction } from "../../shared/chatInputKeyPress";
 
 import ChatInputFilesSelected from "./Input/FilesSelected";
 import ChatInputToolsSelector from "./Input/ToolsSelector";
@@ -62,13 +74,25 @@ export default function ChatInput({
   const [selectedFiles, setSelectedFiles] = useState<FileDefinition[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
+  const [inputHeight, setInputHeight] = useState(CHAT_INPUT_MIN_HEIGHT);
   const isBusy = disabled || isUploading;
+  const isWeb = Platform.OS === "web";
+  const isInputAtMaxHeight = inputHeight >= CHAT_INPUT_MAX_HEIGHT;
   const trimmedMessage = message.trim();
   const canSend = !!trimmedMessage && !isBusy;
 
   const activeMode = TOOL_EXECUTION_MODE_OPTIONS.find(
     (m) => m.value === toolExecutionMode,
   )!;
+
+  const onMessageChange = (nextMessage: string) => {
+    if (isWeb && nextMessage.length < message.length) {
+      const estimatedHeight = getChatInputHeightFromText(nextMessage);
+      setInputHeight((oldHeight) => Math.min(oldHeight, estimatedHeight));
+    }
+
+    setMessage(nextMessage);
+  };
 
   const onSubmit = () => {
     if (!canSend) return;
@@ -81,6 +105,7 @@ export default function ChatInput({
     });
     setMessage("");
     setSelectedFiles([]);
+    setInputHeight(CHAT_INPUT_MIN_HEIGHT);
   };
 
   const onAttachFilesPress = async () => {
@@ -122,14 +147,38 @@ export default function ChatInput({
         ]}
       >
         <TextInput
-          style={[styles.input, { color: colors.text }]}
+          style={[
+            styles.input,
+            isWeb && styles.inputMultiline,
+            isWeb && { height: inputHeight },
+            { color: colors.text },
+          ]}
           placeholder="Ask anything..."
           placeholderTextColor={colors.placeholder}
-          onChangeText={setMessage}
+          onChangeText={onMessageChange}
           value={message}
+          multiline={isWeb}
+          scrollEnabled={!isWeb || isInputAtMaxHeight}
           testID="chat-input"
-          onKeyPress={({ nativeEvent }) => {
-            if (nativeEvent.key === "Enter" && canSend) onSubmit();
+          onContentSizeChange={(
+            event: NativeSyntheticEvent<TextInputContentSizeChangeEventData>,
+          ) => {
+            if (!isWeb) return;
+            setInputHeight(getChatInputHeight(event.nativeEvent.contentSize.height));
+          }}
+          onKeyPress={(event) => {
+            const action = getChatInputKeyAction(
+              event.nativeEvent as { key?: string; shiftKey?: boolean },
+            );
+            if (action !== "submit") return;
+
+            // Keep Enter as submit on web multiline input.
+            (
+              event as unknown as {
+                preventDefault?: () => void;
+              }
+            ).preventDefault?.();
+            if (canSend) onSubmit();
           }}
         />
 
@@ -278,11 +327,14 @@ const styles = StyleSheet.create({
   },
   input: {
     borderRadius: 14,
-    minHeight: 46,
+    minHeight: CHAT_INPUT_MIN_HEIGHT,
     paddingHorizontal: 12,
-    paddingVertical: 11,
+    paddingVertical: CHAT_INPUT_VERTICAL_PADDING,
     fontSize: 16,
-    lineHeight: 24,
+    lineHeight: CHAT_INPUT_LINE_HEIGHT,
+  },
+  inputMultiline: {
+    textAlignVertical: "top",
   },
   toolbar: {
     flexDirection: "row",
