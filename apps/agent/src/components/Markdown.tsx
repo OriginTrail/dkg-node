@@ -1,5 +1,5 @@
-import { PropsWithChildren, useMemo } from "react";
-import { StyleSheet, View } from "react-native";
+import { PropsWithChildren, useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import RNMarkdownDisplay, {
   MarkdownProps,
   RenderRules,
@@ -7,7 +7,10 @@ import RNMarkdownDisplay, {
 // import * as Linking from "expo-linking";
 import { Image } from "expo-image";
 
+import * as Clipboard from "expo-clipboard";
+
 import useColors from "@/hooks/useColors";
+import CopyIcon from "./icons/CopyIcon";
 import ExternalLink from "./ExternalLink";
 
 const renderRules: RenderRules = {
@@ -52,6 +55,46 @@ const renderRules: RenderRules = {
     );
   },
 };
+
+function CopyCodeButton({ content, color }: { content: string; color: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    Clipboard.setStringAsync(content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <Pressable
+      onPress={handleCopy}
+      style={({ pressed }) => ({
+        position: "absolute",
+        top: 8,
+        right: 8,
+        padding: 4,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        opacity: copied ? 1 : pressed ? 0.5 : 0.7,
+      })}
+    >
+      {copied ? (
+        <Text
+          style={{
+            color,
+            fontSize: 13,
+            fontFamily: "Manrope_500Medium",
+          }}
+        >
+          ✓ Copied
+        </Text>
+      ) : (
+        <CopyIcon fill={color} height={18} width={18} />
+      )}
+    </Pressable>
+  );
+}
 
 export default function Markdown({
   style,
@@ -205,13 +248,37 @@ export default function Markdown({
     [style, colors],
   );
 
+  const rules = useMemo<RenderRules>(
+    () => ({
+      ...renderRules,
+      fence: (node, _children, _parent, fenceStyles) => (
+        <View
+          key={node.key}
+          style={{
+            position: "relative",
+            marginVertical: fenceStyles.fence.marginVertical,
+          }}
+        >
+          <Text style={[fenceStyles.fence, { marginVertical: 0 }]}>
+            {node.content}
+          </Text>
+          <CopyCodeButton
+            content={node.content}
+            color={colors.secondary}
+          />
+        </View>
+      ),
+    }),
+    [colors],
+  );
+
   if (testID) {
     return (
       <View testID={testID}>
-        <RNMarkdownDisplay {...props} rules={renderRules} style={styles} />
+        <RNMarkdownDisplay {...props} rules={rules} style={styles} />
       </View>
     );
   }
 
-  return <RNMarkdownDisplay {...props} rules={renderRules} style={styles} />;
+  return <RNMarkdownDisplay {...props} rules={rules} style={styles} />;
 }
