@@ -5,7 +5,7 @@ import { EpcisQueryService } from "./services/EPCISQueryService";
 import { formatSourceKAs } from "./utils/sourceKA";
 import type { CaptureResponse } from "./model/types";
 
-// Timeout for internal publisher requests (30s for POST, 5s for GET)
+// Timeout for internal publisher requests (10s for POST, 5s for GET)
 const PUBLISHER_POST_TIMEOUT_MS = 10000;
 const PUBLISHER_GET_TIMEOUT_MS = 5000;
 
@@ -368,10 +368,12 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       {
         tag: "EPCIS",
         summary: "Get Capture Status",
-        description: "Check the status of an EPCIS capture by captureID",
+        description:
+          "Check publisher-tracked status by numeric captureID. " +
+          "Direct fallback IDs (direct-*) are published directly to DKG and are not tracked by this endpoint.",
         params: z.object({
           captureID: z.string().openapi({
-            description: "The capture ID returned from POST /epcis/capture",
+            description: "Numeric publisher capture ID returned from POST /epcis/capture",
             example: "123",
           }),
         }),
@@ -392,6 +394,16 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           const publisherUrl = process.env.PUBLISHER_URL || "http://localhost:9200";
 
           const captureIdPattern = /^[0-9]{1,20}$/;
+          const directCaptureIdPattern = /^direct-[0-9]+$/;
+
+          if (directCaptureIdPattern.test(captureID)) {
+            return res.status(400).json({
+              error: "Direct fallback capture IDs are not tracked by publisher status API",
+              message: "This capture was published directly to DKG. Use the returned UAL to retrieve the asset.",
+              captureID,
+            } as any);
+          }
+
           if (!captureIdPattern.test(captureID)) {
             return res.status(400).json({
               error: "Invalid captureID format",
@@ -474,7 +486,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             description: "Filter by business location",
             example: "urn:epc:id:sgln:0614141.00001.0",
           }),
-          fullTrace: z.string().optional().openapi({
+          fullTrace: z.enum(["true", "false"]).optional().openapi({
             description: "If 'true', search all EPC fields for full supply chain traceability",
             example: "true",
           }),
@@ -531,6 +543,26 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             }
           }
 
+          // Parse + validate pagination params
+          const parsedLimit =
+            typeof limit === "string" && limit.length > 0 ? Number.parseInt(limit, 10) : undefined;
+          const parsedOffset =
+            typeof offset === "string" && offset.length > 0 ? Number.parseInt(offset, 10) : undefined;
+
+          if (parsedLimit !== undefined && (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 1000)) {
+            return res.status(400).json({
+              success: false,
+              error: "Parameter 'limit' must be an integer between 1 and 1000",
+            } as any);
+          }
+
+          if (parsedOffset !== undefined && (!Number.isInteger(parsedOffset) || parsedOffset < 0)) {
+            return res.status(400).json({
+              success: false,
+              error: "Parameter 'offset' must be a non-negative integer",
+            } as any);
+          }
+
           // Build the SPARQL query based on parameters
           const sparqlQuery = queryService.buildQuery({
             epc: epc as string,
@@ -543,8 +575,8 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             childEPC: childEPC as string,
             inputEPC: inputEPC as string,
             outputEPC: outputEPC as string,
-            limit: limit ? parseInt(limit as string, 10) : undefined,
-            offset: offset ? parseInt(offset as string, 10) : undefined,
+            limit: parsedLimit,
+            offset: parsedOffset,
           });
 
           console.log("[EPCIS Events] Executing SPARQL query:", sparqlQuery);
@@ -553,13 +585,13 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
 
           // Calculate pagination values
-          const effectiveLimit = Math.min(limit ? parseInt(limit as string, 10) : 100, 1000);
-          const effectiveOffset = offset ? parseInt(offset as string, 10) : 0;
-          const resultCount = results?.length || 0;
+          const effectiveLimit = parsedLimit ?? 100;
+          const effectiveOffset = parsedOffset ?? 0;
+          const resultCount = results?.data?.length || 0;
 
           res.json({
             success: true,
-            results: results || [],
+            results: results?.data || [],
             count: resultCount,
             pagination: {
               limit: effectiveLimit,

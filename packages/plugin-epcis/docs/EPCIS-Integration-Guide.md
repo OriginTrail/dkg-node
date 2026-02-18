@@ -573,7 +573,12 @@ Accept an EPCIS Document and queue it for publishing to DKG.
 }
 ```
 
-**Response** (HTTP 202 Accepted):
+**Response modes:**
+
+- **HTTP 202 Accepted**: Capture queued in publisher (numeric `captureID`, status is queryable)
+- **HTTP 201 Created**: Publisher unavailable, fallback published directly to DKG (`captureID` in `direct-*` format, includes `UAL`)
+
+**Example (HTTP 202 Accepted):**
 
 ```json
 {
@@ -584,11 +589,27 @@ Accept an EPCIS Document and queue it for publishing to DKG.
 }
 ```
 
+**Example (HTTP 201 Created - direct fallback):**
+
+```json
+{
+  "status": "201",
+  "receivedAt": "2024-03-01T08:00:01.123Z",
+  "captureID": "direct-1709280001123",
+  "eventCount": 1,
+  "UAL": "did:dkg:otp/0x1234.../789"
+}
+```
+
 ---
 
 ### GET `/epcis/capture/:captureID`
 
-Check the status of a previously submitted capture.
+Check the status of a previously submitted capture tracked by the publisher.
+
+> **Note:** This endpoint accepts numeric publisher `captureID` values.  
+> Direct fallback IDs (`direct-*`) are not tracked by publisher status API.  
+> For fallback captures, use the returned `UAL` with `GET /epcis/asset/*ual`.
 
 **Response:**
 
@@ -623,13 +644,13 @@ Query EPCIS events from the DKG.
 | `to` | string (ISO 8601) | End of time range | `2024-03-31T23:59:59Z` |
 | `bizStep` | string | Filter by business step | `assembling` or full URI |
 | `bizLocation` | string | Filter by location | `urn:epc:id:sgln:4012345.00002.0` |
-| `fullTrace` | string | Search all EPC fields | `true` |
+| `fullTrace` | string enum | Must be `"true"` or `"false"` | `true` |
 | `parentID` | string | Filter by parent EPC (AggregationEvent) | `urn:epc:id:sscc:...` |
 | `childEPC` | string | Filter by child EPC (AggregationEvent) | `urn:epc:id:sgtin:...` |
 | `inputEPC` | string | Filter by input EPC (TransformationEvent) | `urn:epc:id:sgtin:...` |
 | `outputEPC` | string | Filter by output EPC (TransformationEvent) | `urn:epc:id:sgtin:...` |
-| `limit` | number | Results per page (default: 100, max: 1000) | `50` |
-| `offset` | number | Results to skip (pagination) | `0` |
+| `limit` | integer | Results per page (default: 100, range: 1-1000) | `50` |
+| `offset` | integer | Results to skip (pagination, min: 0) | `0` |
 
 **Response:**
 
