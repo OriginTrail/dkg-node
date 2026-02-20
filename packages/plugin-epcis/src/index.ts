@@ -18,6 +18,10 @@ function delay(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+function generateRequestId(): string {
+  return `epcis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 // Helper function to send JSON-LD to publisher with retries
 async function sendToPublisher(
   jsonLd: any,
@@ -27,7 +31,11 @@ async function sendToPublisher(
     epochs?: number;
   }
 ): Promise<{ id: number; status: string; attemptCount: number }> {
-  const publisherUrl = process.env.PUBLISHER_URL || "http://localhost:9200";
+  const publisherUrl = process.env.PUBLISHER_URL;
+
+  if (!publisherUrl) {
+    throw new Error("PUBLISHER_URL is not set");
+  }
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -61,30 +69,6 @@ async function sendToPublisher(
   }
 
   throw new Error("Publisher not available");
-}
-
-// Fallback: publish directly to DKG
-async function publishDirectToDKG(
-  ctx: any,
-  jsonLd: any,
-  publishOptions?: { privacy?: "private" | "public"; epochs?: number }
-): Promise<{ ual: string }> {
-  const privacy = publishOptions?.privacy ?? "private";
-  const wrapped = { [privacy]: jsonLd };
-
-  console.log(`[EPCIS] Publishing directly to DKG (fallback)...`);
-
-  const result = await ctx.dkg.asset.create(wrapped, {
-    epochsNum: publishOptions?.epochs ?? 12,
-    minimumNumberOfFinalizationConfirmations: 3,
-    minimumNumberOfNodeReplications: 1,
-  });
-
-  if (!result?.UAL) {
-    throw new Error("DKG publish failed - no UAL returned");
-  }
-
-  return { ual: result.UAL };
 }
 
 export default defineDkgPlugin((ctx, mcp, api) => {
@@ -282,7 +266,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           }),
         }),
         response: {
-          description: "Capture accepted (202) or published directly (201)",
+          description: "Capture accepted (202)",
           schema: z.object({
             status: z.string(),
             receivedAt: z.string(),
@@ -293,7 +277,10 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         },
       },
       async (req, res) => {
-        try {
+        const requestId = generateRequestId();
+        console.info(`[EPCIS] Capture request received, requestId: ${requestId}`);
+
+        try {        
           const { epcisDocument, publishOptions } = req.body;
 
           // Validate the EPCIS document
@@ -306,55 +293,45 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             } as any);
           }
 
-          // Generate request ID for tracing
-          const requestId = `epcis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-          console.log(`[EPCIS] [${requestId}] Capture request received, ${validation.eventCount} event(s)`);
+          if (!validation.eventCount) {
+            return res.status(400).json({
+              error: "EPCISDocument contains no events",
+              message: "The EPCISDocument contains no events to publish. Please check the document and try again.",
+            } as any);
+          }
 
           let result: any;
-          let usedFallback = false;
-
-          // Try publisher first (with retries)
           try {
             result = await sendToPublisher(
               epcisDocument,
               { source: "EPCIS", sourceId: requestId },
               publishOptions
             );
-            console.log(`[EPCIS] [${requestId}] Queued via publisher, captureID: ${result.id}`);
-          } catch (publisherError: any) {
-            console.warn(`[EPCIS] [${requestId}] Publisher not available, trying direct DKG fallback`);
-
-            // Fallback to direct DKG publish
-            try {
-              const directResult = await publishDirectToDKG(ctx, epcisDocument, publishOptions);
-              result = { id: `direct-${Date.now()}`, ual: directResult.ual };
-              usedFallback = true;
-              console.log(`[EPCIS] [${requestId}] Published directly to DKG, UAL: ${result.ual}`);
-            } catch (fallbackError: any) {
-              console.error(`[EPCIS] [${requestId}] Both publisher and DKG fallback failed`);
-              return res.status(503).json({
-                error: "Publishing unavailable",
-                message: "Both publisher service and direct DKG publishing failed",
-                requestId
-              } as any);
-            }
+            console.info(`[EPCIS] Document queued via publisher, requestId: ${requestId}, eventCount: ${validation.eventCount}, captureID: ${result.id}`);
+          } catch (error: any) {
+            console.error(`[EPCIS] Publishing failed, requestId: ${requestId}, eventCount: ${validation.eventCount}, error:`, error);
+            return res.status(500).json({
+              error: "Something went wrong with publishing the EPCIS document.",
+              message: "Something went wrong with publishing the EPCIS document. Check if the publisher service is available.",
+            } as any);
           }
 
           // Return capture response
           const response: CaptureResponse = {
-            status: usedFallback ? "201" : "202",
+            status: "202",
+            requestId,
             receivedAt: new Date().toISOString(),
             captureID: String(result.id),
             eventCount: validation.eventCount || 0,
             ...(result.ual && { UAL: result.ual }),
           };
 
-          res.status(usedFallback ? 201 : 202).json(response);
+          return res.status(202).json(response);
         } catch (error: any) {
-          console.error("[EPCIS Capture] Unexpected error:", error);
-          res.status(500).json({
-            error: "Internal server error",
-            message: "An unexpected error occurred while processing the capture",
+          console.error(`[EPCIS] Unexpected error, requestId: ${requestId}, error:`, error);
+          return res.status(500).json({
+            error: "Something went wrong with processing the EPCIS document.",
+            message: "An unexpected error occurred while processing the EPCIS document.",
           } as any);
         }
       }
@@ -368,9 +345,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       {
         tag: "EPCIS",
         summary: "Get Capture Status",
-        description:
-          "Check publisher-tracked status by numeric captureID. " +
-          "Direct fallback IDs (direct-*) are published directly to DKG and are not tracked by this endpoint.",
+        description: "Check publisher-tracked status by numeric captureID.",
         params: z.object({
           captureID: z.string().openapi({
             description: "Numeric publisher capture ID returned from POST /epcis/capture",
@@ -391,25 +366,20 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       async (req, res) => {
         try {
           const { captureID } = req.params;
-          const publisherUrl = process.env.PUBLISHER_URL || "http://localhost:9200";
+          const publisherUrl = process.env.PUBLISHER_URL;
 
-          const captureIdPattern = /^[0-9]{1,20}$/;
-          const directCaptureIdPattern = /^direct-[0-9]+$/;
-
-          if (directCaptureIdPattern.test(captureID)) {
-            return res.status(400).json({
-              error: "Direct fallback capture IDs are not tracked by publisher status API",
-              message: "This capture was published directly to DKG. Use the returned UAL to retrieve the asset.",
-              captureID,
-            } as any);
+          if (!publisherUrl) {
+            throw new Error("PUBLISHER_URL is not set");
           }
 
+          const captureIdPattern = /^[0-9]{1,20}$/;
           if (!captureIdPattern.test(captureID)) {
             return res.status(400).json({
               error: "Invalid captureID format",
               captureID,
             } as any);
           }
+
           // Query publisher for asset status
           let response: Response;
           try {
@@ -418,13 +388,21 @@ export default defineDkgPlugin((ctx, mcp, api) => {
               { signal: AbortSignal.timeout(PUBLISHER_GET_TIMEOUT_MS) }
             );
           } catch (error: any) {
+            const errorName = error?.name ?? "UnknownError";
+            const errorMessage = error?.message ?? String(error);
+            console.error(
+              `[EPCIS] [Failed to get publisher status for captureID=${captureID}`,
+              { errorName, errorMessage }
+            );
+
             if (error.name === "TimeoutError") {
               return res.status(504).json({
                 error: "Publisher timeout",
                 captureID,
               } as any);
             }
-            throw error;
+
+            throw new Error(`Publisher status request failed: ${errorMessage}`);
           }
 
           if (!response.ok) {
@@ -579,7 +557,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             offset: parsedOffset,
           });
 
-          console.log("[EPCIS Events] Executing SPARQL query:", sparqlQuery);
+          console.debug("[EPCIS Events] Executing SPARQL query:", sparqlQuery);
 
           // Execute query against DKG
           const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");

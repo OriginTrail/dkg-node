@@ -29,6 +29,7 @@ export interface EPCISDocument {
   // API Response types
   export interface CaptureResponse {
     status: string;
+    requestId: string;
     receivedAt: string;
     captureID: string;
     eventCount: number;
