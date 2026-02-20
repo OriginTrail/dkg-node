@@ -364,10 +364,11 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         },
       },
       async (req, res) => {
-        try {
-          const { captureID } = req.params;
-          const publisherUrl = process.env.PUBLISHER_URL;
+        const { captureID } = req.params;
+        console.info(`[EPCIS] Capture status request received, captureID: ${captureID}`);
 
+        try {
+          const publisherUrl = process.env.PUBLISHER_URL;
           if (!publisherUrl) {
             throw new Error("PUBLISHER_URL is not set");
           }
