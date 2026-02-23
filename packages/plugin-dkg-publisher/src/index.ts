@@ -33,7 +33,7 @@ let serviceContainer: ServiceContainer | null = null;
 // No intervals needed anymore
 
 // Plugin definition for DKG integration
-export default defineDkgPlugin((_ctx, mcp, api) => {
+export default defineDkgPlugin((ctx, mcp, api) => {
   const pluginInitTime = Date.now();
   console.log(
     `🔍 DKG Publisher Plugin executing at ${new Date().toISOString()} (${pluginInitTime})`,
@@ -401,7 +401,7 @@ export default defineDkgPlugin((_ctx, mcp, api) => {
   );
 
   // Register all MCP tools for publisher plugin
-  registerMcpTools(mcp, serviceContainer);
+  registerMcpTools(mcp, serviceContainer, ctx);
 });
 
 // Cleanup function

@@ -2,7 +2,7 @@ import Svg, { SvgProps, Path } from "react-native-svg";
 
 export default function ToolsIcon(props: SvgProps) {
   return (
-    <Svg fill="none" {...props}>
+    <Svg fill="none" viewBox="0 0 18 18" {...props}>
       <Path
         strokeLinejoin="round"
         strokeWidth={0.667}

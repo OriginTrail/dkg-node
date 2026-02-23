@@ -11,6 +11,7 @@ import DKG from "dkg.js";
 import { eq } from "drizzle-orm";
 
 import { userCredentialsSchema } from "@/shared/auth";
+import { processStreamingCompletion } from "@/shared/chat";
 import { verify } from "@node-rs/argon2";
 
 import { configDatabase, configEnv } from "./helpers";
@@ -105,6 +106,13 @@ const app = createPluginServer({
       api.use("/blob", authorized(["blob"]));
       api.use("/change-password", authorized([]));
       api.use("/profile", authorized([]));
+    },
+    // Streaming LLM middleware — intercepts SSE requests before Expo Router
+    (_, __, api) => {
+      api.post("/llm", (req, res, next) => {
+        if (!req.headers.accept?.includes("text/event-stream")) return next();
+        processStreamingCompletion(req, res);
+      });
     },
     accountManagementPlugin,
     dkgEssentialsPlugin,

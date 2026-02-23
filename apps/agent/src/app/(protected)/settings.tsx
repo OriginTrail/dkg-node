@@ -13,7 +13,6 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useMcpClient } from "@/client";
 import { toError } from "@/shared/errors";
 import usePlatform from "@/hooks/usePlatform";
-import useSettings from "@/hooks/useSettings";
 import useColors from "@/hooks/useColors";
 import Container from "@/components/layout/Container";
 import Header from "@/components/layout/Header";
@@ -22,7 +21,6 @@ import Footer from "@/components/layout/Footer";
 import ChangePasswordForm from "@/components/forms/ChangePasswordForm";
 import { useAlerts } from "@/components/Alerts";
 import { useDialog } from "@/components/Dialog";
-import McpAutoapproveForm from "@/components/forms/McpAutoaproveForm";
 import ProfileDetailsForm from "@/components/forms/ProfileDetailsForm";
 
 const sections = [
@@ -163,44 +161,6 @@ const sections = [
           onSubmit={submit}
           showLabels
           cardBackground
-        />
-      );
-    },
-  },
-  {
-    title: "Tools & plugins",
-    description: "Manage MCP tools, permissions, and auto-approval.",
-    Component: () => {
-      const settings = useSettings();
-      const { showAlert } = useAlerts();
-      const { showDialog } = useDialog();
-
-      const update = useCallback(
-        async (value: boolean) => {
-          try {
-            await settings.set("autoApproveMcpTools", value);
-            await settings.reload();
-            showDialog({
-              type: "success",
-              title: "Settings applied successfully",
-              message: "",
-            });
-          } catch (error) {
-            console.error(error);
-            showAlert({
-              type: "error",
-              title: "Failed to change a setting",
-              message: toError(error).message,
-            });
-          }
-        },
-        [settings, showAlert, showDialog],
-      );
-
-      return (
-        <McpAutoapproveForm
-          currentValue={settings.autoApproveMcpTools}
-          onSubmit={update}
         />
       );
     },
