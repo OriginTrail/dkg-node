@@ -165,7 +165,7 @@ async function bootstrapJournalForSetup(pool) {
 
   if (tableCount < 4) {
     throw new Error(
-      "Database is in a partial state (some tables missing). Please choose 'Start fresh' (option 2).",
+      "Database is in a partial state (some tables missing). Please choose 'Start fresh' (option 1).",
     );
   }
 
@@ -458,14 +458,14 @@ async function setup() {
         log("  • docker-compose.knowledge-manager.yml found", "cyan");
 
       setupMode = await ask(
-        "\nChoose setup mode:\n1. Update existing configuration\n2. Start fresh (will backup existing files)\n3. Add wallets only\nChoice (1-3):",
+        "\nChoose setup mode:\n1. Start fresh (⚠️  will delete existing tables and backup config files)\n2. Update existing configuration\n3. Add wallets only\nChoice (1-3):",
         {
           validate: (input) => ["1", "2", "3"].includes(input),
           error: "Please enter 1, 2, or 3",
         },
       );
 
-      if (setupMode === "2") {
+      if (setupMode === "1") {
         // Backup existing files
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
         try {
@@ -756,7 +756,7 @@ JWT_SECRET=${jwtSecret}
 # DATADOG_API_KEY=
 `;
 
-    const overwriteConfig = setupMode === "1" || setupMode === "2";
+    const overwriteConfig = setupMode === "1" || setupMode === "2";  // Fresh or Update
     await createFile(".env.publisher", envContent, overwriteConfig);
 
     // Skip wallet configuration file - wallets will be inserted directly into database
@@ -881,8 +881,8 @@ volumes:
       // Run Drizzle migrations to create/update tables
       log("Running database migrations...", "cyan");
 
-      // Check if this is a fresh start (Mode 2) — drop all tables first
-      if (setupMode === "2" || !hasConfig) {
+      // Check if this is a fresh start (Mode 1) — drop all tables first
+      if (setupMode === "1" || !hasConfig) {
         log("  Dropping existing tables for fresh setup...", "white");
         await connection.execute("SET FOREIGN_KEY_CHECKS = 0");
         await connection.execute("DROP TABLE IF EXISTS __drizzle_migrations");
