@@ -49,7 +49,21 @@ function ask(question, options = {}) {
       ? question.replace(/:/g, " (input hidden):")
       : question;
 
+    // Mute output for password fields so typed characters are not echoed
+    if (options.password) {
+      rl._writeToOutput = (str) => {
+        // Only suppress characters after the prompt has been written
+        if (str === prompt || str.includes(prompt)) {
+          process.stdout.write(str);
+        }
+      };
+    }
+
     rl.question(`${colors.yellow}${prompt}${colors.reset} `, (answer) => {
+      if (options.password) {
+        // Print a newline since the user's Enter was not echoed
+        process.stdout.write("\n");
+      }
       rl.close();
 
       // Handle empty input - use default if available
@@ -129,6 +143,90 @@ function getAddressFromPrivateKey(privateKey) {
   } catch (error) {
     throw new Error(`Invalid private key: ${error.message}`);
   }
+}
+
+// Bootstrap migration journal for databases created by a previous version of
+// setup.js (raw DDL, no __drizzle_migrations table). Without this, migrate()
+// would try to re-run CREATE TABLE statements on existing tables and fail.
+// This mirrors the logic in src/database/bootstrap.ts but uses raw mysql2 queries.
+async function bootstrapJournalForSetup(pool) {
+  const fsSync = require("fs");
+
+  const [journals] = await pool.execute(
+    `SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '__drizzle_migrations'`,
+  );
+  if (Number(journals[0].cnt) > 0) return;
+
+  const [tables] = await pool.execute(
+    `SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name IN ('assets', 'wallets', 'publishing_attempts', 'batches')`,
+  );
+  const tableCount = Number(tables[0].cnt);
+  if (tableCount === 0) return; // Fresh DB
+
+  if (tableCount < 4) {
+    throw new Error(
+      "Database is in a partial state (some tables missing). Please choose 'Start fresh' (option 2).",
+    );
+  }
+
+  log("  Bootstrapping migration journal for existing database...", "cyan");
+
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS __drizzle_migrations (
+      id SERIAL PRIMARY KEY,
+      hash text NOT NULL,
+      created_at bigint
+    )
+  `);
+
+  const journalPath = path.join(
+    __dirname,
+    "src/database/migrations/meta/_journal.json",
+  );
+  const journal = JSON.parse(fsSync.readFileSync(journalPath, "utf-8"));
+
+  // Seed 0000 and 0001 (setup.js schema = post-0001 state)
+  for (const entry of journal.entries) {
+    if (entry.idx > 1) break;
+    const sqlFile = path.join(
+      __dirname,
+      `src/database/migrations/${entry.tag}.sql`,
+    );
+    const content = fsSync.readFileSync(sqlFile, "utf-8");
+    const hash = crypto.createHash("sha256").update(content).digest("hex");
+    await pool.execute(
+      `INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)`,
+      [hash, entry.when],
+    );
+  }
+
+  // Check if 0002 changes are already present
+  const entry0002 = journal.entries.find((e) => e.idx === 2);
+  if (entry0002) {
+    const [hasErrorDetails] = await pool.execute(
+      `SELECT COUNT(*) as cnt FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'publishing_attempts' AND column_name = 'error_details'`,
+    );
+    const [hasPrivateKey] = await pool.execute(
+      `SELECT COUNT(*) as cnt FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'wallets' AND column_name = 'private_key'`,
+    );
+    if (
+      Number(hasErrorDetails[0].cnt) > 0 &&
+      Number(hasPrivateKey[0].cnt) > 0
+    ) {
+      const sqlFile = path.join(
+        __dirname,
+        `src/database/migrations/${entry0002.tag}.sql`,
+      );
+      const content = fsSync.readFileSync(sqlFile, "utf-8");
+      const hash = crypto.createHash("sha256").update(content).digest("hex");
+      await pool.execute(
+        `INSERT INTO __drizzle_migrations (hash, created_at) VALUES (?, ?)`,
+        [hash, entry0002.when],
+      );
+    }
+  }
+
+  log("  ✓ Migration journal bootstrapped", "green");
 }
 
 // Check if configuration already exists
@@ -312,7 +410,7 @@ async function addWalletsOnly(configDetails) {
     // Insert new wallets
     for (const wallet of wallets) {
       await connection.execute(
-        `INSERT INTO wallets (address, private_key_encrypted, blockchain) VALUES (?, ?, ?)`,
+        `INSERT INTO wallets (address, private_key, blockchain) VALUES (?, ?, ?)`,
         [wallet.address, wallet.privateKey, wallet.blockchain],
       );
     }
@@ -351,13 +449,15 @@ async function setup() {
     // Check for existing configuration
     const { hasConfig, configDetails } = await checkExistingConfig();
 
+    let setupMode;
+
     if (hasConfig) {
       log("🔍 Existing configuration detected:", "yellow");
       if (configDetails.env) log("  • .env.publisher found", "cyan");
       if (configDetails.compose)
         log("  • docker-compose.knowledge-manager.yml found", "cyan");
 
-      const setupMode = await ask(
+      setupMode = await ask(
         "\nChoose setup mode:\n1. Update existing configuration\n2. Start fresh (will backup existing files)\n3. Add wallets only\nChoice (1-3):",
         {
           validate: (input) => ["1", "2", "3"].includes(input),
@@ -435,7 +535,7 @@ async function setup() {
     logStep("3/7", "DKG Network Configuration");
 
     const dkgEndpoint = await ask(
-      "DKG OT-Node URL (default: http://localhost:8900):",
+      "DKG Engine URL (default: http://localhost:8900):",
       {
         default: "http://localhost:8900",
       },
@@ -656,7 +756,8 @@ JWT_SECRET=${jwtSecret}
 # DATADOG_API_KEY=
 `;
 
-    await createFile(".env.publisher", envContent);
+    const overwriteConfig = setupMode === "1" || setupMode === "2";
+    await createFile(".env.publisher", envContent, overwriteConfig);
 
     // Skip wallet configuration file - wallets will be inserted directly into database
 
@@ -707,6 +808,7 @@ volumes:
     await createFile(
       "docker-compose.knowledge-manager.yml",
       dockerComposeContent,
+      overwriteConfig,
     );
 
     // Package.json scripts
@@ -776,177 +878,60 @@ volumes:
       await connection.changeUser({ database: dbName });
       log(`✓ Connected to database '${dbName}'`, "green");
 
-      // Create tables one by one (MySQL can't handle multiple CREATE statements in one execute)
-      log("Creating tables...", "cyan");
+      // Run Drizzle migrations to create/update tables
+      log("Running database migrations...", "cyan");
 
-      // Drop existing tables if they exist to ensure clean schema
-      log("  Dropping existing tables if they exist...", "white");
-      await connection.execute("SET FOREIGN_KEY_CHECKS = 0");
-      await connection.execute("DROP TABLE IF EXISTS wallet_metrics");
-      await connection.execute("DROP TABLE IF EXISTS publishing_attempts");
-      await connection.execute("DROP TABLE IF EXISTS assets");
-      await connection.execute("DROP TABLE IF EXISTS wallets");
-      await connection.execute("DROP TABLE IF EXISTS batches");
-      await connection.execute("DROP TABLE IF EXISTS metrics_hourly");
-      await connection.execute("SET FOREIGN_KEY_CHECKS = 1");
+      // Check if this is a fresh start (Mode 2) — drop all tables first
+      if (setupMode === "2" || !hasConfig) {
+        log("  Dropping existing tables for fresh setup...", "white");
+        await connection.execute("SET FOREIGN_KEY_CHECKS = 0");
+        await connection.execute("DROP TABLE IF EXISTS __drizzle_migrations");
+        await connection.execute("DROP TABLE IF EXISTS wallet_metrics");
+        await connection.execute("DROP TABLE IF EXISTS publishing_attempts");
+        await connection.execute("DROP TABLE IF EXISTS assets");
+        await connection.execute("DROP TABLE IF EXISTS wallets");
+        await connection.execute("DROP TABLE IF EXISTS batches");
+        await connection.execute("DROP TABLE IF EXISTS metrics_hourly");
+        await connection.execute("SET FOREIGN_KEY_CHECKS = 1");
+      }
 
-      // Assets table with new schema
-      log("  Creating assets table...", "white");
-      await connection.execute(`
-        CREATE TABLE assets (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          wallet_id INT,
-          batch_id INT,
-          
-          -- Content and metadata
-          content_url TEXT NOT NULL,
-          content_size BIGINT NOT NULL,
-          source VARCHAR(100),
-          source_id VARCHAR(255),
-          
-          -- Publishing configuration
-          priority INTEGER DEFAULT 50,
-          privacy ENUM('private', 'public') DEFAULT 'private',
-          epochs INTEGER DEFAULT 2,
-          replications INTEGER DEFAULT 1,
-          max_attempts INTEGER DEFAULT 3,
-          
-          -- Status and attempts
-          status ENUM('pending', 'queued', 'assigned', 'publishing', 'published', 'failed') NOT NULL DEFAULT 'pending',
-          status_message TEXT,
-          attempt_count INTEGER DEFAULT 0,
-          retry_count INTEGER DEFAULT 0,
-          next_retry_at TIMESTAMP NULL,
-          last_error TEXT,
-          
-          -- Publishing results
-          ual VARCHAR(255) UNIQUE,
-          transaction_hash VARCHAR(66),
-          blockchain VARCHAR(50),
-          
-          -- Timestamps
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          queued_at TIMESTAMP NULL,
-          assigned_at TIMESTAMP NULL,
-          publishing_started_at TIMESTAMP NULL,
-          published_at TIMESTAMP NULL,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          
-          INDEX idx_status (status),
-          INDEX idx_retry (status, next_retry_at),
-          INDEX idx_source (source, source_id),
-          INDEX idx_pending (status, created_at),
-          INDEX idx_batch (batch_id)
-        )
-      `);
+      // Close the single connection — Drizzle needs a pool
+      await connection.end();
+      connection = null;
 
-      // Wallets table
-      log("  Creating wallets table...", "white");
-      await connection.execute(`
-        CREATE TABLE wallets (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          address VARCHAR(42) UNIQUE NOT NULL,
-          private_key_encrypted TEXT NOT NULL,
-          blockchain VARCHAR(50) NOT NULL,
-          is_active BOOLEAN DEFAULT TRUE,
-          is_locked BOOLEAN DEFAULT FALSE,
-          locked_by VARCHAR(100),
-          locked_at TIMESTAMP NULL,
-          last_used_at TIMESTAMP NULL,
-          total_uses INTEGER DEFAULT 0,
-          successful_uses INTEGER DEFAULT 0,
-          failed_uses INTEGER DEFAULT 0,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          INDEX idx_available (is_active, is_locked, last_used_at)
-        )
-      `);
+      // Run Drizzle migrations via a dedicated connection with FK checks disabled.
+      // Migration 0001 changes column types that have FK references, and MySQL
+      // validates FK compatibility on each ALTER TABLE.
+      const { drizzle } = require("drizzle-orm/mysql2");
+      const { migrate } = require("drizzle-orm/mysql2/migrator");
+      const migrationConn = await mysql.createConnection({
+        host: dbHost,
+        port: parseInt(dbPort),
+        user: dbUser,
+        password: dbPassword,
+        database: dbName,
+      });
+      try {
+        // Bootstrap migration journal for existing databases without one
+        // (e.g. created by a previous version of setup.js with raw DDL)
+        await bootstrapJournalForSetup(migrationConn);
 
-      // Publishing attempts table
-      log("  Creating publishing_attempts table...", "white");
-      await connection.execute(`
-        CREATE TABLE publishing_attempts (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          asset_id INT NOT NULL,
-          attempt_number INTEGER NOT NULL,
-          worker_id VARCHAR(100),
-          wallet_address VARCHAR(42) NOT NULL,
-          wallet_id INT,
-          otnode_url TEXT,
-          blockchain VARCHAR(50),
-          transaction_hash VARCHAR(66),
-          gas_used BIGINT,
-          status ENUM('started', 'success', 'failed', 'timeout') NOT NULL,
-          ual VARCHAR(255),
-          error_type VARCHAR(50),
-          error_message TEXT,
-          started_at TIMESTAMP NOT NULL,
-          completed_at TIMESTAMP NULL,
-          duration_seconds INTEGER,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
-          INDEX idx_asset_attempts (asset_id, attempt_number),
-          INDEX idx_wallet_usage (wallet_address, started_at)
-        )
-      `);
+        await migrate(drizzle(migrationConn), {
+          migrationsFolder: path.join(__dirname, "src/database/migrations"),
+        });
+      } finally {
+        await migrationConn.end();
+      }
+      log("✓ Database migrations completed", "green");
 
-      // Batches table
-      log("  Creating batches table...", "white");
-      await connection.execute(`
-        CREATE TABLE batches (
-          id INT AUTO_INCREMENT PRIMARY KEY,
-          batch_name VARCHAR(255),
-          source VARCHAR(100),
-          total_assets INT NOT NULL DEFAULT 0,
-          pending_count INT NOT NULL DEFAULT 0,
-          processing_count INT NOT NULL DEFAULT 0,
-          published_count INT NOT NULL DEFAULT 0,
-          failed_count INT NOT NULL DEFAULT 0,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          completed_at TIMESTAMP NULL,
-          INDEX idx_batch_status (created_at, completed_at)
-        )
-      `);
-
-      // Metrics hourly table
-      log("  Creating metrics_hourly table...", "white");
-      await connection.execute(`
-        CREATE TABLE metrics_hourly (
-          hour_timestamp TIMESTAMP PRIMARY KEY NOT NULL,
-          assets_registered INT DEFAULT 0,
-          assets_published INT DEFAULT 0,
-          assets_failed INT DEFAULT 0,
-          avg_publish_duration_seconds INT,
-          total_gas_used BIGINT,
-          unique_wallets_used INT,
-          INDEX idx_metrics_hour (hour_timestamp)
-        )
-      `);
-
-      // Wallet metrics table
-      log("  Creating wallet_metrics table...", "white");
-      await connection.execute(`
-        CREATE TABLE wallet_metrics (
-          wallet_id INT NOT NULL,
-          date TIMESTAMP NOT NULL,
-          total_publishes INT DEFAULT 0,
-          successful_publishes INT DEFAULT 0,
-          failed_publishes INT DEFAULT 0,
-          avg_duration_seconds INT,
-          total_gas_used BIGINT,
-          PRIMARY KEY (wallet_id, date),
-          FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE CASCADE
-        )
-      `);
-
-      // Add foreign key constraints after all tables are created
-      log("  Adding foreign key constraints...", "white");
-      await connection.execute(`
-        ALTER TABLE assets 
-        ADD CONSTRAINT fk_assets_wallet_id 
-        FOREIGN KEY (wallet_id) REFERENCES wallets(id) ON DELETE SET NULL
-      `);
-
-      log("✓ Database tables created/verified", "green");
+      // Reconnect with single connection for wallet insertion
+      connection = await mysql.createConnection({
+        host: dbHost,
+        port: parseInt(dbPort),
+        user: dbUser,
+        password: dbPassword,
+        database: dbName,
+      });
 
       // Verify tables were created
       const [tables] = await connection.execute("SHOW TABLES");
@@ -991,7 +976,7 @@ volumes:
             const privateKey = wallet.privateKey;
 
             const [result] = await connection.execute(
-              `INSERT INTO wallets (address, private_key_encrypted, blockchain) VALUES (?, ?, ?)`,
+              `INSERT INTO wallets (address, private_key, blockchain) VALUES (?, ?, ?)`,
               [wallet.address, privateKey, wallet.blockchain],
             );
 
@@ -1086,7 +1071,6 @@ volumes:
     log("• Add more wallets: npm run setup (choose option 3)", "white");
     log("  Workers will auto-restart to match new wallet count", "white");
     log("• View dashboard at: /admin/queues (when agent is running)", "white");
-    log("• Docker alternative: npm run km:docker:up", "white");
     log("• Check health: GET /api/knowledge/health", "white");
 
     log("\nExample usage in DKG Agent plugin:", "yellow");
@@ -1110,16 +1094,12 @@ GET /api/knowledge/metrics/queue
 GET /api/knowledge/metrics/wallets
 GET /api/knowledge/health
 
-// MCP Tool (for Claude integration)
+// MCP Tool
 knowledge-asset-publish`,
       "white",
     );
 
     log("\n⚠️  Security Notes:", "red");
-    log(
-      "• Wallet private keys are encrypted and stored in the database",
-      "yellow",
-    );
     log("• Keep your DATABASE_URL and ENCRYPTION_KEY secure", "yellow");
     log("• Use environment variables for production deployments", "yellow");
 

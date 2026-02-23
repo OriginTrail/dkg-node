@@ -4,12 +4,14 @@ import { assets } from "../database/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { publishingLogger as logger } from "./Logger";
 import { DkgService } from "./DkgService";
+import { serializeErrorDetails } from "./errorUtils";
 
 export interface PublishResult {
   success: boolean;
   ual?: string;
   transactionHash?: string;
   error?: string;
+  errorDetails?: Record<string, unknown>;
 }
 
 export class PublishingService {
@@ -163,7 +165,11 @@ export class PublishingService {
           status: result.operation.publish.status,
         });
 
-        throw new Error(`DKG API Error: ${errorType} - ${errorMessage}`);
+        const err = new Error(`DKG API Error: ${errorType} - ${errorMessage}`);
+        (err as any).operationId = result.operation.publish.operationId;
+        (err as any).operationStatus = result.operation.publish.status;
+        (err as any).dkgOperation = result.operation.publish;
+        throw err;
       }
 
       // ONLY update as published if we actually have a UAL
@@ -223,6 +229,7 @@ export class PublishingService {
       return {
         success: false,
         error: error.message,
+        errorDetails: serializeErrorDetails(error),
       };
     }
   }

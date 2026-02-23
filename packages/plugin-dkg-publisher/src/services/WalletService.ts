@@ -134,10 +134,7 @@ export class WalletService {
       return null;
     }
 
-    // Add private key (stored as plaintext for now)
-    const walletWithKey = wallet[0] as any;
-    walletWithKey.privateKey = walletWithKey.privateKeyEncrypted;
-    return walletWithKey;
+    return wallet[0];
   }
 
   /**

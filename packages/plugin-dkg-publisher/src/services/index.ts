@@ -1,5 +1,6 @@
 import IORedis from "ioredis";
-import { Database, createDatabase } from "../database";
+import { Database, createDatabase, runMigrations } from "../database";
+import { bootstrapMigrationJournal } from "../database/bootstrap";
 import { ServiceContainer } from "./ServiceContainer";
 import { WalletService } from "./WalletService";
 import { AssetService } from "./AssetService";
@@ -23,9 +24,12 @@ export async function initializeServices(
   console.log(`🔧 initializeServices called at ${Date.now()}`);
   const container = new ServiceContainer();
 
-  // Initialize database
+  // Initialize database and run migrations
   const db = createDatabase(config.database.connectionString);
   container.register("db", db);
+
+  await bootstrapMigrationJournal(db);
+  await runMigrations(config.database.connectionString);
 
   // Initialize Redis
   const redis = new IORedis({

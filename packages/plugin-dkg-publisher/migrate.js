@@ -2,7 +2,9 @@
 
 /**
  * Database migration script for DKG Publisher Plugin
- * This script runs Drizzle migrations to create/update database tables
+ *
+ * NOTE: Migrations now run automatically on plugin startup (see services/index.ts).
+ * This script is provided for manual/debug use only.
  */
 
 const { drizzle } = require("drizzle-orm/mysql2");
