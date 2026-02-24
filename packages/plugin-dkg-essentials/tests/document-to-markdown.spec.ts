@@ -4,11 +4,14 @@
 import { describe, it, beforeEach, afterEach } from "mocha";
 import { expect } from "chai";
 import sinon from "sinon";
+import { PDFDocument, StandardFonts } from "pdf-lib";
 import {
   createDocumentToMarkdownPlugin,
   createProvider,
   getAvailableProviders,
   isProviderAvailable,
+  UnpdfProvider,
+  createUnpdfProvider,
 } from "../dist/index.js";
 import {
   createExpressApp,
@@ -37,6 +40,22 @@ const mockDkgContext = {
   dkg: createMockDkgClient(),
   blob: createInMemoryBlobStorage(),
 };
+
+/**
+ * Helper: create a PDF with the given page texts using pdf-lib.
+ */
+async function createTestPdf(pageTexts: string[]): Promise<Buffer> {
+  const doc = await PDFDocument.create();
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+
+  for (const text of pageTexts) {
+    const page = doc.addPage([600, 400]);
+    page.drawText(text, { x: 50, y: 350, font, size: 14 });
+  }
+
+  const bytes = await doc.save();
+  return Buffer.from(bytes);
+}
 
 describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
   let mockMcpServer: McpServer;
@@ -123,11 +142,13 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     it("should list available providers", () => {
       const providers = getAvailableProviders();
       expect(providers).to.include("mistral");
+      expect(providers).to.include("unpdf");
       expect(providers).to.be.an("array");
     });
 
     it("should check provider availability", () => {
       expect(isProviderAvailable("mistral")).to.equal(true);
+      expect(isProviderAvailable("unpdf")).to.equal(true);
       expect(isProviderAvailable("unknown")).to.equal(false);
     });
 
@@ -146,6 +167,11 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     it("should throw when mistral API key is missing", () => {
       delete process.env.MISTRAL_API_KEY;
       expect(() => createProvider("mistral")).to.throw(/MISTRAL_API_KEY/);
+    });
+
+    it("should create unpdf provider without config", () => {
+      const provider = createProvider("unpdf");
+      expect(provider.name).to.equal("unpdf");
     });
   });
 
@@ -275,20 +301,34 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
   });
 
   describe("Provider Initialization", () => {
-    it("should fail to initialize plugin when MISTRAL_API_KEY is not set", async () => {
+    it("should initialize plugin without any env vars (unpdf default)", async () => {
       delete process.env.MISTRAL_API_KEY;
 
       const plugin = createDocumentToMarkdownPlugin();
       const { server } = await createMcpServerClientPair();
       expect(() =>
         plugin(mockDkgContext, server, express.Router()),
+      ).to.not.throw();
+    });
+
+    it("should require MISTRAL_API_KEY when explicitly selecting mistral", async () => {
+      delete process.env.MISTRAL_API_KEY;
+
+      const plugin = createDocumentToMarkdownPlugin({
+        providerName: "mistral",
+      });
+      const { server } = await createMcpServerClientPair();
+      expect(() =>
+        plugin(mockDkgContext, server, express.Router()),
       ).to.throw(/MISTRAL_API_KEY/);
     });
 
-    it("should initialize plugin when MISTRAL_API_KEY is set", async () => {
+    it("should initialize plugin when MISTRAL_API_KEY is set and mistral selected", async () => {
       process.env.MISTRAL_API_KEY = "test-api-key";
 
-      const plugin = createDocumentToMarkdownPlugin();
+      const plugin = createDocumentToMarkdownPlugin({
+        providerName: "mistral",
+      });
       const { server } = await createMcpServerClientPair();
       expect(() =>
         plugin(mockDkgContext, server, express.Router()),
@@ -377,6 +417,154 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
       const text = (result.content as any[])[0].text;
       // Should not fail with "Document blob not found" - blob was read successfully
       expect(text).to.not.include("Document blob not found");
+    });
+  });
+
+  describe("UnpdfProvider", () => {
+    let provider: InstanceType<typeof UnpdfProvider>;
+
+    beforeEach(() => {
+      provider = createUnpdfProvider();
+    });
+
+    describe("Format Rejection", () => {
+      it("should reject .docx files", async () => {
+        const buffer = Buffer.from("fake docx content");
+        try {
+          await provider.convert(buffer, "document.docx");
+          expect.fail("should have thrown");
+        } catch (err: any) {
+          expect(err.message).to.include("only supports .pdf");
+          expect(err.message).to.include("Mistral");
+        }
+      });
+
+      it("should reject .pptx files", async () => {
+        const buffer = Buffer.from("fake pptx content");
+        try {
+          await provider.convert(buffer, "presentation.pptx");
+          expect.fail("should have thrown");
+        } catch (err: any) {
+          expect(err.message).to.include("only supports .pdf");
+          expect(err.message).to.include("Mistral");
+        }
+      });
+
+      it("should reject files without extension", async () => {
+        const buffer = Buffer.from("no extension");
+        try {
+          await provider.convert(buffer, "noextension");
+          expect.fail("should have thrown");
+        } catch (err: any) {
+          expect(err.message).to.include("only supports .pdf");
+        }
+      });
+    });
+
+    describe("PDF Conversion", () => {
+      it("should convert a simple PDF to markdown", async () => {
+        const pdfBuffer = await createTestPdf([
+          "Hello from page one",
+          "Hello from page two",
+        ]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf");
+
+        expect(result.markdown).to.include("Hello from page one");
+        expect(result.markdown).to.include("Hello from page two");
+      });
+
+      it("should return correct pageCount", async () => {
+        const pdfBuffer = await createTestPdf(["Page 1", "Page 2", "Page 3"]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf");
+
+        expect(result.pageCount).to.equal(3);
+      });
+
+      it("should include page separators in output", async () => {
+        const pdfBuffer = await createTestPdf(["First", "Second"]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf");
+
+        expect(result.markdown).to.include("<!-- Page 1 -->");
+        expect(result.markdown).to.include("<!-- Page 2 -->");
+      });
+
+      it("should return empty images array", async () => {
+        const pdfBuffer = await createTestPdf(["Some text"]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf");
+
+        expect(result.images).to.deep.equal([]);
+      });
+
+      it("should respect pageStart/pageEnd options", async () => {
+        const pdfBuffer = await createTestPdf([
+          "Page one text",
+          "Page two text",
+          "Page three text",
+        ]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf", {
+          pageStart: 2,
+          pageEnd: 2,
+        });
+
+        expect(result.markdown).to.include("Page two text");
+        expect(result.markdown).to.not.include("Page one text");
+        expect(result.markdown).to.not.include("Page three text");
+        // Page separator should reflect the actual page number
+        expect(result.markdown).to.include("<!-- Page 2 -->");
+        // Total pageCount should still be the full document count
+        expect(result.pageCount).to.equal(3);
+      });
+
+      it("should handle pageStart only (no pageEnd)", async () => {
+        const pdfBuffer = await createTestPdf([
+          "Page one text",
+          "Page two text",
+          "Page three text",
+        ]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf", {
+          pageStart: 2,
+        });
+
+        expect(result.markdown).to.not.include("Page one text");
+        expect(result.markdown).to.include("Page two text");
+        expect(result.markdown).to.include("Page three text");
+        expect(result.markdown).to.include("<!-- Page 2 -->");
+        expect(result.markdown).to.include("<!-- Page 3 -->");
+      });
+
+      it("should handle pageEnd only (no pageStart)", async () => {
+        const pdfBuffer = await createTestPdf([
+          "Page one text",
+          "Page two text",
+          "Page three text",
+        ]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf", {
+          pageEnd: 2,
+        });
+
+        expect(result.markdown).to.include("Page one text");
+        expect(result.markdown).to.include("Page two text");
+        expect(result.markdown).to.not.include("Page three text");
+        expect(result.markdown).to.include("<!-- Page 1 -->");
+        expect(result.markdown).to.include("<!-- Page 2 -->");
+      });
+
+      it("should convert single-page PDF", async () => {
+        const pdfBuffer = await createTestPdf(["Only page"]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf");
+
+        expect(result.markdown).to.include("Only page");
+        expect(result.markdown).to.include("<!-- Page 1 -->");
+        expect(result.pageCount).to.equal(1);
+      });
     });
   });
 });

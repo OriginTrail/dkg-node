@@ -87,6 +87,6 @@ export interface DocumentConversionProvider {
 export interface DocumentConversionConfig {
   /** Provider to use for conversion (default: auto-detected) */
   provider?: DocumentConversionProvider;
-  /** Provider name to use if no provider instance given (default: "mistral") */
+  /** Provider name to use if no provider instance given (default: "unpdf") */
   providerName?: string;
 }

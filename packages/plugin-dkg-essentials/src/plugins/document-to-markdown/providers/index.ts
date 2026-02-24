@@ -5,9 +5,11 @@
 
 import type { DocumentConversionProvider } from "../types";
 import { createMistralProvider } from "./mistral";
+import { createUnpdfProvider } from "./unpdf";
 
 // Re-export provider implementations
 export { MistralProvider, createMistralProvider } from "./mistral";
+export { UnpdfProvider, createUnpdfProvider } from "./unpdf";
 
 /**
  * Map of provider names to factory functions
@@ -17,12 +19,13 @@ const PROVIDER_FACTORIES: Record<
   (options?: Record<string, unknown>) => DocumentConversionProvider
 > = {
   mistral: (options) => createMistralProvider(options?.apiKey as string),
+  unpdf: () => createUnpdfProvider(),
 };
 
 /**
  * Default provider name
  */
-const DEFAULT_PROVIDER = "mistral";
+const DEFAULT_PROVIDER = "unpdf";
 
 /**
  * Get list of available provider names
@@ -41,7 +44,7 @@ export function isProviderAvailable(name: string): boolean {
 /**
  * Create a provider by name.
  *
- * @param name - Provider name (default: "mistral")
+ * @param name - Provider name (default: "unpdf")
  * @param options - Provider-specific options
  * @throws Error if provider is not found
  */
@@ -60,8 +63,8 @@ export function createProvider(
 }
 
 /**
- * Get the default provider (Mistral).
- * This is the most common use case - just get a working provider.
+ * Get the default provider (unpdf).
+ * This is the most common use case - just get a working provider with zero config.
  */
 export function getDefaultProvider(): DocumentConversionProvider {
   return createProvider(DEFAULT_PROVIDER);

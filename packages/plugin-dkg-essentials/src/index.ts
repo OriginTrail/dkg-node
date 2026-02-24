@@ -29,6 +29,8 @@ export {
   isProviderAvailable,
   MistralProvider,
   createMistralProvider,
+  UnpdfProvider,
+  createUnpdfProvider,
 } from "./plugins/document-to-markdown";
 
 export default defineDkgPlugin((ctx, mcp, api) => {

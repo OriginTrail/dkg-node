@@ -2,11 +2,11 @@
  * Document to Markdown MCP Tool
  *
  * Converts PDF, DOCX, and PPTX documents to Markdown using configurable OCR providers.
- * Default provider: Mistral OCR.
+ * Default provider: unpdf (zero-config PDF text extraction).
  *
  * Environment variables:
- * - MISTRAL_API_KEY (required for Mistral provider)
- * - DOCUMENT_CONVERSION_PROVIDER (optional, default: "mistral")
+ * - DOCUMENT_CONVERSION_PROVIDER (optional, default: "unpdf")
+ * - MISTRAL_API_KEY (required when using Mistral provider)
  */
 
 import { Readable } from "stream";
@@ -44,6 +44,8 @@ export {
   isProviderAvailable,
   MistralProvider,
   createMistralProvider,
+  UnpdfProvider,
+  createUnpdfProvider,
 } from "./providers";
 
 // Re-export validation utilities
@@ -104,7 +106,7 @@ export function createDocumentToMarkdownPlugin(
         config?.providerName ??
         // eslint-disable-next-line turbo/no-undeclared-env-vars
         process.env.DOCUMENT_CONVERSION_PROVIDER ??
-        "mistral";
+        "unpdf";
 
       provider = createProvider(providerName);
     }
@@ -120,7 +122,8 @@ export function createDocumentToMarkdownPlugin(
         {
           summary: "Convert document to Markdown",
           description:
-            "Upload a PDF, DOCX, or PPTX file and convert it to Markdown using OCR. " +
+            "Upload a PDF, DOCX, or PPTX file and convert it to Markdown. " +
+            "Supported document types and image extraction capabilities depend on the configured provider. " +
             "Returns the extracted markdown content and any images stored in blob storage.",
           tag: "Documents",
           response: {
@@ -231,8 +234,9 @@ export function createDocumentToMarkdownPlugin(
       {
         title: "Document to Markdown",
         description:
-          "Convert PDF, DOCX, or PPTX documents to Markdown using OCR. " +
-          "Extracts text and images from documents. Use this as the first step when publishing documents to the DKG - " +
+          "Convert PDF, DOCX, or PPTX documents to Markdown. " +
+          "Supported document types and image extraction capabilities depend on the configured provider. " +
+          "Use this as the first step when publishing documents to the DKG - " +
           "the markdown output can then be transformed to JSON-LD and published using dkg-create.",
         inputSchema: {
           blobId: z
@@ -343,7 +347,7 @@ export function createDocumentToMarkdownPlugin(
 }
 
 /**
- * Default plugin export - uses Mistral provider.
- * For custom provider configuration, use createDocumentToMarkdownPlugin().
+ * Default plugin export - uses unpdf provider (zero-config).
+ * For Mistral OCR, use createDocumentToMarkdownPlugin({ providerName: "mistral" }).
  */
 export default createDocumentToMarkdownPlugin();
