@@ -4,7 +4,7 @@
  */
 
 import type { DocumentConversionProvider } from "../types";
-import { MistralProvider, createMistralProvider } from "./mistral";
+import { createMistralProvider } from "./mistral";
 
 // Re-export provider implementations
 export { MistralProvider, createMistralProvider } from "./mistral";

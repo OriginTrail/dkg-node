@@ -55,11 +55,10 @@ async function uploadImages(
   folderId: string,
 ): Promise<void> {
   for (const image of images) {
-    const imageFilename = `${image.id}`; // ID already includes extension (e.g., "img-0.jpeg")
-    const imageBlobId = `${BLOB_PREFIX}/${folderId}/${imageFilename}`;
+    const imageBlobId = `${BLOB_PREFIX}/${folderId}/${image.id}`; // ID already includes extension (e.g., "img-0.jpeg")
     const imageStream = Readable.toWeb(Readable.from(image.data));
     await ctx.blob.put(imageBlobId, imageStream, {
-      name: imageFilename,
+      name: image.id,
       mimeType: `image/${image.originalFormat}`,
     });
     image.blobId = imageBlobId;

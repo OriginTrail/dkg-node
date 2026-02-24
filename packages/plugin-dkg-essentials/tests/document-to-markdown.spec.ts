@@ -5,7 +5,6 @@ import { describe, it, beforeEach, afterEach } from "mocha";
 import { expect } from "chai";
 import sinon from "sinon";
 import {
-  documentToMarkdownPlugin,
   createDocumentToMarkdownPlugin,
   createProvider,
   getAvailableProviders,
@@ -21,6 +20,17 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import express from "express";
 import { Readable } from "stream";
+
+// Mock provider for tests that don't need real OCR
+const createMockProvider = (overrides?: Partial<any>) => ({
+  name: "mock-provider",
+  convert: sinon.stub().resolves({
+    markdown: "# Mock Content",
+    images: [],
+    pageCount: 1,
+  }),
+  ...overrides,
+});
 
 // Mock DKG context
 const mockDkgContext = {
@@ -47,8 +57,11 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     // Setup Express app
     app = createExpressApp();
 
-    // Initialize plugin
-    documentToMarkdownPlugin(mockDkgContext, mockMcpServer, apiRouter);
+    // Initialize plugin with a mock provider (avoids needing MISTRAL_API_KEY)
+    const plugin = createDocumentToMarkdownPlugin({
+      provider: createMockProvider(),
+    });
+    plugin(mockDkgContext, mockMcpServer, apiRouter);
     await connect();
 
     // Mount the router
@@ -138,18 +151,8 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
 
   describe("Custom Plugin Configuration", () => {
     it("should accept custom provider via config", async () => {
-      // Create a mock provider
-      const mockProvider = {
-        name: "mock-provider",
-        convert: sinon.stub().resolves({
-          markdown: "# Test",
-          images: [],
-          pageCount: 1,
-        }),
-      };
-
       const customPlugin = createDocumentToMarkdownPlugin({
-        provider: mockProvider,
+        provider: createMockProvider(),
       });
 
       const { server, client, connect } = await createMcpServerClientPair();
@@ -163,15 +166,13 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     });
 
     it("should use custom provider for conversion", async () => {
-      // Create a mock provider that returns specific content
-      const mockProvider = {
-        name: "mock-provider",
+      const mockProvider = createMockProvider({
         convert: sinon.stub().resolves({
           markdown: "# Mock Converted Content",
           images: [],
           pageCount: 3,
         }),
-      };
+      });
 
       const customPlugin = createDocumentToMarkdownPlugin({
         provider: mockProvider,
@@ -204,8 +205,6 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
 
   describe("Input Validation", () => {
     it("should fail when neither blobId nor fileBase64 is provided", async () => {
-      process.env.MISTRAL_API_KEY = "test-api-key";
-
       const result = await mockMcpClient.callTool({
         name: "document-to-markdown",
         arguments: { filename: "test.pdf" },
@@ -217,8 +216,6 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     });
 
     it("should fail when both blobId and fileBase64 are provided", async () => {
-      process.env.MISTRAL_API_KEY = "test-api-key";
-
       const result = await mockMcpClient.callTool({
         name: "document-to-markdown",
         arguments: {
@@ -234,8 +231,6 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     });
 
     it("should fail for unsupported file types", async () => {
-      process.env.MISTRAL_API_KEY = "test-api-key";
-
       const result = await mockMcpClient.callTool({
         name: "document-to-markdown",
         arguments: {
@@ -251,8 +246,6 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     });
 
     it("should fail for files without extension", async () => {
-      process.env.MISTRAL_API_KEY = "test-api-key";
-
       const result = await mockMcpClient.callTool({
         name: "document-to-markdown",
         arguments: {
@@ -267,8 +260,6 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     });
 
     it("should fail when blob is not found", async () => {
-      process.env.MISTRAL_API_KEY = "test-api-key";
-
       const result = await mockMcpClient.callTool({
         name: "document-to-markdown",
         arguments: {
@@ -283,22 +274,25 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
     });
   });
 
-  describe("API Key Validation", () => {
-    it("should fail when MISTRAL_API_KEY is not set", async () => {
+  describe("Provider Initialization", () => {
+    it("should fail to initialize plugin when MISTRAL_API_KEY is not set", async () => {
       delete process.env.MISTRAL_API_KEY;
 
-      const result = await mockMcpClient.callTool({
-        name: "document-to-markdown",
-        arguments: {
-          filename: "test.pdf",
-          fileBase64: "c29tZS1jb250ZW50",
-        },
-      });
+      const plugin = createDocumentToMarkdownPlugin();
+      const { server } = await createMcpServerClientPair();
+      expect(() =>
+        plugin(mockDkgContext, server, express.Router()),
+      ).to.throw(/MISTRAL_API_KEY/);
+    });
 
-      expect(result.content).to.be.an("array");
-      const text = (result.content as any[])[0].text;
-      expect(text).to.include("MISTRAL_API_KEY");
-      expect(text).to.include("environment variable is not set");
+    it("should initialize plugin when MISTRAL_API_KEY is set", async () => {
+      process.env.MISTRAL_API_KEY = "test-api-key";
+
+      const plugin = createDocumentToMarkdownPlugin();
+      const { server } = await createMcpServerClientPair();
+      expect(() =>
+        plugin(mockDkgContext, server, express.Router()),
+      ).to.not.throw();
     });
   });
 
@@ -308,9 +302,6 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
 
     for (const ext of supportedExtensions) {
       it(`should accept ${ext} files`, async () => {
-        process.env.MISTRAL_API_KEY = "test-api-key";
-
-        // This will fail at the API call level, but that means it passed validation
         const result = await mockMcpClient.callTool({
           name: "document-to-markdown",
           arguments: {
@@ -321,15 +312,13 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
 
         expect(result.content).to.be.an("array");
         const text = (result.content as any[])[0].text;
-        // Should NOT contain "Unsupported file type" - it should fail later at API call
+        // Should NOT contain "Unsupported file type" - mock provider handles conversion
         expect(text).to.not.include("Unsupported file type");
       });
     }
 
     for (const ext of unsupportedExtensions) {
       it(`should reject ${ext} files`, async () => {
-        process.env.MISTRAL_API_KEY = "test-api-key";
-
         const result = await mockMcpClient.callTool({
           name: "document-to-markdown",
           arguments: {
@@ -347,12 +336,9 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
 
   describe("File Size Validation", () => {
     it("should reject files larger than 50MB", async () => {
-      process.env.MISTRAL_API_KEY = "test-api-key";
-
-      // Create a base64 string that decodes to > 50MB
-      // 50MB = 52,428,800 bytes, base64 encoding increases size by ~33%
-      // So we need about 70MB of base64 data
-      const largeSizeBytes = 51 * 1024 * 1024; // 51MB
+      // Create a buffer > 50MB, then base64-encode it for the tool input.
+      // The size check validates the decoded byte length, not the base64 string length.
+      const largeSizeBytes = 51 * 1024 * 1024; // 51MB decoded, exceeds the 50MB limit
       const largeBuffer = Buffer.alloc(largeSizeBytes, "x");
       const largeBase64 = largeBuffer.toString("base64");
 
@@ -372,8 +358,6 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
 
   describe("Blob Integration", () => {
     it("should read document from blob storage", async () => {
-      process.env.MISTRAL_API_KEY = "test-api-key";
-
       // Create a test blob
       const testContent = Buffer.from("test pdf content");
       const { id: blobId } = await mockDkgContext.blob.create(
@@ -391,7 +375,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
 
       expect(result.content).to.be.an("array");
       const text = (result.content as any[])[0].text;
-      // Should fail at Mistral API level (not auth), meaning blob was read successfully
+      // Should not fail with "Document blob not found" - blob was read successfully
       expect(text).to.not.include("Document blob not found");
     });
   });

@@ -9,9 +9,12 @@
  * - DOCUMENT_CONVERSION_PROVIDER (optional, default: "mistral")
  */
 
+import { Readable } from "stream";
 import consumers from "stream/consumers";
 import { defineDkgPlugin, DkgContext } from "@dkg/plugins";
 import { z } from "@dkg/plugins/helpers";
+import { openAPIRoute } from "@dkg/plugin-swagger";
+import busboy from "busboy";
 
 import type {
   DocumentConversionProvider,
@@ -20,6 +23,7 @@ import type {
   DocumentConversionConfig,
 } from "./types";
 import { integrateWithBlobStorage } from "./blob-integration";
+import { validateFileType, validateFileSize } from "./validation";
 import { createProvider } from "./providers";
 
 // Re-export types for external use
@@ -56,7 +60,7 @@ export {
 
 /**
  * Process a document and convert it to markdown with image extraction.
- * Uses the provided provider for conversion, then integrates with blob storage.
+ * Validates file type and size, converts via provider, then integrates with blob storage.
  */
 async function processDocument(
   ctx: DkgContext,
@@ -65,6 +69,10 @@ async function processDocument(
   filename: string,
   options?: DocumentConversionOptions,
 ): Promise<ConversionResult> {
+  // Validate before handing off to provider (providers may also validate internally)
+  validateFileType(filename);
+  validateFileSize(documentBuffer.length);
+
   console.log(`Converting document using provider: ${provider.name}`);
 
   // Convert document using provider
@@ -84,7 +92,7 @@ async function processDocument(
 export function createDocumentToMarkdownPlugin(
   config?: DocumentConversionConfig,
 ) {
-  return defineDkgPlugin((ctx, mcp) => {
+  return defineDkgPlugin((ctx, mcp, api) => {
     // Resolve provider: use provided instance, create by name, or use default
     let provider: DocumentConversionProvider;
 
@@ -98,22 +106,124 @@ export function createDocumentToMarkdownPlugin(
         process.env.DOCUMENT_CONVERSION_PROVIDER ??
         "mistral";
 
-      try {
-        provider = createProvider(providerName);
-      } catch (error) {
-        // Log warning but don't fail plugin initialization
-        // Provider errors will surface when the tool is actually used
-        console.warn(
-          `Document conversion provider "${providerName}" initialization deferred: ` +
-            `${error instanceof Error ? error.message : String(error)}`,
-        );
-        // Create a lazy provider that initializes on first use
-        provider = createLazyProvider(providerName);
-      }
+      provider = createProvider(providerName);
     }
 
     console.log(
       `Document-to-markdown plugin initialized with provider: ${provider.name}`,
+    );
+
+    // REST endpoint for document-to-markdown conversion
+    api.post(
+      "/document-to-markdown",
+      openAPIRoute(
+        {
+          summary: "Convert document to Markdown",
+          description:
+            "Upload a PDF, DOCX, or PPTX file and convert it to Markdown using OCR. " +
+            "Returns the extracted markdown content and any images stored in blob storage.",
+          tag: "Documents",
+          response: {
+            schema: z.object({
+              markdown: z.string().openapi({
+                description: "The extracted markdown content",
+              }),
+              markdownBlobId: z.string().openapi({
+                description: "Blob ID of the stored markdown file",
+              }),
+              outputFolderId: z.string().openapi({
+                description: "Blob folder ID containing all conversion outputs",
+              }),
+              pageCount: z.number().openapi({
+                description: "Number of pages processed",
+              }),
+              images: z.array(
+                z.object({
+                  id: z.string(),
+                  blobId: z.string(),
+                }),
+              ).openapi({
+                description: "List of extracted images with their blob IDs",
+              }),
+            }),
+          },
+          finalizeRouteConfig(cfg) {
+            cfg.request = {
+              body: {
+                required: true,
+                description:
+                  "Document file to convert. Supported formats: PDF, DOCX, PPTX.",
+                content: {
+                  "multipart/form-data": {
+                    schema: z.object({
+                      file: z.string().openapi({
+                        description: "The document file to convert",
+                        format: "binary",
+                      }),
+                    }),
+                  },
+                },
+              },
+            };
+            return cfg;
+          },
+        },
+        async (req, res) => {
+          let fileReceived = false;
+
+          const bb = busboy({ headers: req.headers });
+
+          bb.on("file", async (_name, file, info) => {
+            fileReceived = true;
+            try {
+              const documentBuffer = await consumers.buffer(
+                Readable.toWeb(file),
+              );
+
+              const result = await processDocument(
+                ctx,
+                provider,
+                documentBuffer,
+                info.filename,
+              );
+
+              res.status(200).json({
+                markdown: result.markdown,
+                markdownBlobId: result.markdownBlobId,
+                outputFolderId: result.outputFolderId,
+                pageCount: result.pageCount,
+                images: result.images.map((img) => ({
+                  id: img.id,
+                  blobId: img.blobId ?? "",
+                })),
+              });
+            } catch (error) {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              console.error(
+                "Error converting document to markdown:",
+                message,
+              );
+              res.status(400).json({ error: message });
+            }
+          });
+
+          bb.on("error", (error: Error) => {
+            console.error("Error parsing multipart request:", error.message);
+            res.status(400).json({ error: "Invalid multipart request." });
+          });
+
+          bb.on("close", () => {
+            if (!fileReceived) {
+              res
+                .status(400)
+                .json({ error: "No file provided in the request." });
+            }
+          });
+
+          req.pipe(bb);
+        },
+      ),
     );
 
     mcp.registerTool(
@@ -230,27 +340,6 @@ export function createDocumentToMarkdownPlugin(
       },
     );
   });
-}
-
-/**
- * Create a lazy provider that defers initialization until first use.
- * This allows the plugin to initialize even if provider config is missing.
- */
-function createLazyProvider(providerName: string): DocumentConversionProvider {
-  let actualProvider: DocumentConversionProvider | null = null;
-
-  return {
-    get name() {
-      return actualProvider?.name ?? `${providerName} (lazy)`;
-    },
-
-    async convert(buffer, filename, options) {
-      if (!actualProvider) {
-        actualProvider = createProvider(providerName);
-      }
-      return actualProvider.convert(buffer, filename, options);
-    },
-  };
 }
 
 /**
