@@ -46,7 +46,23 @@ jobs:
           REVIEW_JSON: ${{ steps.codex.outputs.final-message }}
         with:
           script: |
-            const review = JSON.parse(process.env.REVIEW_JSON);
+            let review;
+            try {
+              review = JSON.parse(process.env.REVIEW_JSON);
+            } catch (e) {
+              console.error('Failed to parse Codex output:', e.message);
+              console.error('Raw output:', process.env.REVIEW_JSON?.slice(0, 500));
+              await github.rest.pulls.createReview({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                pull_number: context.issue.number,
+                body: '⚠️ Codex review failed to produce valid JSON output. Check the [workflow logs](' +
+                  `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${process.env.GITHUB_RUN_ID}) for details.`,
+                event: 'COMMENT',
+                comments: [],
+              });
+              return;
+            }
 
             // Fetch all changed files (paginated for large PRs)
             const files = await github.paginate(
