@@ -100,10 +100,11 @@ jobs:
             }
 
             // Partition comments into valid (on diff lines) and overflow
+            const comments = Array.isArray(review.comments) ? review.comments : [];
             const validComments = [];
             const overflowComments = [];
 
-            for (const comment of review.comments) {
+            for (const comment of comments) {
               const key = `${comment.path}:${comment.line}`;
               if (validLines.has(key)) {
                 validComments.push({
