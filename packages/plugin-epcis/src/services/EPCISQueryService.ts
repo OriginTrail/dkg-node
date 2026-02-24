@@ -1,42 +1,20 @@
+import type { EpcisQueryParams } from "../model/types";
 /**
  * EPCIS Query Service
  * Supports composite filtering - combine multiple filters in one query
  */
 
-// Namespace prefixes for EPCIS queries
 const PREFIXES = `
 PREFIX epcis: <https://gs1.github.io/EPCIS/>
 PREFIX schema: <http://schema.org/>
 PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
 `;
 
-export interface EpcisQueryParams {
-  epc?: string;
-  from?: string;
-  to?: string;
-  bizStep?: string;
-  bizLocation?: string;
-  /** If true, searches all EPC fields (epcList, inputEPCList, outputEPCList, childEPCs, parentID) */
-  fullTrace?: boolean;
-  /** Filter by parent ID (AggregationEvent) */
-  parentID?: string;
-  /** Filter by child EPCs (AggregationEvent) */
-  childEPC?: string;
-  /** Filter by input EPCs (TransformationEvent) */
-  inputEPC?: string;
-  /** Filter by output EPCs (TransformationEvent) */
-  outputEPC?: string;
-  /** Number of results per page (default: 100, max: 1000) */
-  limit?: number;
-  /** Number of results to skip (for pagination) */
-  offset?: number;
-}
-
 /**
  * Escape special characters in SPARQL string literals
  */
 function escapeSparql(value: string): string {
-  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+  return value.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
 }
 
 /**
@@ -44,12 +22,11 @@ function escapeSparql(value: string): string {
  * Accepts: "assembling" or "https://ref.gs1.org/cbv/BizStep-assembling"
  */
 function normalizeBizStep(value: string): string {
-
   if (typeof value !== "string" || value.length === 0) {
     throw new Error("Invalid bizStep value");
   }
 
-  if (!value.includes('://')) {
+  if (!value.includes("://")) {
     return `https://ref.gs1.org/cbv/BizStep-${value}`;
   }
   return value;
@@ -61,16 +38,17 @@ export class EpcisQueryService {
    * All provided filters are combined with AND logic
    */
   buildQuery(params: EpcisQueryParams): string {
-
     const wherePatterns: string[] = [];
     const filterClauses: string[] = [];
     const optionalClauses: string[] = [];
 
     // Base pattern - always present
-    wherePatterns.push('?event a ?eventType .');
+    wherePatterns.push("?event a ?eventType .");
 
     // Filter by event type (must be EPCIS event)
-    filterClauses.push('FILTER(STRSTARTS(STR(?eventType), "https://gs1.github.io/EPCIS/"))');
+    filterClauses.push(
+      'FILTER(STRSTARTS(STR(?eventType), "https://gs1.github.io/EPCIS/"))',
+    );
 
     // EPC filter - with optional full traceability across all EPC fields
     if (params.epc) {
@@ -89,72 +67,96 @@ export class EpcisQueryService {
         wherePatterns.push(`?event epcis:epcList "${epcValue}" .`);
       }
     } else {
-      optionalClauses.push('OPTIONAL { ?event epcis:epcList ?epc . }');
+      optionalClauses.push("OPTIONAL { ?event epcis:epcList ?epc . }");
     }
 
     // Parent ID filter (AggregationEvent)
     if (params.parentID) {
-      wherePatterns.push(`?event epcis:parentID "${escapeSparql(params.parentID)}" .`);
+      wherePatterns.push(
+        `?event epcis:parentID "${escapeSparql(params.parentID)}" .`,
+      );
     }
 
     // Child EPCs filter (AggregationEvent)
     if (params.childEPC) {
-      wherePatterns.push(`?event epcis:childEPCs "${escapeSparql(params.childEPC)}" .`);
+      wherePatterns.push(
+        `?event epcis:childEPCs "${escapeSparql(params.childEPC)}" .`,
+      );
     }
 
     // Input EPCs filter (TransformationEvent)
     if (params.inputEPC) {
-      wherePatterns.push(`?event epcis:inputEPCList "${escapeSparql(params.inputEPC)}" .`);
+      wherePatterns.push(
+        `?event epcis:inputEPCList "${escapeSparql(params.inputEPC)}" .`,
+      );
     }
 
     // Output EPCs filter (TransformationEvent)
     if (params.outputEPC) {
-      wherePatterns.push(`?event epcis:outputEPCList "${escapeSparql(params.outputEPC)}" .`);
+      wherePatterns.push(
+        `?event epcis:outputEPCList "${escapeSparql(params.outputEPC)}" .`,
+      );
     }
 
     // BizStep filter (accepts shorthand like "assembling" or full URI)
     if (params.bizStep) {
       const bizStepUri = normalizeBizStep(params.bizStep);
-      wherePatterns.push('?event epcis:bizStep ?bizStep .');
-      filterClauses.push(`FILTER(STR(?bizStep) = "${escapeSparql(bizStepUri)}")`);
+      wherePatterns.push("?event epcis:bizStep ?bizStep .");
+      filterClauses.push(
+        `FILTER(STR(?bizStep) = "${escapeSparql(bizStepUri)}")`,
+      );
     } else {
-      optionalClauses.push('OPTIONAL { ?event epcis:bizStep ?bizStep . }');
+      optionalClauses.push("OPTIONAL { ?event epcis:bizStep ?bizStep . }");
     }
 
     // BizLocation filter
     if (params.bizLocation) {
-      wherePatterns.push(`?event epcis:bizLocation "${escapeSparql(params.bizLocation)}" .`);
+      wherePatterns.push(
+        `?event epcis:bizLocation "${escapeSparql(params.bizLocation)}" .`,
+      );
     } else {
-      optionalClauses.push('OPTIONAL { ?event epcis:bizLocation ?bizLocation . }');
+      optionalClauses.push(
+        "OPTIONAL { ?event epcis:bizLocation ?bizLocation . }",
+      );
     }
 
     // Time range filter - use xsd:dateTime for proper date comparison
     if (params.from || params.to) {
-      wherePatterns.push('?event epcis:eventTime ?eventTime .');
+      wherePatterns.push("?event epcis:eventTime ?eventTime .");
       if (params.from && params.to) {
         filterClauses.push(
-          `FILTER(xsd:dateTime(?eventTime) >= xsd:dateTime("${escapeSparql(params.from)}") && xsd:dateTime(?eventTime) <= xsd:dateTime("${escapeSparql(params.to)}"))`
+          `FILTER(xsd:dateTime(?eventTime) >= xsd:dateTime("${escapeSparql(params.from)}") && xsd:dateTime(?eventTime) <= xsd:dateTime("${escapeSparql(params.to)}"))`,
         );
       } else if (params.from) {
-        filterClauses.push(`FILTER(xsd:dateTime(?eventTime) >= xsd:dateTime("${escapeSparql(params.from)}"))`);
+        filterClauses.push(
+          `FILTER(xsd:dateTime(?eventTime) >= xsd:dateTime("${escapeSparql(params.from)}"))`,
+        );
       } else if (params.to) {
-        filterClauses.push(`FILTER(xsd:dateTime(?eventTime) <= xsd:dateTime("${escapeSparql(params.to)}"))`);
+        filterClauses.push(
+          `FILTER(xsd:dateTime(?eventTime) <= xsd:dateTime("${escapeSparql(params.to)}"))`,
+        );
       }
     } else {
-      optionalClauses.push('OPTIONAL { ?event epcis:eventTime ?eventTime . }');
+      optionalClauses.push("OPTIONAL { ?event epcis:eventTime ?eventTime . }");
     }
 
     // Always optional fields
-    optionalClauses.push('OPTIONAL { ?event epcis:disposition ?disposition . }');
-    optionalClauses.push('OPTIONAL { ?event epcis:readPoint ?readPoint . }');
-    optionalClauses.push('OPTIONAL { ?event epcis:action ?action . }');
-    optionalClauses.push('OPTIONAL { ?event epcis:parentID ?parentID . }');
-    optionalClauses.push('OPTIONAL { ?event epcis:childEPCs ?childEPCs . }');
-    optionalClauses.push('OPTIONAL { ?event epcis:inputEPCList ?inputEPCList . }');
-    optionalClauses.push('OPTIONAL { ?event epcis:outputEPCList ?outputEPCList . }');
+    optionalClauses.push(
+      "OPTIONAL { ?event epcis:disposition ?disposition . }",
+    );
+    optionalClauses.push("OPTIONAL { ?event epcis:readPoint ?readPoint . }");
+    optionalClauses.push("OPTIONAL { ?event epcis:action ?action . }");
+    optionalClauses.push("OPTIONAL { ?event epcis:parentID ?parentID . }");
+    optionalClauses.push("OPTIONAL { ?event epcis:childEPCs ?childEPCs . }");
+    optionalClauses.push(
+      "OPTIONAL { ?event epcis:inputEPCList ?inputEPCList . }",
+    );
+    optionalClauses.push(
+      "OPTIONAL { ?event epcis:outputEPCList ?outputEPCList . }",
+    );
 
     // Pagination with defaults and max limits
-    const limit = Math.min(params.limit ?? 100, 1000);  // Default 100, max 1000
+    const limit = Math.min(params.limit ?? 100, 1000); // Default 100, max 1000
     const offset = params.offset ?? 0;
 
     // Assemble the query with GROUP_CONCAT for array fields
@@ -166,10 +168,10 @@ SELECT ?ual ?eventType ?eventTime ?bizStep ?bizLocation ?disposition ?readPoint 
   (GROUP_CONCAT(DISTINCT ?outputEPCList; SEPARATOR=", ") AS ?outputEPCs)
 WHERE {
   GRAPH ?ual {
-    ${wherePatterns.join('\n    ')}
-    ${optionalClauses.join('\n    ')}
+    ${wherePatterns.join("\n    ")}
+    ${optionalClauses.join("\n    ")}
   }
-  ${filterClauses.join('\n  ')}
+  ${filterClauses.join("\n  ")}
 }
 GROUP BY ?ual ?eventType ?eventTime ?bizStep ?bizLocation ?disposition ?readPoint ?action ?parentID
 ORDER BY DESC(?eventTime)

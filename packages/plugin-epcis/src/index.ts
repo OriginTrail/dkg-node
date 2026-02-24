@@ -1,82 +1,129 @@
 import { defineDkgPlugin } from "@dkg/plugins";
 import { openAPIRoute, z } from "@dkg/plugin-swagger";
-import { EpcisValidationService } from "./services/EPCISValidationService";
-import { EpcisQueryService } from "./services/EPCISQueryService";
-import { formatSourceKAs } from "./utils/sourceKA";
-import type { CaptureResponse } from "./model/types";
+import type { EpcisQueryParams, ValidationResult } from "./model/types";
+import { EpcisQueryService } from "./services/epcisQueryService";
+import {
+  fetchPublisherCaptureStatus,
+  isTimeoutError,
+  sendToPublisher,
+} from "./services/epcisPublisherService";
+import { EpcisValidationService } from "./services/epcisValidationService";
+import {
+  hasAtLeastOneEpcisFilter,
+  hasValidEpcisDateRange,
+  optionalDateTimeQueryString,
+  optionalIntegerInputParam,
+  optionalIntegerQueryParam,
+  optionalNonEmptyQueryString,
+  requiredNonEmptyString,
+} from "./utils/epcisQueryValidation";
+import { formatSourceKAs } from "./utils/sourceKa";
 
-// Timeout for internal publisher requests (10s for POST, 5s for GET)
-const PUBLISHER_POST_TIMEOUT_MS = 10000;
-const PUBLISHER_GET_TIMEOUT_MS = 5000;
+const QUERY_LIMIT = {
+  MIN: 1,
+  MAX: 1000,
+  DEFAULT: 100,
+};
 
-// Retry configuration
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 1000;
+const QUERY_OFFSET = {
+  MIN: 0,
+  DEFAULT: 0,
+};
 
-// Helper for delay
-function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
+const QUERY_LIMIT_ERROR = `Parameter 'limit' must be an integer between ${QUERY_LIMIT.MIN} and ${QUERY_LIMIT.MAX}`;
+const QUERY_OFFSET_ERROR = `Parameter 'offset' must be an integer bigger than ${QUERY_OFFSET.MIN}`;
+const CAPTURE_ID_PATTERN = /^[0-9]{1,20}$/;
+
+type CaptureResponse = {
+  status: string;
+  requestId: string;
+  receivedAt: string;
+  captureID: string;
+  eventCount: number;
+  UAL?: string;
+};
+
+type PublisherCaptureStatusResponse = {
+  status: string;
+  ual?: string;
+  publishedAt?: string;
+  lastError?: string;
+};
 
 function generateRequestId(): string {
   return `epcis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
-// Helper function to send JSON-LD to publisher with retries
-async function sendToPublisher(
-  jsonLd: any,
-  metadata?: { source?: string; sourceId?: string },
-  publishOptions?: {
-    privacy?: "private" | "public";
-    epochs?: number;
-  }
-): Promise<{ id: number; status: string; attemptCount: number }> {
-  const publisherUrl = process.env.PUBLISHER_URL;
+function buildTrackItemSummary(epc: string, events: any[]): string {
+  const eventCount = events.length;
+  let summary = `Tracking: ${epc}\n`;
+  summary += `Found ${eventCount} event(s) in the supply chain.\n\n`;
 
-  if (!publisherUrl) {
-    throw new Error("PUBLISHER_URL is not set");
+  if (eventCount === 0) {
+    return summary;
   }
 
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const response = await fetch(`${publisherUrl}/api/dkg/assets`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          content: jsonLd,
-          metadata: metadata || { source: "EPCIS" },
-          publishOptions: {
-            privacy: publishOptions?.privacy ?? "private",
-            epochs: publishOptions?.epochs ?? 12,
-          },
-        }),
-        signal: AbortSignal.timeout(PUBLISHER_POST_TIMEOUT_MS),
-      });
+  summary += "Journey Timeline:\n";
+  events.forEach((event: any, idx: number) => {
+    const time = event.eventTime || "Unknown time";
+    const step =
+      event.bizStep?.split("-").pop() ||
+      event.eventType?.split("/").pop() ||
+      "Unknown";
+    const location = event.bizLocation || event.readPoint || "Unknown location";
+    summary += `${idx + 1}. [${time}] ${step} @ ${location}\n`;
+  });
 
-      if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) {
-        throw new Error("Publisher not available");
-      }
+  return summary;
+}
 
-      return await response.json();
-    } catch (error: any) {
-      console.warn(`[EPCIS] Publisher attempt ${attempt}/${MAX_RETRIES} failed`);
-
-      if (attempt < MAX_RETRIES) {
-        await delay(RETRY_DELAY_MS * Math.pow(2, attempt - 1));
-        continue;
-      }
-    }
+function getCaptureValidationError(
+  validation: ValidationResult,
+): { error: string; details?: string[]; message?: string } | null {
+  if (!validation.valid) {
+    return {
+      error: "Invalid EPCISDocument",
+      details: validation.errors,
+    };
   }
 
-  throw new Error("Publisher not available");
+  if ((validation.eventCount ?? 0) < 1) {
+    return {
+      error: "EPCISDocument contains no events",
+      message:
+        "The EPCISDocument contains no events to publish. Please check the document and try again.",
+    };
+  }
+
+  return null;
 }
 
 export default defineDkgPlugin((ctx, mcp, api) => {
-
   const validationService = new EpcisValidationService();
   const queryService = new EpcisQueryService();
 
-  console.log("🚀 EPCIS Plugin loaded");
+  async function executeEpcisEventsQuery(queryParams: EpcisQueryParams) {
+    const sparqlQuery = queryService.buildQuery(queryParams);
+    console.debug("[EPCIS] Executing SPARQL query:", sparqlQuery);
+
+    const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
+    const resultData = results?.data ?? [];
+
+    return {
+      results,
+      resultData,
+      resultCount: resultData.length,
+      pagination: {
+        limit: Math.min(
+          queryParams.limit ?? QUERY_LIMIT.DEFAULT,
+          QUERY_LIMIT.MAX,
+        ),
+        offset: queryParams.offset ?? QUERY_OFFSET.DEFAULT,
+      },
+    };
+  }
+
+  console.info("[EPCIS] Plugin loaded");
 
   // MCP Tool: Query EPCIS events from DKG
   mcp.registerTool(
@@ -88,43 +135,91 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         "Can filter by EPC (product identifier), from date to date, business step, or location. " +
         "Use fullTrace=true to search across all event types (transformations, aggregations) for complete supply chain traceability.",
       inputSchema: {
-        epc: z.string().optional().describe("EPC identifier (e.g., urn:epc:id:sgtin:0614141.107346.2017)"),
-        from: z.string().optional().describe("Query events from this date onwards, requires it to follow ISO 8601 format (e.g., 2024-01-01T00:00:00Z)"),
-        to: z.string().optional().describe("Query events up to this date, requires it to follow ISO 8601 format (e.g., 2024-01-01T00:00:00Z)"),
-        bizStep: z.string().optional().describe("Business step (e.g., 'receiving', 'shipping', 'assembling')"),
-        bizLocation: z.string().optional().describe("Business location URI"),
-        fullTrace: z.boolean().optional().describe("If true, search all EPC fields for full traceability"),
-        parentID: z.string().optional().describe("Parent ID for AggregationEvent queries"),
-        childEPC: z.string().optional().describe("Child EPC for AggregationEvent queries"),
-        inputEPC: z.string().optional().describe("Input EPC for TransformationEvent queries"),
-        outputEPC: z.string().optional().describe("Output EPC for TransformationEvent queries"),
-        limit: z.number().optional().describe("Number of results per page (default: 100, max: 1000)"),
-        offset: z.number().optional().describe("Number of results to skip for pagination"),
+        epc: optionalNonEmptyQueryString("epc").describe(
+          "EPC identifier (e.g., urn:epc:id:sgtin:0614141.107346.2017)",
+        ),
+        from: optionalDateTimeQueryString("from").describe(
+          "Query events from this date onwards, requires it to follow ISO 8601 format (e.g., 2024-01-01T00:00:00Z)",
+        ),
+        to: optionalDateTimeQueryString("to").describe(
+          "Query events up to this date, requires it to follow ISO 8601 format (e.g., 2024-01-01T00:00:00Z)",
+        ),
+        bizStep: optionalNonEmptyQueryString("bizStep").describe(
+          "Business step (e.g., 'receiving', 'shipping', 'assembling')",
+        ),
+        bizLocation: optionalNonEmptyQueryString("bizLocation").describe(
+          "Business location URI",
+        ),
+        fullTrace: z
+          .boolean()
+          .optional()
+          .describe("If true, search all EPC fields for full traceability"),
+        parentID: optionalNonEmptyQueryString("parentID").describe(
+          "Parent ID for AggregationEvent queries",
+        ),
+        childEPC: optionalNonEmptyQueryString("childEPC").describe(
+          "Child EPC for AggregationEvent queries",
+        ),
+        inputEPC: optionalNonEmptyQueryString("inputEPC").describe(
+          "Input EPC for TransformationEvent queries",
+        ),
+        outputEPC: optionalNonEmptyQueryString("outputEPC").describe(
+          "Output EPC for TransformationEvent queries",
+        ),
+        limit: optionalIntegerInputParam({
+          min: QUERY_LIMIT.MIN,
+          max: QUERY_LIMIT.MAX,
+          errorMessage: QUERY_LIMIT_ERROR,
+        }).describe(
+          `Number of results per page (default: ${QUERY_LIMIT.DEFAULT}, max: ${QUERY_LIMIT.MAX})`,
+        ),
+        offset: optionalIntegerInputParam({
+          min: QUERY_OFFSET.MIN,
+          errorMessage: QUERY_OFFSET_ERROR,
+        }).describe(
+          `Number of results to skip for pagination (default: ${QUERY_OFFSET.DEFAULT})`,
+        ),
       },
     },
     async (input) => {
       try {
-        const sparqlQuery = queryService.buildQuery({
-          epc: input.epc,
-          from: input.from,
-          to: input.to,
-          bizStep: input.bizStep,
-          bizLocation: input.bizLocation,
-          fullTrace: input.fullTrace,
-          parentID: input.parentID,
-          childEPC: input.childEPC,
-          inputEPC: input.inputEPC,
-          outputEPC: input.outputEPC,
-          limit: input.limit,
-          offset: input.offset,
-        });
+        if (!hasAtLeastOneEpcisFilter(input)) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  { error: "At least one filter parameter is required." },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
 
-        const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
+        if (!hasValidEpcisDateRange(input)) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify(
+                  {
+                    error:
+                      "Parameter 'to' must be greater than or equal to 'from'.",
+                  },
+                  null,
+                  2,
+                ),
+              },
+            ],
+            isError: true,
+          };
+        }
 
-        const effectiveLimit = Math.min(input.limit ?? 100, 1000);
-        const effectiveOffset = input.offset ?? 0;
-        const resultData = results?.data || [];
-        const resultCount = resultData.length;
+        const { results, resultData, resultCount, pagination } =
+          await executeEpcisEventsQuery(input);
 
         const summary = resultCount
           ? `Found ${resultCount} EPCIS event(s)`
@@ -134,16 +229,20 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         const content: { type: "text"; text: string }[] = [
           {
             type: "text",
-            text: JSON.stringify({
-              summary,
-              count: resultCount,
-              events: results || [],
-              pagination: {
-                limit: effectiveLimit,
-                offset: effectiveOffset,
+            text: JSON.stringify(
+              {
+                summary,
+                count: resultCount,
+                events: results || [],
+                pagination: {
+                  limit: pagination.limit,
+                  offset: pagination.offset,
+                },
               },
-            }, null, 2)
-          }
+              null,
+              2,
+            ),
+          },
         ];
 
         // Append source Knowledge Assets if available
@@ -154,19 +253,24 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         return { content };
       } catch (error: any) {
+        console.error("[EPCIS] DKG query failed:", error);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify({
-                error: "Query failed",
-              }, null, 2)
-            }
+              text: JSON.stringify(
+                {
+                  error: "Query failed",
+                },
+                null,
+                2,
+              ),
+            },
           ],
           isError: true,
         };
       }
-    }
+    },
   );
 
   // MCP Tool: Track item journey (full traceability)
@@ -179,44 +283,35 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         "Finds all events where this EPC appears - as observed item, transformation input/output, or in aggregations. " +
         "Returns events in chronological order showing the item's full lifecycle.",
       inputSchema: {
-        epc: z.string().describe("The EPC to track (e.g., urn:epc:id:sgtin:0614141.107346.2017)"),
+        epc: requiredNonEmptyString("epc").describe(
+          "The EPC to track (e.g., urn:epc:id:sgtin:0614141.107346.2017)",
+        ),
       },
     },
     async (input) => {
       try {
-        const sparqlQuery = queryService.buildQuery({
+        const { resultData, resultCount } = await executeEpcisEventsQuery({
           epc: input.epc,
-          fullTrace: true,  // Always use full traceability for item tracking
+          fullTrace: true, // Always use full traceability for item tracking
         });
 
-        const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
-
-        const resultData = results?.data || [];
-        const eventCount = resultData.length;
-        let summary = `Tracking: ${input.epc}\n`;
-        summary += `Found ${eventCount} event(s) in the supply chain.\n\n`;
-
-        if (eventCount > 0) {
-          summary += "Journey Timeline:\n";
-          resultData.forEach((event: any, idx: number) => {
-            const time = event.eventTime || "Unknown time";
-            const step = event.bizStep?.split("-").pop() || event.eventType?.split("/").pop() || "Unknown";
-            const location = event.bizLocation || event.readPoint || "Unknown location";
-            summary += `${idx + 1}. [${time}] ${step} @ ${location}\n`;
-          });
-        }
+        const summary = buildTrackItemSummary(input.epc, resultData);
 
         // Build content array with optional source KAs
         const content: { type: "text"; text: string }[] = [
           {
             type: "text",
-            text: JSON.stringify({
-              summary,
-              epc: input.epc,
-              eventCount,
-              events: results || [],
-            }, null, 2)
-          }
+            text: JSON.stringify(
+              {
+                summary,
+                epc: input.epc,
+                eventCount: resultCount,
+                events: resultData || [],
+              },
+              null,
+              2,
+            ),
+          },
         ];
 
         // Append source Knowledge Assets if available
@@ -227,19 +322,24 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         return { content };
       } catch (error: any) {
+        console.error(`[EPCIS] Item tracking failed, epc: ${input.epc}`, error);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify({
-                error: "Tracking failed",
-              }, null, 2)
-            }
+              text: JSON.stringify(
+                {
+                  error: "Tracking failed",
+                },
+                null,
+                2,
+              ),
+            },
           ],
           isError: true,
         };
       }
-    }
+    },
   );
 
   // POST /epcis/capture - Accept EPCISDocument and queue for publishing
@@ -249,21 +349,26 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       {
         tag: "EPCIS",
         summary: "Capture EPCIS Document",
-        description: "Accept an EPCISDocument and queue it for publishing to DKG",
+        description:
+          "Accept an EPCISDocument and queue it for publishing to DKG",
         body: z.object({
           epcisDocument: z.object({}).passthrough().openapi({
             description: "The EPCISDocument (JSON-LD)",
           }),
-          publishOptions: z.object({
-            privacy: z.enum(["private", "public"]).optional().openapi({
-              description: "Asset visibility (default: private)",
+          publishOptions: z
+            .object({
+              privacy: z.enum(["private", "public"]).optional().openapi({
+                description: "Asset visibility (default: private)",
+              }),
+              epochs: z.number().min(1).optional().openapi({
+                description: "Number of epochs to publish for (default: 12)",
+              }),
+            })
+            .optional()
+            .openapi({
+              description:
+                "Publishing options (all optional with sensible defaults)",
             }),
-            epochs: z.number().min(1).optional().openapi({
-              description: "Number of epochs to publish for (default: 12)",
-            }),
-          }).optional().openapi({
-            description: "Publishing options (all optional with sensible defaults)",
-          }),
         }),
         response: {
           description: "Capture accepted (202)",
@@ -272,47 +377,43 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             receivedAt: z.string(),
             captureID: z.string(),
             eventCount: z.number(),
-            UAL: z.string().optional(),
           }),
         },
       },
       async (req, res) => {
         const requestId = generateRequestId();
-        console.info(`[EPCIS] Capture request received, requestId: ${requestId}`);
+        console.info(
+          `[EPCIS] Capture request received, requestId: ${requestId}`,
+        );
 
-        try {        
+        try {
           const { epcisDocument, publishOptions } = req.body;
 
-          // Validate the EPCIS document
-          const validation = validationService.validate(epcisDocument);
-
-          if (!validation.valid) {
-            return res.status(400).json({
-              error: "Invalid EPCISDocument",
-              details: validation.errors,
-            } as any);
+          const validationResult = validationService.validate(epcisDocument);
+          const validationError = getCaptureValidationError(validationResult);
+          if (validationError) {
+            return res.status(400).json(validationError as any);
           }
 
-          if (!validation.eventCount) {
-            return res.status(400).json({
-              error: "EPCISDocument contains no events",
-              message: "The EPCISDocument contains no events to publish. Please check the document and try again.",
-            } as any);
-          }
-
-          let result: any;
+          let publishResult: any;
           try {
-            result = await sendToPublisher(
+            publishResult = await sendToPublisher(
               epcisDocument,
               { source: "EPCIS", sourceId: requestId },
-              publishOptions
+              publishOptions,
             );
-            console.info(`[EPCIS] Document queued via publisher, requestId: ${requestId}, eventCount: ${validation.eventCount}, captureID: ${result.id}`);
+            console.info(
+              `[EPCIS] Document queued via publisher, requestId: ${requestId}, eventCount: ${validationResult.eventCount}, captureID: ${publishResult.id}`,
+            );
           } catch (error: any) {
-            console.error(`[EPCIS] Publishing failed, requestId: ${requestId}, eventCount: ${validation.eventCount}, error:`, error);
+            console.error(
+              `[EPCIS] Publishing failed, requestId: ${requestId}, eventCount: ${validationResult.eventCount}, error:`,
+              error,
+            );
             return res.status(500).json({
               error: "Something went wrong with publishing the EPCIS document.",
-              message: "Something went wrong with publishing the EPCIS document. Check if the publisher service is available.",
+              message:
+                "Something went wrong with publishing the EPCIS document. Check if the publisher service is available.",
             } as any);
           }
 
@@ -321,21 +422,24 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             status: "202",
             requestId,
             receivedAt: new Date().toISOString(),
-            captureID: String(result.id),
-            eventCount: validation.eventCount || 0,
-            ...(result.ual && { UAL: result.ual }),
+            captureID: String(publishResult.id),
+            eventCount: validationResult.eventCount ?? 0,
           };
 
           return res.status(202).json(response);
         } catch (error: any) {
-          console.error(`[EPCIS] Unexpected error, requestId: ${requestId}, error:`, error);
+          console.error(
+            `[EPCIS] Unexpected error, requestId: ${requestId}, error:`,
+            error,
+          );
           return res.status(500).json({
             error: "Something went wrong with processing the EPCIS document.",
-            message: "An unexpected error occurred while processing the EPCIS document.",
+            message:
+              "An unexpected error occurred while processing the EPCIS document.",
           } as any);
         }
-      }
-    )
+      },
+    ),
   );
 
   // GET /epcis/capture/:captureID - Check capture status
@@ -347,10 +451,14 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         summary: "Get Capture Status",
         description: "Check publisher-tracked status by numeric captureID.",
         params: z.object({
-          captureID: z.string().openapi({
-            description: "Numeric publisher capture ID returned from POST /epcis/capture",
-            example: "123",
-          }),
+          captureID: z
+            .string()
+            .regex(CAPTURE_ID_PATTERN, { message: "Invalid captureID format" })
+            .openapi({
+              description:
+                "Numeric publisher capture ID returned from POST /epcis/capture",
+              example: "123",
+            }),
         }),
         response: {
           description: "Capture status",
@@ -365,75 +473,56 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       },
       async (req, res) => {
         const { captureID } = req.params;
-        console.info(`[EPCIS] Capture status request received, captureID: ${captureID}`);
+        console.info(
+          `[EPCIS] Capture status request received, captureID: ${captureID}`,
+        );
 
         try {
-          const publisherUrl = process.env.PUBLISHER_URL;
-          if (!publisherUrl) {
-            throw new Error("PUBLISHER_URL is not set");
+          const response = await fetchPublisherCaptureStatus(captureID);
+
+          if (!response.ok) {
+            if (response.status === 404) {
+              return res
+                .status(404)
+                .json({ error: "Capture not found", captureID } as any);
+            }
+            throw new Error(
+              `Publisher returned ${response.status} for captureID: ${captureID}`,
+            );
           }
 
-          const captureIdPattern = /^[0-9]{1,20}$/;
-          if (!captureIdPattern.test(captureID)) {
-            return res.status(400).json({
-              error: "Invalid captureID format",
+          const asset =
+            (await response.json()) as PublisherCaptureStatusResponse;
+
+          return res.json({
+            status: asset.status,
+            captureID,
+            ...(asset.ual && { UAL: asset.ual }),
+            ...(asset.publishedAt && { publishedAt: asset.publishedAt }),
+            ...(asset.lastError && { error: asset.lastError }),
+          });
+        } catch (error: unknown) {
+          if (isTimeoutError(error)) {
+            return res.status(504).json({
+              error: "Publisher timeout",
               captureID,
             } as any);
           }
 
-          // Query publisher for asset status
-          let response: Response;
-          try {
-            response = await fetch(
-              `${publisherUrl}/api/dkg/assets/status/${encodeURIComponent(captureID)}`,
-              { signal: AbortSignal.timeout(PUBLISHER_GET_TIMEOUT_MS) }
-            );
-          } catch (error: any) {
-            const errorName = error?.name ?? "UnknownError";
-            const errorMessage = error?.message ?? String(error);
-            console.error(
-              `[EPCIS] [Failed to get publisher status for captureID=${captureID}`,
-              { errorName, errorMessage }
-            );
-
-            if (error.name === "TimeoutError") {
-              return res.status(504).json({
-                error: "Publisher timeout",
-                captureID,
-              } as any);
-            }
-
-            throw new Error(`Publisher status request failed: ${errorMessage}`);
-          }
-
-          if (!response.ok) {
-            if (response.status === 404) {
-              return res.status(404).json({ error: "Capture not found", captureID } as any);
-            }
-            throw new Error("Failed to fetch capture status");
-          }
-
-          const asset = await response.json();
-
-          // Map publisher status to EPCIS response
-          const result: any = {
-            status: asset.status,
-            captureID,
-          };
-
-          if (asset.ual) result.UAL = asset.ual;
-          if (asset.publishedAt) result.publishedAt = asset.publishedAt;
-          if (asset.lastError) result.error = asset.lastError;
-
-          res.json(result);
-        } catch (error: any) {
-          console.error("[EPCIS Status] Error:", error);
-          res.status(500).json({
+          const errorName =
+            error instanceof Error ? error.name : "UnknownError";
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          console.error(
+            `[EPCIS] Capture status request failed, captureID: ${captureID}`,
+            { errorName, errorMessage },
+          );
+          return res.status(500).json({
             error: "Failed to get capture status",
           } as any);
         }
-      }
-    )
+      },
+    ),
   );
 
   // GET /epcis/events - Query EPCIS events from DKG
@@ -444,56 +533,76 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         tag: "EPCIS",
         summary: "Query EPCIS Events",
         description: "Query EPCIS events from DKG using various filters",
-        query: z.object({
-          epc: z.string().optional().openapi({
-            description: "Filter by EPC (product identifier)",
-            example: "urn:epc:id:sgtin:0614141.107346.2017",
+        query: z
+          .object({
+            epc: optionalNonEmptyQueryString("epc").openapi({
+              description: "Filter by EPC (product identifier)",
+              example: "urn:epc:id:sgtin:0614141.107346.2017",
+            }),
+            from: optionalDateTimeQueryString("from").openapi({
+              description: "Start of time range (ISO 8601)",
+              example: "2024-01-01T00:00:00Z",
+            }),
+            to: optionalDateTimeQueryString("to").openapi({
+              description: "End of time range (ISO 8601)",
+              example: "2024-12-31T23:59:59Z",
+            }),
+            bizStep: optionalNonEmptyQueryString("bizStep").openapi({
+              description: "Filter by business step URI",
+              example: "https://ref.gs1.org/cbv/BizStep-assembling",
+            }),
+            bizLocation: optionalNonEmptyQueryString("bizLocation").openapi({
+              description: "Filter by business location",
+              example: "urn:epc:id:sgln:0614141.00001.0",
+            }),
+            fullTrace: z
+              .enum(["true", "false"])
+              .transform((v) => v === "true")
+              .optional()
+              .openapi({
+                description:
+                  "If 'true', search all EPC fields for full supply chain traceability",
+                example: "true",
+              }),
+            parentID: optionalNonEmptyQueryString("parentID").openapi({
+              description: "Filter by parent ID (AggregationEvent)",
+              example: "urn:epc:id:sscc:0614141.0000000001",
+            }),
+            childEPC: optionalNonEmptyQueryString("childEPC").openapi({
+              description: "Filter by child EPC (AggregationEvent)",
+              example: "urn:epc:id:sgtin:0614141.107346.2017",
+            }),
+            inputEPC: optionalNonEmptyQueryString("inputEPC").openapi({
+              description: "Filter by input EPC (TransformationEvent)",
+              example: "urn:epc:id:sgtin:0614141.107346.2017",
+            }),
+            outputEPC: optionalNonEmptyQueryString("outputEPC").openapi({
+              description: "Filter by output EPC (TransformationEvent)",
+              example: "urn:epc:id:sgtin:0614141.099999.9001",
+            }),
+            limit: optionalIntegerQueryParam({
+              min: 1,
+              max: 1000,
+              errorMessage: QUERY_LIMIT_ERROR,
+            }).openapi({
+              description: `Number of results per page (default: ${QUERY_LIMIT.DEFAULT}, max: ${QUERY_LIMIT.MAX})`,
+              example: "50",
+            }),
+            offset: optionalIntegerQueryParam({
+              min: 0,
+              errorMessage: QUERY_OFFSET_ERROR,
+            }).openapi({
+              description: `Number of results to skip for pagination (default: ${QUERY_OFFSET.DEFAULT})`,
+              example: "0",
+            }),
+          })
+          .refine(hasAtLeastOneEpcisFilter, {
+            message: "At least one filter parameter is required.",
+          })
+          .refine(hasValidEpcisDateRange, {
+            path: ["to"],
+            message: "Parameter 'to' must be greater than or equal to 'from'.",
           }),
-          from: z.string().datetime({ message: "Must be ISO 8601 format (e.g., 2024-01-01T00:00:00Z)" }).optional().openapi({
-            description: "Start of time range (ISO 8601)",
-            example: "2024-01-01T00:00:00Z",
-          }),
-          to: z.string().datetime({ message: "Must be ISO 8601 format (e.g., 2024-12-31T23:59:59Z)" }).optional().openapi({
-            description: "End of time range (ISO 8601)",
-            example: "2024-12-31T23:59:59Z",
-          }),
-          bizStep: z.string().optional().openapi({
-            description: "Filter by business step URI",
-            example: "https://ref.gs1.org/cbv/BizStep-assembling",
-          }),
-          bizLocation: z.string().optional().openapi({
-            description: "Filter by business location",
-            example: "urn:epc:id:sgln:0614141.00001.0",
-          }),
-          fullTrace: z.enum(["true", "false"]).optional().openapi({
-            description: "If 'true', search all EPC fields for full supply chain traceability",
-            example: "true",
-          }),
-          parentID: z.string().optional().openapi({
-            description: "Filter by parent ID (AggregationEvent)",
-            example: "urn:epc:id:sscc:0614141.0000000001",
-          }),
-          childEPC: z.string().optional().openapi({
-            description: "Filter by child EPC (AggregationEvent)",
-            example: "urn:epc:id:sgtin:0614141.107346.2017",
-          }),
-          inputEPC: z.string().optional().openapi({
-            description: "Filter by input EPC (TransformationEvent)",
-            example: "urn:epc:id:sgtin:0614141.107346.2017",
-          }),
-          outputEPC: z.string().optional().openapi({
-            description: "Filter by output EPC (TransformationEvent)",
-            example: "urn:epc:id:sgtin:0614141.099999.9001",
-          }),
-          limit: z.string().optional().openapi({
-            description: "Number of results per page (default: 100, max: 1000)",
-            example: "50",
-          }),
-          offset: z.string().optional().openapi({
-            description: "Number of results to skip for pagination",
-            example: "0",
-          }),
-        }),
         response: {
           description: "Query results",
           schema: z.object({
@@ -508,139 +617,28 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         },
       },
       async (req, res) => {
+        console.info("[EPCIS] Events query received");
         try {
-          const { epc, from, to, bizStep, bizLocation, fullTrace, parentID, childEPC, inputEPC, outputEPC, limit, offset } = req.query;
-
-          // Validate: reject empty string values for filter parameters
-          const filters = { epc, from, to, bizStep, bizLocation, parentID, childEPC, inputEPC, outputEPC };
-          for (const [key, value] of Object.entries(filters)) {
-            if (value !== undefined && value === '') {
-              return res.status(400).json({
-                success: false,
-                error: `Parameter '${key}' cannot be empty`,
-              } as any);
-            }
-          }
-
-          // Parse + validate pagination params
-          const parsedLimit =
-            typeof limit === "string" && limit.length > 0 ? Number.parseInt(limit, 10) : undefined;
-          const parsedOffset =
-            typeof offset === "string" && offset.length > 0 ? Number.parseInt(offset, 10) : undefined;
-
-          if (parsedLimit !== undefined && (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 1000)) {
-            return res.status(400).json({
-              success: false,
-              error: "Parameter 'limit' must be an integer between 1 and 1000",
-            } as any);
-          }
-
-          if (parsedOffset !== undefined && (!Number.isInteger(parsedOffset) || parsedOffset < 0)) {
-            return res.status(400).json({
-              success: false,
-              error: "Parameter 'offset' must be a non-negative integer",
-            } as any);
-          }
-
-          // Build the SPARQL query based on parameters
-          const sparqlQuery = queryService.buildQuery({
-            epc: epc as string,
-            from: from as string,
-            to: to as string,
-            bizStep: bizStep as string,
-            bizLocation: bizLocation as string,
-            fullTrace: fullTrace === 'true',
-            parentID: parentID as string,
-            childEPC: childEPC as string,
-            inputEPC: inputEPC as string,
-            outputEPC: outputEPC as string,
-            limit: parsedLimit,
-            offset: parsedOffset,
-          });
-
-          console.debug("[EPCIS Events] Executing SPARQL query:", sparqlQuery);
-
-          // Execute query against DKG
-          const results = await ctx.dkg.graph.query(sparqlQuery, "SELECT");
-
-          // Calculate pagination values
-          const effectiveLimit = parsedLimit ?? 100;
-          const effectiveOffset = parsedOffset ?? 0;
-          const resultCount = results?.data?.length || 0;
+          const { resultData, resultCount, pagination } =
+            await executeEpcisEventsQuery(req.query);
 
           res.json({
             success: true,
-            results: results?.data || [],
+            results: resultData,
             count: resultCount,
             pagination: {
-              limit: effectiveLimit,
-              offset: effectiveOffset,
+              limit: pagination.limit,
+              offset: pagination.offset,
             },
           });
         } catch (error: any) {
-          console.error("[EPCIS Events] Query error:", error);
+          console.error("[EPCIS] Events query failed:", error);
           res.status(500).json({
             success: false,
             error: "Failed to query events",
           } as any);
         }
-      }
-    )
-  );
-
-  // GET /epcis/asset/:ual - Retrieve EPCIS document by UAL
-  api.get(
-    "/epcis/asset/*ual",
-    openAPIRoute(
-      {
-        tag: "EPCIS",
-        summary: "Get EPCIS Document by UAL",
-        description: "Retrieve a complete EPCIS document from DKG by its UAL",
-        params: z.object({
-          ual: z.union([z.string(), z.array(z.string())]).openapi({
-            description: "The UAL of the published EPCIS document",
-            example: "did:dkg:otp:2043/0x1234.../123456",
-          }),
-        }),
-        response: {
-          description: "EPCIS document content",
-          schema: z.object({
-            success: z.boolean(),
-            ual: z.string(),
-            data: z.any(),
-          }),
-        },
       },
-      async (req, res) => {
-        try {
-          const ual = Array.isArray(req.params.ual)
-            ? req.params.ual.join('/')
-            : req.params.ual;
-
-          if (!ual.startsWith("did:dkg:")) {
-            return res.status(400).json({
-              success: false,
-              error: "Invalid UAL format",
-            } as any);
-          }
-
-          const assetResult = await ctx.dkg.asset.get(ual, {
-            contentType: "all",
-          });
-
-          res.json({
-            success: true,
-            ual,
-            data: assetResult,
-          });
-        } catch (error: any) {
-          console.error("[EPCIS Asset] Get error:", error);
-          res.status(404).json({
-            success: false,
-            error: "Asset not found",
-          } as any);
-        }
-      }
-    )
+    ),
   );
 });

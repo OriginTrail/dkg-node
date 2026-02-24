@@ -10,7 +10,7 @@
     "build": "tsup src/*.ts --format cjs,esm --dts",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
-    "test": "mocha --loader ../../node_modules/tsx/dist/loader.mjs 'tests/**/*.spec.ts'"
+    "test": "tsx ../../node_modules/mocha/bin/mocha.js 'tests/**/*.spec.ts'"
   },
   "dependencies": {
     "@dkg/plugin-swagger": "^0.0.2",
@@ -21,6 +21,7 @@
   "devDependencies": {
     "@dkg/eslint-config": "*",
     "@dkg/typescript-config": "*",
+    "supertest": "^7.2.2",
     "tsup": "^8.5.0"
   }
 }
