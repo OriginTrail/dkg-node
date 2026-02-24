@@ -52,6 +52,25 @@ async function setup() {
     },
     {
       type: "select",
+      name: "docConversionProvider",
+      message: "Document conversion provider",
+      choices: [
+        { title: "unpdf — basic PDF only", value: "unpdf" },
+        { title: "Mistral OCR — complex PDF/DOCX/PPTX", value: "mistral" },
+      ],
+      initial: 0,
+    },
+    {
+      type: (_, a) =>
+        a.docConversionProvider === "mistral" && a.llmProvider !== "mistralai"
+          ? "text"
+          : null,
+      name: "mistralApiKey",
+      message: "MISTRAL_API_KEY",
+      validate: (val) => val.length || "Required for Mistral OCR provider",
+    },
+    {
+      type: "select",
       name: "dkgEnv",
       message: "DKG environment",
       choices: [
@@ -158,7 +177,8 @@ SMTP_USER="${r.smtpUsername || ""}"
 SMTP_PASS="${r.smtpPassword || ""}"
 SMTP_SECURE=${r.smtpSecure === undefined ? "true" : r.smtpSecure}
 SMTP_FROM="${r.smtpFrom || ""}"
-`,
+DOCUMENT_CONVERSION_PROVIDER="${r.docConversionProvider}"
+${r.docConversionProvider === "mistral" && r.llmProvider !== "mistralai" ? `MISTRAL_API_KEY="${r.mistralApiKey}"\n` : ""}`,
   );
 
   console.log("Creating .env.development.local file...");
