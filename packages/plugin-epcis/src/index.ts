@@ -1,13 +1,13 @@
 import { defineDkgPlugin } from "@dkg/plugins";
 import { openAPIRoute, z } from "@dkg/plugin-swagger";
 import type { EpcisQueryParams, ValidationResult } from "./model/types";
-import { EpcisQueryService } from "./services/epcisQueryService";
+import { EpcisQueryService } from "./services/EPCISQueryService";
 import {
   fetchPublisherCaptureStatus,
   isTimeoutError,
   sendToPublisher,
-} from "./services/epcisPublisherService";
-import { EpcisValidationService } from "./services/epcisValidationService";
+} from "./services/EPCISPublisherService";
+import { EpcisValidationService } from "./services/EPCISValidationService";
 import {
   hasAtLeastOneEpcisFilter,
   hasValidEpcisDateRange,
@@ -16,8 +16,8 @@ import {
   optionalIntegerQueryParam,
   optionalNonEmptyQueryString,
   requiredNonEmptyString,
-} from "./utils/epcisQueryValidation";
-import { formatSourceKAs } from "./utils/sourceKa";
+} from "./utils/EPCISQueryValidation";
+import { formatSourceKAs } from "./utils/sourceKA";
 
 const QUERY_LIMIT = {
   MIN: 1,
