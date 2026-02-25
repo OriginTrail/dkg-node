@@ -151,8 +151,9 @@ async function setup() {
     {
       type: "text",
       name: "dbFilename",
-      message: "Database filename (i.e: example.db)",
+      message: "Database filename (e.g. example.db)",
       validate: (val) => val.length || "Required",
+      format: (val) => (val.endsWith(".db") ? val : `${val}.db`),
     },
   ]);
 
