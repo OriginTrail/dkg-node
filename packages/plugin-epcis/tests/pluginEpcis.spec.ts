@@ -6,7 +6,7 @@ import { expect } from "chai";
 import sinon from "sinon";
 import request from "supertest";
 import pluginEpcisPlugin from "../dist/index.js";
-import { EpcisQueryService } from "../src/services/epcisQueryService";
+import { EpcisQueryService } from "../src/services/epcisQueryService.js";
 import bicycleStory from "../test-data/bicycle-manufacturing-story.json";
 import {
   ASSEMBLY_EVENTS,
@@ -98,9 +98,15 @@ describe("@dkg/plugin-epcis checks", function () {
       const tools = await mockMcpClient.listTools().then((t) => t.tools);
       const queryTool = tools.find((tool) => tool.name === "epcis-query");
       const trackTool = tools.find((tool) => tool.name === "epcis-track-item");
+      const captureTool = tools.find((tool) => tool.name === "epcis-capture");
+      const captureStatusTool = tools.find(
+        (tool) => tool.name === "epcis-capture-status",
+      );
 
       expect(queryTool).to.not.equal(undefined);
       expect(trackTool).to.not.equal(undefined);
+      expect(captureTool).to.not.equal(undefined);
+      expect(captureStatusTool).to.not.equal(undefined);
       expect((queryTool as any).inputSchema.properties).to.include.keys(
         "epc",
         "bizStep",
@@ -109,6 +115,13 @@ describe("@dkg/plugin-epcis checks", function () {
         "offset",
       );
       expect((trackTool as any).inputSchema.properties).to.include.keys("epc");
+      expect((captureTool as any).inputSchema.properties).to.include.keys(
+        "epcisDocument",
+        "publishOptions",
+      );
+      expect((captureStatusTool as any).inputSchema.properties).to.include.keys(
+        "captureID",
+      );
     });
   });
 
@@ -217,12 +230,15 @@ describe("@dkg/plugin-epcis checks", function () {
 
       const steps = response.body.results.map((row: any) => row.bizStep);
       expect(response.body.count).to.equal(3);
-      expect(steps.some((step: string) => step.endsWith("BizStep-receiving"))).to
-        .equal(true);
-      expect(steps.some((step: string) => step.endsWith("BizStep-inspecting"))).to
-        .equal(true);
-      expect(steps.some((step: string) => step.endsWith("BizStep-assembling"))).to
-        .equal(true);
+      expect(
+        steps.some((step: string) => step.endsWith("BizStep-receiving")),
+      ).to.equal(true);
+      expect(
+        steps.some((step: string) => step.endsWith("BizStep-inspecting")),
+      ).to.equal(true);
+      expect(
+        steps.some((step: string) => step.endsWith("BizStep-assembling")),
+      ).to.equal(true);
     });
 
     it("queries full trace for bicycle EPC and returns 3 events", async () => {
@@ -267,6 +283,32 @@ describe("@dkg/plugin-epcis checks", function () {
     });
   });
 
+  describe("Events Track - GET /epcis/events/track", () => {
+    it("tracks item events with full trace and returns results", async () => {
+      dkgQueryStub.resolves(makeDkgQueryResult(BICYCLE_TRACE_EVENTS));
+      const response = await request(app)
+        .get("/epcis/events/track")
+        .query({ epc: bicycleEpc })
+        .expect(200);
+
+      expect(response.body.success).to.equal(true);
+      expect(response.body.count).to.equal(3);
+      expect(response.body.results).to.have.length(3);
+      expect(dkgQueryStub.calledOnce).to.equal(true);
+      const sparql = dkgQueryStub.firstCall.args[0] as string;
+      expect(sparql).to.include("UNION");
+      expect(sparql).to.include(`?event epcis:outputEPCList "${bicycleEpc}"`);
+      expect(sparql).to.include(`?event epcis:childEPCs "${bicycleEpc}"`);
+    });
+
+    it("returns 400 for missing epc", async () => {
+      const response = await request(app)
+        .get("/epcis/events/track")
+        .expect(400);
+      expect(response.body.error).to.be.a("string");
+    });
+  });
+
   describe("MCP Tools", () => {
     it("epcis-query returns assembly event results", async () => {
       dkgQueryStub.resolves(makeDkgQueryResult(ASSEMBLY_EVENTS));
@@ -279,7 +321,7 @@ describe("@dkg/plugin-epcis checks", function () {
       expect(result.isError).to.not.equal(true);
       expect(payload.count).to.equal(1);
       expect(payload.summary).to.include("Found 1 EPCIS event");
-      expect(payload.events.data[0].bizStep).to.include("BizStep-assembling");
+      expect(payload.events[0].bizStep).to.include("BizStep-assembling");
     });
 
     it("epcis-track-item returns journey timeline with numbered steps", async () => {
@@ -301,6 +343,131 @@ describe("@dkg/plugin-epcis checks", function () {
       expect(sparql).to.include("UNION");
       expect(sparql).to.include(`?event epcis:inputEPCList "${bicycleEpc}"`);
     });
+
+    it("epcis-capture captures valid document and returns capture details", async () => {
+      fetchStub.resolves(publisherQueuedResponse(501));
+      const result = await mockMcpClient.callTool({
+        name: "epcis-capture",
+        arguments: event1,
+      });
+
+      const payload = parseToolResult(result);
+      expect(result.isError).to.not.equal(true);
+      expect(payload.captureID).to.equal("501");
+      expect(payload.requestId).to.match(/^epcis-/);
+      expect(payload.receivedAt).to.be.a("string");
+      expect(payload.eventCount).to.equal(1);
+    });
+
+    it("epcis-capture returns validation error for invalid document", async () => {
+      const result = await mockMcpClient.callTool({
+        name: "epcis-capture",
+        arguments: { epcisDocument: { type: "NotAnEPCIS" } },
+      });
+
+      const payload = parseToolResult(result);
+      expect(result.isError).to.equal(true);
+      expect(payload.error).to.equal("Invalid EPCISDocument");
+    });
+
+    it("epcis-capture returns publisher error when publisher is unavailable", async function () {
+      this.timeout(15000);
+      fetchStub.rejects(new Error("publisher down"));
+      const result = await mockMcpClient.callTool({
+        name: "epcis-capture",
+        arguments: event1,
+      });
+
+      const payload = parseToolResult(result);
+      expect(result.isError).to.equal(true);
+      expect(payload.error).to.include("Something went wrong");
+      expect(fetchStub.callCount).to.equal(3);
+    });
+
+    it("epcis-capture-status returns completed status with UAL", async () => {
+      fetchStub.resolves(
+        publisherStatusResponse(
+          "completed",
+          "did:dkg:otp:2043/0xabc/123",
+          "2024-03-01T16:30:00.000Z",
+        ),
+      );
+      const result = await mockMcpClient.callTool({
+        name: "epcis-capture-status",
+        arguments: { captureID: "123" },
+      });
+
+      const payload = parseToolResult(result);
+      expect(result.isError).to.not.equal(true);
+      expect(payload.status).to.equal("completed");
+      expect(payload.captureID).to.equal("123");
+      expect(payload.UAL).to.equal("did:dkg:otp:2043/0xabc/123");
+    });
+
+    it("epcis-capture-status returns error when capture is not found", async () => {
+      fetchStub.resolves(jsonResponse({ error: "not found" }, 404));
+      const result = await mockMcpClient.callTool({
+        name: "epcis-capture-status",
+        arguments: { captureID: "404" },
+      });
+
+      const payload = parseToolResult(result);
+      expect(result.isError).to.equal(true);
+      expect(payload.error).to.equal("Capture not found");
+      expect(payload.captureID).to.equal("404");
+    });
+
+    it("epcis-capture-status returns timeout error on publisher timeout", async () => {
+      fetchStub.rejects(new DOMException("Timed out", "TimeoutError"));
+      const result = await mockMcpClient.callTool({
+        name: "epcis-capture-status",
+        arguments: { captureID: "888" },
+      });
+
+      const payload = parseToolResult(result);
+      expect(result.isError).to.equal(true);
+      expect(payload.error).to.equal("Publisher timeout");
+      expect(payload.captureID).to.equal("888");
+    });
+  });
+
+  describe("MCP/API Parity", () => {
+    it("returns the same query event data for epcis-query and GET /epcis/events", async () => {
+      dkgQueryStub.resolves(makeDkgQueryResult(ASSEMBLY_EVENTS));
+
+      const mcpResult = await mockMcpClient.callTool({
+        name: "epcis-query",
+        arguments: { bizStep: "assembling" },
+      });
+      const mcpPayload = parseToolResult(mcpResult);
+
+      const apiResponse = await request(app)
+        .get("/epcis/events")
+        .query({ bizStep: "assembling" })
+        .expect(200);
+
+      expect(mcpPayload.events).to.deep.equal(apiResponse.body.results);
+      expect(mcpPayload.count).to.equal(apiResponse.body.count);
+    });
+
+    it("returns the same captureID and eventCount for epcis-capture and POST /epcis/capture", async () => {
+      fetchStub.onFirstCall().resolves(publisherQueuedResponse(777));
+      fetchStub.onSecondCall().resolves(publisherQueuedResponse(777));
+
+      const mcpResult = await mockMcpClient.callTool({
+        name: "epcis-capture",
+        arguments: event1,
+      });
+      const mcpPayload = parseToolResult(mcpResult);
+
+      const apiResponse = await request(app)
+        .post("/epcis/capture")
+        .send(event1)
+        .expect(202);
+
+      expect(mcpPayload.captureID).to.equal(apiResponse.body.captureID);
+      expect(mcpPayload.eventCount).to.equal(apiResponse.body.eventCount);
+    });
   });
 
   describe("Error Handling", () => {
@@ -319,7 +486,10 @@ describe("@dkg/plugin-epcis checks", function () {
 
       const response = await request(app)
         .post("/epcis/capture")
-        .send({ epcisDocument: emptyEventDoc, publishOptions: event1.publishOptions })
+        .send({
+          epcisDocument: emptyEventDoc,
+          publishOptions: event1.publishOptions,
+        })
         .expect(400);
 
       expect(response.body.error).to.equal("EPCISDocument contains no events");
@@ -373,7 +543,9 @@ describe("@dkg/plugin-epcis checks", function () {
       const payload = parseToolResult(result);
 
       expect(result.isError).to.equal(true);
-      expect(payload.error).to.include("At least one filter parameter is required.");
+      expect(payload.error).to.include(
+        "At least one filter parameter is required.",
+      );
     });
 
     it("returns MCP error when DKG query fails", async () => {

@@ -32,6 +32,11 @@ const QUERY_OFFSET = {
 
 const QUERY_LIMIT_ERROR = `Parameter 'limit' must be an integer between ${QUERY_LIMIT.MIN} and ${QUERY_LIMIT.MAX}`;
 const QUERY_OFFSET_ERROR = `Parameter 'offset' must be an integer bigger than ${QUERY_OFFSET.MIN}`;
+const CAPTURE_PUBLISH_ERROR = {
+  error: "Something went wrong with publishing the EPCIS document.",
+  message:
+    "Something went wrong with publishing the EPCIS document. Check if the publisher service is available.",
+};
 const CAPTURE_ID_PATTERN = /^[0-9]{1,20}$/;
 
 type CaptureResponse = {
@@ -43,12 +48,68 @@ type CaptureResponse = {
   UAL?: string;
 };
 
+type CaptureStatusResponse = {
+  status: string;
+  captureID: string;
+  UAL?: string;
+  publishedAt?: string;
+  error?: string;
+};
+
+type PublishOptions = {
+  privacy?: "private" | "public";
+  epochs?: number;
+};
+
 type PublisherCaptureStatusResponse = {
   status: string;
   ual?: string;
   publishedAt?: string;
   lastError?: string;
 };
+
+class CaptureValidationError extends Error {
+  constructor(
+    readonly payload: {
+      error: string;
+      details?: string[];
+      message?: string;
+    },
+  ) {
+    super(payload.error);
+    this.name = "CaptureValidationError";
+  }
+}
+
+class CapturePublishError extends Error {
+  constructor() {
+    super("Something went wrong with publishing the EPCIS document.");
+    this.name = "CapturePublishError";
+  }
+}
+
+type McpTextContent = { type: "text"; text: string };
+
+function toMcpText(payload: unknown): McpTextContent {
+  return { type: "text", text: JSON.stringify(payload, null, 2) };
+}
+
+function mcpSuccess(
+  payload: unknown,
+  extraContent: McpTextContent[] = [],
+): { content: McpTextContent[] } {
+  return { content: [toMcpText(payload), ...extraContent] };
+}
+
+function mcpError(payload: unknown): {
+  content: McpTextContent[];
+  isError: true;
+} {
+  return {
+    content: [toMcpText(payload)],
+    isError: true,
+  };
+}
 
 function generateRequestId(): string {
   return `epcis-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -123,6 +184,61 @@ export default defineDkgPlugin((ctx, mcp, api) => {
     };
   }
 
+  async function executeCapture(
+    epcisDocument: object,
+    publishOptions?: PublishOptions,
+    requestId: string = generateRequestId(),
+  ): Promise<CaptureResponse> {
+    const validationResult = validationService.validate(epcisDocument);
+    const validationError = getCaptureValidationError(validationResult);
+    if (validationError) {
+      throw new CaptureValidationError(validationError);
+    }
+
+    let publishResult: any;
+    try {
+      publishResult = await sendToPublisher(
+        epcisDocument,
+        { source: "EPCIS", sourceId: requestId },
+        publishOptions,
+      );
+    } catch {
+      throw new CapturePublishError();
+    }
+
+    return {
+      status: "202",
+      requestId,
+      receivedAt: new Date().toISOString(),
+      captureID: String(publishResult.id),
+      eventCount: validationResult.eventCount ?? 0,
+    };
+  }
+
+  async function parseCaptureStatus(
+    captureID: string,
+  ): Promise<
+    { notFound: true } | ({ notFound: false } & CaptureStatusResponse)
+  > {
+    const response = await fetchPublisherCaptureStatus(captureID);
+    if (!response.ok) {
+      if (response.status === 404) {
+        return { notFound: true };
+      }
+      throw new Error(`Publisher returned ${response.status}`);
+    }
+
+    const asset = (await response.json()) as PublisherCaptureStatusResponse;
+    return {
+      notFound: false,
+      status: asset.status,
+      captureID,
+      ...(asset.ual && { UAL: asset.ual }),
+      ...(asset.publishedAt && { publishedAt: asset.publishedAt }),
+      ...(asset.lastError && { error: asset.lastError }),
+    };
+  }
+
   console.info("[EPCIS] Plugin loaded");
 
   // MCP Tool: Query EPCIS events from DKG
@@ -184,91 +300,40 @@ export default defineDkgPlugin((ctx, mcp, api) => {
     async (input) => {
       try {
         if (!hasAtLeastOneEpcisFilter(input)) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  { error: "At least one filter parameter is required." },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
+          return mcpError({
+            error: "At least one filter parameter is required.",
+          });
         }
 
         if (!hasValidEpcisDateRange(input)) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify(
-                  {
-                    error:
-                      "Parameter 'to' must be greater than or equal to 'from'.",
-                  },
-                  null,
-                  2,
-                ),
-              },
-            ],
-            isError: true,
-          };
+          return mcpError({
+            error: "Parameter 'to' must be greater than or equal to 'from'.",
+          });
         }
 
-        const { results, resultData, resultCount, pagination } =
+        const { resultData, resultCount, pagination } =
           await executeEpcisEventsQuery(input);
 
         const summary = resultCount
           ? `Found ${resultCount} EPCIS event(s)`
           : "No events found matching the criteria";
 
-        // Build content array with optional source KAs
-        const content: { type: "text"; text: string }[] = [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                summary,
-                count: resultCount,
-                events: results || [],
-                pagination: {
-                  limit: pagination.limit,
-                  offset: pagination.offset,
-                },
-              },
-              null,
-              2,
-            ),
-          },
-        ];
-
-        // Append source Knowledge Assets if available
         const sourceKAs = formatSourceKAs(resultData);
-        if (sourceKAs) {
-          content.push(sourceKAs);
-        }
-
-        return { content };
+        return mcpSuccess(
+          {
+            summary,
+            count: resultCount,
+            events: resultData || [],
+            pagination: {
+              limit: pagination.limit,
+              offset: pagination.offset,
+            },
+          },
+          sourceKAs ? [sourceKAs] : [],
+        );
       } catch (error: any) {
         console.error("[EPCIS] DKG query failed:", error);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  error: "Query failed",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-          isError: true,
-        };
+        return mcpError({ error: "Query failed" });
       }
     },
   );
@@ -297,47 +362,118 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         const summary = buildTrackItemSummary(input.epc, resultData);
 
-        // Build content array with optional source KAs
-        const content: { type: "text"; text: string }[] = [
-          {
-            type: "text",
-            text: JSON.stringify(
-              {
-                summary,
-                epc: input.epc,
-                eventCount: resultCount,
-                events: resultData || [],
-              },
-              null,
-              2,
-            ),
-          },
-        ];
-
-        // Append source Knowledge Assets if available
         const sourceKAs = formatSourceKAs(resultData);
-        if (sourceKAs) {
-          content.push(sourceKAs);
-        }
-
-        return { content };
+        return mcpSuccess(
+          {
+            summary,
+            epc: input.epc,
+            eventCount: resultCount,
+            events: resultData || [],
+          },
+          sourceKAs ? [sourceKAs] : [],
+        );
       } catch (error: any) {
         console.error(`[EPCIS] Item tracking failed, epc: ${input.epc}`, error);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(
-                {
-                  error: "Tracking failed",
-                },
-                null,
-                2,
-              ),
-            },
-          ],
-          isError: true,
+        return mcpError({ error: "Tracking failed" });
+      }
+    },
+  );
+
+  // MCP Tool: Capture EPCISDocument and queue for publishing
+  mcp.registerTool(
+    "epcis-capture",
+    {
+      title: "Capture EPCIS Document",
+      description:
+        "Validate an EPCISDocument and queue it for publishing to the DKG.",
+      inputSchema: {
+        epcisDocument: z.object({}).passthrough(),
+        publishOptions: z
+          .object({
+            privacy: z.enum(["private", "public"]).optional(),
+            epochs: z.number().min(1).optional(),
+          })
+          .optional(),
+      },
+    },
+    async (input) => {
+      try {
+        const response = await executeCapture(
+          input.epcisDocument,
+          input.publishOptions,
+        );
+        return mcpSuccess({
+          captureID: response.captureID,
+          requestId: response.requestId,
+          receivedAt: response.receivedAt,
+          eventCount: response.eventCount,
+        });
+      } catch (error: unknown) {
+        if (error instanceof CaptureValidationError) {
+          return mcpError(error.payload);
+        }
+
+        if (error instanceof CapturePublishError) {
+          return mcpError(CAPTURE_PUBLISH_ERROR);
+        }
+
+        console.error("[EPCIS] MCP capture failed:", error);
+        return mcpError({ error: "Capture failed" });
+      }
+    },
+  );
+
+  // MCP Tool: Check publisher-tracked status by capture ID
+  mcp.registerTool(
+    "epcis-capture-status",
+    {
+      title: "Get Capture Status",
+      description: "Check publisher-tracked status for a capture request.",
+      inputSchema: {
+        captureID: z
+          .string()
+          .regex(CAPTURE_ID_PATTERN, { message: "Invalid captureID format" })
+          .describe(
+            "Numeric publisher capture ID returned from epcis-capture or POST /epcis/capture",
+          ),
+      },
+    },
+    async (input) => {
+      try {
+        const captureStatus = await parseCaptureStatus(input.captureID);
+        if (captureStatus.notFound) {
+          return mcpError({
+            error: "Capture not found",
+            captureID: input.captureID,
+          });
+        }
+
+        const payload: CaptureStatusResponse = {
+          status: captureStatus.status,
+          captureID: captureStatus.captureID,
+          ...(captureStatus.UAL && { UAL: captureStatus.UAL }),
+          ...(captureStatus.publishedAt && {
+            publishedAt: captureStatus.publishedAt,
+          }),
+          ...(captureStatus.error && { error: captureStatus.error }),
         };
+        return mcpSuccess(payload);
+      } catch (error: unknown) {
+        if (isTimeoutError(error)) {
+          return mcpError({
+            error: "Publisher timeout",
+            captureID: input.captureID,
+          });
+        }
+
+        console.error(
+          `[EPCIS] MCP capture status failed, captureID: ${input.captureID}`,
+          error,
+        );
+        return mcpError({
+          error: "Failed to get capture status",
+          captureID: input.captureID,
+        });
       }
     },
   );
@@ -388,48 +524,31 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
         try {
           const { epcisDocument, publishOptions } = req.body;
-
-          const validationResult = validationService.validate(epcisDocument);
-          const validationError = getCaptureValidationError(validationResult);
-          if (validationError) {
-            return res.status(400).json(validationError as any);
-          }
-
-          let publishResult: any;
-          try {
-            publishResult = await sendToPublisher(
-              epcisDocument,
-              { source: "EPCIS", sourceId: requestId },
-              publishOptions,
-            );
-            console.info(
-              `[EPCIS] Document queued via publisher, requestId: ${requestId}, eventCount: ${validationResult.eventCount}, captureID: ${publishResult.id}`,
-            );
-          } catch (error: any) {
-            console.error(
-              `[EPCIS] Publishing failed, requestId: ${requestId}, eventCount: ${validationResult.eventCount}, error:`,
-              error,
-            );
-            return res.status(500).json({
-              error: "Something went wrong with publishing the EPCIS document.",
-              message:
-                "Something went wrong with publishing the EPCIS document. Check if the publisher service is available.",
-            } as any);
-          }
-
-          // Return capture response
-          const response: CaptureResponse = {
-            status: "202",
+          const response = await executeCapture(
+            epcisDocument,
+            publishOptions,
             requestId,
-            receivedAt: new Date().toISOString(),
-            captureID: String(publishResult.id),
-            eventCount: validationResult.eventCount ?? 0,
-          };
+          );
+          console.info(
+            `[EPCIS] Document queued via publisher, requestId: ${response.requestId}, eventCount: ${response.eventCount}, captureID: ${response.captureID}`,
+          );
 
           return res.status(202).json(response);
-        } catch (error: any) {
+        } catch (error: unknown) {
+          if (error instanceof CaptureValidationError) {
+            console.warn(
+              `[EPCIS] Capture validation failed, requestId: ${requestId}`,
+            );
+            return res.status(400).json(error.payload as any);
+          }
+
+          if (error instanceof CapturePublishError) {
+            console.error(`[EPCIS] Publishing failed, requestId: ${requestId}`);
+            return res.status(500).json(CAPTURE_PUBLISH_ERROR as any);
+          }
+
           console.error(
-            `[EPCIS] Unexpected error, requestId: ${requestId}, error:`,
+            `[EPCIS] Unexpected error while processing capture request, requestId: ${requestId}:`,
             error,
           );
           return res.status(500).json({
@@ -478,29 +597,23 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         );
 
         try {
-          const response = await fetchPublisherCaptureStatus(captureID);
-
-          if (!response.ok) {
-            if (response.status === 404) {
-              return res
-                .status(404)
-                .json({ error: "Capture not found", captureID } as any);
-            }
-            throw new Error(
-              `Publisher returned ${response.status} for captureID: ${captureID}`,
-            );
+          const captureStatus = await parseCaptureStatus(captureID);
+          if (captureStatus.notFound) {
+            return res
+              .status(404)
+              .json({ error: "Capture not found", captureID } as any);
           }
 
-          const asset =
-            (await response.json()) as PublisherCaptureStatusResponse;
-
-          return res.json({
-            status: asset.status,
-            captureID,
-            ...(asset.ual && { UAL: asset.ual }),
-            ...(asset.publishedAt && { publishedAt: asset.publishedAt }),
-            ...(asset.lastError && { error: asset.lastError }),
-          });
+          const payload: CaptureStatusResponse = {
+            status: captureStatus.status,
+            captureID: captureStatus.captureID,
+            ...(captureStatus.UAL && { UAL: captureStatus.UAL }),
+            ...(captureStatus.publishedAt && {
+              publishedAt: captureStatus.publishedAt,
+            }),
+            ...(captureStatus.error && { error: captureStatus.error }),
+          };
+          return res.json(payload);
         } catch (error: unknown) {
           if (isTimeoutError(error)) {
             return res.status(504).json({
@@ -633,6 +746,54 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           });
         } catch (error: any) {
           console.error("[EPCIS] Events query failed:", error);
+          res.status(500).json({
+            success: false,
+            error: "Failed to query events",
+          } as any);
+        }
+      },
+    ),
+  );
+
+  // GET /epcis/events/track - Track single EPC across full trace
+  api.get(
+    "/epcis/events/track",
+    openAPIRoute(
+      {
+        tag: "EPCIS",
+        summary: "Track Item Journey",
+        description:
+          "Track a single EPC across all event types using full traceability.",
+        query: z.object({
+          epc: requiredNonEmptyString("epc").openapi({
+            description: "EPC identifier to track",
+            example: "urn:epc:id:sgtin:0614141.107346.2017",
+          }),
+        }),
+        response: {
+          description: "Tracking query results",
+          schema: z.object({
+            success: z.boolean(),
+            results: z.array(z.any()),
+            count: z.number(),
+          }),
+        },
+      },
+      async (req, res) => {
+        console.info("[EPCIS] Track item query received");
+        try {
+          const { resultData, resultCount } = await executeEpcisEventsQuery({
+            epc: req.query.epc,
+            fullTrace: true,
+          });
+
+          res.json({
+            success: true,
+            results: resultData,
+            count: resultCount,
+          });
+        } catch (error: any) {
+          console.error("[EPCIS] Track query failed:", error);
           res.status(500).json({
             success: false,
             error: "Failed to query events",

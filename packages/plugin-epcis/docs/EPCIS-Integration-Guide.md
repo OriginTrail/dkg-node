@@ -50,7 +50,9 @@ This integration bridges **GS1 EPCIS 2.0** (Electronic Product Code Information 
 └──────────────┬──────────────────────────────┬───────────────────────┘
                │ HTTP API                      │ MCP Tools
                │ POST /epcis/capture           │ epcis-query
-               │ GET  /epcis/events            │ epcis-track-item
+               │ GET  /epcis/capture/:captureID │ epcis-track-item
+               │ GET  /epcis/events            │ epcis-capture
+               │ GET  /epcis/events/track      │ epcis-capture-status
                ▼                               ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                       EPCIS Plugin                                  │
@@ -741,9 +743,40 @@ Query EPCIS events from the DKG using SPARQL.
 
 ---
 
+### GET `/epcis/events/track`
+
+Track a single EPC through its full supply chain journey. This endpoint always performs a full-trace query across all EPC-relevant fields.
+
+**Query Parameters:**
+
+| Parameter | Type   | Required | Description                               |
+| --------- | ------ | -------- | ----------------------------------------- |
+| `epc`     | string | **Yes**  | EPC identifier to track across all events |
+
+**Response:**
+
+```json
+{
+  "success": true,
+  "results": [
+    /* array of matching events for the EPC */
+  ],
+  "count": 3
+}
+```
+
+**Error Responses:**
+
+| Status                        | When                  | Description                        |
+| ----------------------------- | --------------------- | ---------------------------------- |
+| **400 Bad Request**           | Missing/invalid `epc` | Query validation failed            |
+| **500 Internal Server Error** | DKG query failed      | Failed to execute full-trace query |
+
+---
+
 ## 11. MCP Tools Reference
 
-The EPCIS plugin exposes two MCP (Model Context Protocol) tools that AI agents can use to query supply chain data from the DKG.
+The EPCIS plugin exposes four MCP (Model Context Protocol) tools that AI agents can use to capture, query, and track EPCIS supply chain data.
 
 ### `epcis-query` — Query EPCIS Events
 
@@ -803,6 +836,55 @@ Journey Timeline:
 3. [2024-03-01T14:00:00.000Z] assembling @ urn:epc:id:sgln:4012345.00003.0
 4. [2024-03-01T16:00:00.000Z] packing @ urn:epc:id:sgln:4012345.00004.0
 ```
+
+---
+
+### `epcis-capture` — Capture EPCIS Document
+
+Validates an EPCIS document and queues it for publishing via the DKG publisher service.
+
+**Input Schema:**
+
+| Parameter        | Type   | Required | Description                                        |
+| ---------------- | ------ | -------- | -------------------------------------------------- |
+| `epcisDocument`  | object | **Yes**  | EPCIS 2.0 JSON-LD document                         |
+| `publishOptions` | object | No       | Optional publishing settings (`privacy`, `epochs`) |
+
+**Success Response includes:**
+
+- `captureID` (publisher tracking ID)
+- `requestId` (plugin-generated request ID)
+- `receivedAt` timestamp
+- `eventCount`
+
+**Error cases:**
+
+- Validation error (`Invalid EPCISDocument`, empty events)
+- Publisher unavailable error
+
+---
+
+### `epcis-capture-status` — Get Capture Status
+
+Checks the publisher-tracked status for a capture request by numeric `captureID`.
+
+**Input Schema:**
+
+| Parameter   | Type   | Required | Description                                                       |
+| ----------- | ------ | -------- | ----------------------------------------------------------------- |
+| `captureID` | string | **Yes**  | Numeric capture ID (`^[0-9]{1,20}$`) returned by capture handlers |
+
+**Success Response includes:**
+
+- `status`
+- `captureID`
+- Optional `UAL`, `publishedAt`, and `error`
+
+**Error cases:**
+
+- Capture not found
+- Publisher timeout
+- Upstream status lookup failure
 
 ---
 
@@ -1150,7 +1232,7 @@ Event 9: Ship                (shipping, in_transit)        @ Shipping Dock
 | `Invalid captureID format`                   | captureID not numeric (must match `^[0-9]{1,20}$`) | Use the numeric ID from capture response                                                                                |
 | `Capture not found` (404)                    | Unknown captureID                                  | Verify the ID exists in the publisher                                                                                   |
 | `Publisher timeout` (504)                    | Publisher service did not respond                  | Publisher service may be overloaded; retry later                                                                        |
-| `Something went wrong with publishing` (500) | Publisher unreachable after 3 retries              | Check that `EXPO_PUBLIC_MCP_URL` is set and the publisher is running                                                           |
+| `Something went wrong with publishing` (500) | Publisher unreachable after 3 retries              | Check that `EXPO_PUBLIC_MCP_URL` is set and the publisher is running                                                    |
 | `At least one filter parameter is required`  | Query with no filters                              | Provide at least one of: `epc`, `from`, `to`, `bizStep`, `bizLocation`, `parentID`, `childEPC`, `inputEPC`, `outputEPC` |
 | `Parameter 'to' must be >= 'from'`           | Invalid date range                                 | Ensure `to` date is not before `from` date                                                                              |
 | `Parameter 'x' cannot be empty`              | Empty string query parameter                       | Provide a value or omit the parameter entirely                                                                          |
@@ -1166,8 +1248,8 @@ The system validates against the official GS1 EPCIS 2.0 JSON Schema. Common issu
 
 ### Environment Variables
 
-| Variable             | Required | Description                                                           |
-| -------------------- | -------- | --------------------------------------------------------------------- |
+| Variable              | Required | Description                                                           |
+| --------------------- | -------- | --------------------------------------------------------------------- |
 | `EXPO_PUBLIC_MCP_URL` | Yes      | Base URL of the DKG publisher service (e.g., `http://localhost:9200`) |
 
 ### Checking System Health
