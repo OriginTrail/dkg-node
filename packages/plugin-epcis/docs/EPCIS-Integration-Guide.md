@@ -15,6 +15,8 @@ This document explains all fields used in EPCIS 2.0 documents and provides compr
 9. [GS1 URN Schemes](#9-gs1-urn-schemes)
 10. [API Reference](#10-api-reference)
 11. [MCP Tools Reference](#11-mcp-tools-reference)
+    - [Source Knowledge Assets](#source-knowledge-assets)
+    - [Event Result Structure](#event-result-structure)
 12. [Query Examples](#12-query-examples)
 13. [Data Flow & DKG Publishing](#13-data-flow--dkg-publishing)
 14. [Sample EPCIS Documents](#14-sample-epcis-documents)
@@ -725,19 +727,56 @@ Query EPCIS events from the DKG using SPARQL.
 | `limit`       | integer           | Results per page (default: 100, range: 1-1000)                      | `50`                                   |
 | `offset`      | integer           | Results to skip (pagination, min: 0)                                | `0`                                    |
 
-**Response:**
+**Responses:**
+
+| Status                        | When              | Description                                    |
+| ----------------------------- | ----------------- | ---------------------------------------------- |
+| **200 OK**                    | Query succeeded   | Returns matching events with pagination        |
+| **400 Bad Request**           | Validation failed | Missing filters, invalid date range, or params |
+| **500 Internal Server Error** | DKG query failed  | Failed to execute SPARQL query against DKG     |
+
+**Example (HTTP 200 OK):**
 
 ```json
 {
   "success": true,
   "results": [
-    /* array of matching events */
+    {
+      "ual": "did:dkg:otp:2043/0x.../1/private",
+      "eventType": "https://gs1.github.io/EPCIS/ObjectEvent",
+      "eventTime": "2024-03-01T08:00:00.000Z",
+      "bizStep": "https://ref.gs1.org/cbv/BizStep-receiving",
+      "bizLocation": "urn:epc:id:sgln:4012345.00001.0",
+      "disposition": "https://ref.gs1.org/cbv/Disp-in_progress",
+      "readPoint": "urn:epc:id:sgln:4012345.00001.0",
+      "action": "ADD",
+      "epcList": "urn:epc:id:sgtin:4012345.011111.1001"
+    }
   ],
-  "count": 5,
+  "count": 1,
   "pagination": {
     "limit": 100,
     "offset": 0
   }
+}
+```
+
+> Each result row includes a `ual` field identifying which Knowledge Asset graph the event was found in. Array fields (`epcList`, `childEPCList`, `inputEPCs`, `outputEPCs`) are returned as comma-separated strings.
+
+**Example (HTTP 400 Bad Request):**
+
+```json
+{
+  "error": "At least one filter parameter is required."
+}
+```
+
+**Example (HTTP 500 Internal Server Error):**
+
+```json
+{
+  "success": false,
+  "error": "Failed to query events"
 }
 ```
 
@@ -753,24 +792,42 @@ Track a single EPC through its full supply chain journey. This endpoint always p
 | --------- | ------ | -------- | ----------------------------------------- |
 | `epc`     | string | **Yes**  | EPC identifier to track across all events |
 
-**Response:**
+**Responses:**
+
+| Status                        | When                  | Description                        |
+| ----------------------------- | --------------------- | ---------------------------------- |
+| **200 OK**                    | Query succeeded       | Returns matching events for EPC    |
+| **400 Bad Request**           | Missing/invalid `epc` | Query validation failed            |
+| **500 Internal Server Error** | DKG query failed      | Failed to execute full-trace query |
+
+**Example (HTTP 200 OK):**
 
 ```json
 {
   "success": true,
   "results": [
-    /* array of matching events for the EPC */
+    {
+      "ual": "did:dkg:otp:2043/0x.../6/private",
+      "eventType": "https://gs1.github.io/EPCIS/TransformationEvent",
+      "eventTime": "2024-03-01T14:00:00.000Z",
+      "bizStep": "https://ref.gs1.org/cbv/BizStep-assembling",
+      "bizLocation": "urn:epc:id:sgln:4012345.00003.0",
+      "inputEPCs": "urn:epc:id:sgtin:4012345.011111.1001, urn:epc:id:sgtin:4012345.022222.2001",
+      "outputEPCs": "urn:epc:id:sgtin:4012345.099999.9001"
+    }
   ],
-  "count": 3
+  "count": 1
 }
 ```
 
-**Error Responses:**
+**Example (HTTP 500 Internal Server Error):**
 
-| Status                        | When                  | Description                        |
-| ----------------------------- | --------------------- | ---------------------------------- |
-| **400 Bad Request**           | Missing/invalid `epc` | Query validation failed            |
-| **500 Internal Server Error** | DKG query failed      | Failed to execute full-trace query |
+```json
+{
+  "success": false,
+  "error": "Failed to query events"
+}
+```
 
 ---
 
@@ -801,10 +858,39 @@ General-purpose query tool with the same filtering capabilities as `GET /epcis/e
 
 > **Note:** At least one filter parameter is required (excluding `fullTrace`, `limit`, `offset`). Unlike the HTTP API where `fullTrace` is a string (`"true"`/`"false"`), the MCP tool accepts a native boolean.
 
-**Response includes:**
+**Response (first content block):**
 
-- Event data with count and pagination
-- Source Knowledge Assets with UALs and DKG Explorer links for provenance
+```json
+{
+  "summary": "Found 3 EPCIS event(s)",
+  "count": 3,
+  "events": [
+    {
+      "ual": "did:dkg:otp:2043/0x.../1/private",
+      "eventType": "https://gs1.github.io/EPCIS/ObjectEvent",
+      "eventTime": "2024-03-01T08:00:00.000Z",
+      "bizStep": "https://ref.gs1.org/cbv/BizStep-receiving",
+      "bizLocation": "urn:epc:id:sgln:4012345.00001.0",
+      "disposition": "https://ref.gs1.org/cbv/Disp-in_progress",
+      "readPoint": "urn:epc:id:sgln:4012345.00001.0",
+      "action": "ADD",
+      "epcList": "urn:epc:id:sgtin:4012345.011111.1001"
+    }
+  ],
+  "pagination": {
+    "limit": 100,
+    "offset": 0
+  }
+}
+```
+
+When results contain events from DKG Knowledge Assets, a second content block is appended with **Source Knowledge Asset** provenance (see [Source Knowledge Assets](#source-knowledge-assets)).
+
+**Error cases:**
+
+- No filter parameters → `{ "error": "At least one filter parameter is required." }`
+- Invalid date range → `{ "error": "Parameter 'to' must be greater than or equal to 'from'." }`
+- DKG query failure → `{ "error": "Query failed" }`
 
 ---
 
@@ -818,24 +904,24 @@ Specialized tool for tracking a single item's complete journey through the suppl
 | --------- | ------ | -------- | --------------------------------------------------------------- |
 | `epc`     | string | **Yes**  | The EPC to track (e.g., `urn:epc:id:sgtin:0614141.107346.2017`) |
 
-**Response includes:**
+**Response (first content block):**
 
-- Human-readable timeline summary
-- Full event data in chronological order
-- Source Knowledge Assets with UALs and DKG Explorer links
-
-**Example timeline output:**
-
+```json
+{
+  "summary": "Tracking: urn:epc:id:sgtin:4012345.011111.1001\nFound 4 event(s) in the supply chain.\n\nJourney Timeline:\n1. [2024-03-01T08:00:00.000Z] receiving @ urn:epc:id:sgln:4012345.00001.0\n2. [2024-03-01T10:00:00.000Z] inspecting @ urn:epc:id:sgln:4012345.00002.0\n3. [2024-03-01T14:00:00.000Z] assembling @ urn:epc:id:sgln:4012345.00003.0\n4. [2024-03-01T16:00:00.000Z] packing @ urn:epc:id:sgln:4012345.00004.0\n",
+  "epc": "urn:epc:id:sgtin:4012345.011111.1001",
+  "eventCount": 4,
+  "events": [
+    /* chronologically ordered event objects */
+  ]
+}
 ```
-Tracking: urn:epc:id:sgtin:4012345.011111.1001
-Found 4 event(s) in the supply chain.
 
-Journey Timeline:
-1. [2024-03-01T08:00:00.000Z] receiving @ urn:epc:id:sgln:4012345.00001.0
-2. [2024-03-01T10:00:00.000Z] inspecting @ urn:epc:id:sgln:4012345.00002.0
-3. [2024-03-01T14:00:00.000Z] assembling @ urn:epc:id:sgln:4012345.00003.0
-4. [2024-03-01T16:00:00.000Z] packing @ urn:epc:id:sgln:4012345.00004.0
-```
+The `summary` field contains a human-readable timeline with numbered steps showing `[eventTime] bizStep @ location` for each event. When results are found, a second content block is appended with **Source Knowledge Asset** provenance (see [Source Knowledge Assets](#source-knowledge-assets)).
+
+**Error cases:**
+
+- DKG query failure → `{ "error": "Tracking failed" }`
 
 ---
 
@@ -850,17 +936,22 @@ Validates an EPCIS document and queues it for publishing via the DKG publisher s
 | `epcisDocument`  | object | **Yes**  | EPCIS 2.0 JSON-LD document                         |
 | `publishOptions` | object | No       | Optional publishing settings (`privacy`, `epochs`) |
 
-**Success Response includes:**
+**Success Response:**
 
-- `captureID` (publisher tracking ID)
-- `requestId` (plugin-generated request ID)
-- `receivedAt` timestamp
-- `eventCount`
+```json
+{
+  "captureID": "456",
+  "requestId": "epcis-1709280001123-a1b2c3",
+  "receivedAt": "2024-03-01T08:00:01.123Z",
+  "eventCount": 1
+}
+```
 
 **Error cases:**
 
-- Validation error (`Invalid EPCISDocument`, empty events)
-- Publisher unavailable error
+- Validation error → `{ "error": "Invalid EPCISDocument", "details": ["..."] }`
+- Empty events → `{ "error": "EPCISDocument contains no events", "message": "..." }`
+- Publisher unavailable → `{ "error": "Something went wrong with publishing the EPCIS document.", "message": "..." }`
 
 ---
 
@@ -874,25 +965,84 @@ Checks the publisher-tracked status for a capture request by numeric `captureID`
 | ----------- | ------ | -------- | ----------------------------------------------------------------- |
 | `captureID` | string | **Yes**  | Numeric capture ID (`^[0-9]{1,20}$`) returned by capture handlers |
 
-**Success Response includes:**
+**Success Response:**
 
-- `status`
-- `captureID`
-- Optional `UAL`, `publishedAt`, and `error`
+```json
+{
+  "status": "published",
+  "captureID": "456",
+  "UAL": "did:dkg:otp/0x1234.../789",
+  "publishedAt": "2024-03-01T08:01:23.456Z"
+}
+```
+
+> Fields `UAL`, `publishedAt`, and `error` are only present when applicable to the current status.
 
 **Error cases:**
 
-- Capture not found
-- Publisher timeout
-- Upstream status lookup failure
+- Capture not found → `{ "error": "Capture not found", "captureID": "456" }`
+- Publisher timeout → `{ "error": "Publisher timeout", "captureID": "456" }`
+- Upstream failure → `{ "error": "Failed to get capture status", "captureID": "456" }`
+
+---
+
+## Source Knowledge Assets
+
+MCP tool responses (`epcis-query` and `epcis-track-item`) include **Source Knowledge Asset provenance** when results are found. This is returned as a second MCP content block (markdown text) listing the unique Knowledge Assets that contained the matching events.
+
+**Format:**
+
+```
+**Source Knowledge Assets:**
+- **EPCIS ObjectEvent**: EPCIS Plugin
+  [did:dkg:otp:2043/0x.../1](https://dkg.origintrail.io/explore?ual=did:dkg:otp:2043/0x.../1)
+- **EPCIS TransformationEvent**: EPCIS Plugin
+  [did:dkg:otp:2043/0x.../6](https://dkg.origintrail.io/explore?ual=did:dkg:otp:2043/0x.../6)
+```
+
+Each entry includes:
+
+- **Title**: Derived from the event type (e.g., `EPCIS ObjectEvent`)
+- **Issuer**: Always `"EPCIS Plugin"`
+- **UAL**: The cleaned Knowledge Asset UAL (with `/private` or `/public` suffix removed), linked to the DKG Explorer
+
+### Event Result Structure
+
+SPARQL query results (from both the HTTP API and MCP tools) return events with the following fields:
+
+| Field          | Description                                       | Example                                                |
+| -------------- | ------------------------------------------------- | ------------------------------------------------------ |
+| `ual`          | Knowledge Asset graph containing this event       | `did:dkg:otp:2043/0x.../1/private`                     |
+| `eventType`    | Full EPCIS event type URI                         | `https://gs1.github.io/EPCIS/ObjectEvent`              |
+| `eventTime`    | When the event occurred (ISO 8601)                | `2024-03-01T08:00:00.000Z`                             |
+| `bizStep`      | Business step URI                                 | `https://ref.gs1.org/cbv/BizStep-receiving`            |
+| `bizLocation`  | Business location identifier                      | `urn:epc:id:sgln:4012345.00001.0`                      |
+| `disposition`  | Current state/condition URI                       | `https://ref.gs1.org/cbv/Disp-in_progress`             |
+| `readPoint`    | Scan/read location identifier                     | `urn:epc:id:sgln:4012345.00001.0`                      |
+| `action`       | Event action (`ADD`, `OBSERVE`, `DELETE`)          | `ADD`                                                  |
+| `parentID`     | Parent EPC (AggregationEvent)                     | `urn:epc:id:sscc:4012345.0000000001`                   |
+| `epcList`      | Observed EPCs (comma-separated)                   | `urn:epc:id:sgtin:4012345.011111.1001`                 |
+| `childEPCList` | Child EPCs (comma-separated, AggregationEvent)    | `urn:epc:id:sgtin:4012345.099999.9001`                 |
+| `inputEPCs`    | Input EPCs (comma-separated, TransformationEvent) | `urn:epc:id:sgtin:4012345.011111.1001, ...`            |
+| `outputEPCs`   | Output EPCs (comma-separated, TransformationEvent)| `urn:epc:id:sgtin:4012345.099999.9001`                 |
+
+> Array fields (`epcList`, `childEPCList`, `inputEPCs`, `outputEPCs`) are returned as comma-separated strings from the SPARQL `GROUP_CONCAT`. Fields that don't apply to a specific event type will be empty strings.
 
 ---
 
 ## 12. Query Examples
 
+### Track a Single Item's Journey
+
+Use the dedicated track endpoint for full-trace item tracking:
+
+```bash
+curl "http://localhost:9200/epcis/events/track?epc=urn:epc:id:sgtin:4012345.011111.1001"
+```
+
 ### Track All Events for a Product
 
-Find all events where the carbon frame appears:
+Find all events where the carbon frame appears using the general query with full trace:
 
 ```bash
 curl "http://localhost:9200/epcis/events?epc=urn:epc:id:sgtin:4012345.011111.1001&fullTrace=true"
