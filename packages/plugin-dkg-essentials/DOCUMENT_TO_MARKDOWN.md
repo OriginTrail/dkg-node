@@ -1,31 +1,51 @@
 # Document to Markdown Tool
 
-Convert PDF, DOCX, and PPTX documents to Markdown using configurable OCR providers.
+Convert PDF, DOCX, and PPTX documents to Markdown using configurable conversion providers.
 
 ## Overview
 
-The `document-to-markdown` MCP tool uses OCR (Optical Character Recognition) to extract text and images from documents and convert them to well-structured Markdown format. Extracted images are stored as separate blobs alongside the markdown output.
+The `document-to-markdown` MCP tool extracts text and images from documents and converts them to well-structured Markdown. Extracted images are stored as separate blobs alongside the markdown output.
 
-The tool supports a **provider abstraction** pattern, allowing you to switch between different OCR backends. The default provider is **Mistral OCR**.
+The tool supports a **provider abstraction** pattern, allowing you to switch between different conversion backends.
 
-## Requirements
+## Available Providers
 
-### Environment Variables
+| Provider | Name | Formats | Images | API Key Required |
+|----------|------|---------|--------|------------------|
+| **unpdf** (default) | `unpdf` | PDF only | No | No |
+| **Mistral OCR** | `mistral` | PDF, DOCX, PPTX | Yes | Yes (`MISTRAL_API_KEY`) |
+
+### unpdf (Default)
+
+Zero-config text extraction powered by Mozilla's `pdf.js`. Good for simple PDF text extraction without external API dependencies.
+
+- **Formats**: PDF only
+- **Images**: Not supported (returns empty array)
+- **Requirements**: None — works out of the box
+
+### Mistral OCR
+
+Full-featured OCR with multi-format support and image extraction. Handles scanned PDFs, complex layouts, and non-PDF formats.
+
+- **Formats**: PDF, DOCX, PPTX
+- **Images**: Full extraction support
+- **Requirements**: `MISTRAL_API_KEY` ([get one here](https://console.mistral.ai/))
+- **Timeout**: 120 seconds per request
+
+## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `MISTRAL_API_KEY` | **Yes** (for Mistral provider) | Your Mistral API key for OCR processing |
-| `DOCUMENT_CONVERSION_PROVIDER` | No | Provider name to use (default: `"mistral"`) |
-
-Get your Mistral API key from [Mistral AI Console](https://console.mistral.ai/).
+| `DOCUMENT_CONVERSION_PROVIDER` | No | Provider to use (default: `"unpdf"`) |
+| `MISTRAL_API_KEY` | Only for Mistral | Your Mistral API key |
 
 ## Supported Formats
 
-| Extension | MIME Type | Description |
-|-----------|-----------|-------------|
-| `.pdf` | `application/pdf` | PDF documents |
-| `.docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | Microsoft Word documents |
-| `.pptx` | `application/vnd.openxmlformats-officedocument.presentationml.presentation` | Microsoft PowerPoint presentations |
+| Extension | MIME Type | unpdf | Mistral |
+|-----------|-----------|:-----:|:-------:|
+| `.pdf` | `application/pdf` | Yes | Yes |
+| `.docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | — | Yes |
+| `.pptx` | `application/vnd.openxmlformats-officedocument.presentationml.presentation` | — | Yes |
 
 ## Usage
 
@@ -42,9 +62,11 @@ Get your Mistral API key from [Mistral AI Console](https://console.mistral.ai/).
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `pageStart` | number | 1 | First page to process (1-indexed) |
-| `pageEnd` | number | Last page | Last page to process (inclusive) |
+| `pageStart` | number | 1 | First page to process (1-indexed, inclusive) |
+| `pageEnd` | number | Last page | Last page to process (1-indexed, inclusive) |
 | `includeImages` | boolean | true | Whether to extract and store images |
+
+Page range values are automatically clamped to valid bounds — out-of-range values are silently adjusted.
 
 ### Example: Using blob ID
 
@@ -75,18 +97,22 @@ Get your Mistral API key from [Mistral AI Console](https://console.mistral.ai/).
 }
 ```
 
+### REST Endpoint
+
+`POST /document-to-markdown` accepts `multipart/form-data` with a `file` field. Returns the same response structure as the MCP tool.
+
 ## Output Structure
 
 ### Response Format
 
 The tool returns a text response containing:
 
-1. **Status message** - Success or failure indication
-2. **Output folder ID** - UUID of the folder containing all outputs
-3. **Markdown blob ID** - ID of the generated markdown file
-4. **Page count** - Number of pages processed
-5. **Image count** - Number of images extracted (if any)
-6. **Markdown content** - The full converted markdown
+1. **Status message** — Success or failure indication
+2. **Output folder ID** — UUID of the folder containing all outputs
+3. **Markdown blob ID** — ID of the generated markdown file
+4. **Page count** — Number of pages in the document
+5. **Image count** — Number of images extracted (if any)
+6. **Markdown content** — The full converted markdown
 
 ### File Organization
 
@@ -101,10 +127,6 @@ document-conversions/
     └── ...
 ```
 
-- **Folder ID**: Generated UUID to group related files
-- **Markdown file**: Named after the original document (e.g., `report.md`)
-- **Images**: Named by Mistral (e.g., `img-0.jpeg`, `img-1.jpeg`), format preserved
-
 ### Image References
 
 Images in the markdown reference their blob URLs:
@@ -115,7 +137,7 @@ Images in the markdown reference their blob URLs:
 
 ### Storage Location
 
-All outputs (markdown files and extracted images) are stored in the DKG node's configured blob storage under the `document-conversions/` prefix for organized grouping. The physical location depends on your blob storage backend:
+All outputs are stored in blob storage under the `document-conversions/` prefix:
 
 | Backend | Typical Location |
 |---------|------------------|
@@ -123,47 +145,37 @@ All outputs (markdown files and extracted images) are stored in the DKG node's c
 | In-memory (testing only) | RAM, not persisted |
 | Custom implementation | As configured |
 
-Files are organized in nested folders:
-- `document-conversions/{uuid}/{original-name}.md` — The converted markdown
-- `document-conversions/{uuid}/img-0.jpeg` — Extracted images (named by Mistral)
-
 ## Error Messages
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| `MISTRAL_API_KEY environment variable is not set` | Missing API key | Set the `MISTRAL_API_KEY` environment variable |
+| `MISTRAL_API_KEY environment variable is not set` | Missing API key (Mistral provider) | Set the `MISTRAL_API_KEY` environment variable |
 | `Either 'blobId' or 'fileBase64' must be provided` | No input document | Provide either `blobId` or `fileBase64` |
 | `Provide either 'blobId' or 'fileBase64', not both` | Both inputs provided | Use only one input method |
-| `Unsupported file type: '.xyz'` | Invalid file extension | Use PDF, DOCX, or PPTX files |
+| `Unsupported file type: '.xyz'` | Invalid file extension | Use a supported format for your provider |
 | `File size (X MB) exceeds maximum of 50MB` | File too large | Use a smaller file or split the document |
 | `Document blob not found: {id}` | Invalid blob ID | Verify the blob ID exists |
-| `Mistral OCR request timed out after 120 seconds` | API timeout | The document may be too large or complex; try a smaller file |
-| `Document conversion failed: {reason}` | OCR processing error | Check the error details and retry |
+| `Mistral OCR request timed out after 120 seconds` | API timeout (Mistral) | The document may be too large or complex; try a smaller file |
+| `Document conversion failed: {reason}` | Processing error | Check the error details and retry |
 
 ## Limitations
 
 - **Maximum file size**: 50 MB
-- **Supported formats**: PDF, DOCX, PPTX only
-- **API timeout**: 2 minutes (120 seconds)
-- **API dependency**: Requires active OCR provider API connection
-- **Processing time**: Large documents may take longer to process
+- **Supported formats**: PDF (all providers), DOCX/PPTX (Mistral only)
+- **API timeout**: 2 minutes (Mistral provider)
+- **Image extraction**: Mistral provider only
 
-## Provider Abstraction
-
-The tool uses a provider abstraction pattern that allows swapping OCR backends without changing consuming code.
-
-### Available Providers
-
-| Provider | Name | Environment Variables |
-|----------|------|----------------------|
-| Mistral OCR | `mistral` | `MISTRAL_API_KEY` |
+## Provider Configuration
 
 ### Selecting a Provider
 
 **Via environment variable:**
 
 ```bash
-# Use Mistral (default)
+# Use unpdf (default) — no API key needed
+export DOCUMENT_CONVERSION_PROVIDER=unpdf
+
+# Use Mistral OCR
 export DOCUMENT_CONVERSION_PROVIDER=mistral
 export MISTRAL_API_KEY=your-api-key
 ```
@@ -185,9 +197,45 @@ const plugin = createDocumentToMarkdownPlugin({
 });
 ```
 
-### Exported Types and Utilities
+**Provider resolution order** (first match wins):
+1. Custom provider instance via `config.provider`
+2. Provider name from `config.providerName`
+3. `DOCUMENT_CONVERSION_PROVIDER` environment variable
+4. Default: `"unpdf"`
 
-The package exports types and utilities for working with providers:
+### Implementing a Custom Provider
+
+Implement the `DocumentConversionProvider` interface:
+
+```typescript
+import type {
+  DocumentConversionProvider,
+  DocumentConversionOutput,
+  DocumentConversionOptions
+} from "@dkg/plugin-dkg-essentials";
+
+class MyCustomProvider implements DocumentConversionProvider {
+  readonly name = "my-provider";
+
+  async convert(
+    buffer: Buffer,
+    filename: string,
+    options?: DocumentConversionOptions,
+  ): Promise<DocumentConversionOutput> {
+    return {
+      markdown: "# Converted content",
+      images: [],
+      pageCount: 1,
+    };
+  }
+}
+
+const plugin = createDocumentToMarkdownPlugin({
+  provider: new MyCustomProvider(),
+});
+```
+
+### Exported Types and Utilities
 
 ```typescript
 import {
@@ -205,44 +253,10 @@ import {
   getAvailableProviders,
   isProviderAvailable,
 
-  // Mistral-specific
+  // Provider-specific
   MistralProvider,
   createMistralProvider,
 } from "@dkg/plugin-dkg-essentials";
-```
-
-### Implementing a Custom Provider
-
-To add a new OCR provider, implement the `DocumentConversionProvider` interface:
-
-```typescript
-import type { 
-  DocumentConversionProvider,
-  DocumentConversionOutput,
-  DocumentConversionOptions 
-} from "@dkg/plugin-dkg-essentials";
-
-class MyCustomProvider implements DocumentConversionProvider {
-  readonly name = "my-provider";
-
-  async convert(
-    buffer: Buffer,
-    filename: string,
-    options?: DocumentConversionOptions,
-  ): Promise<DocumentConversionOutput> {
-    // Your OCR implementation here
-    return {
-      markdown: "# Converted content",
-      images: [],
-      pageCount: 1,
-    };
-  }
-}
-
-// Use with the plugin
-const plugin = createDocumentToMarkdownPlugin({
-  provider: new MyCustomProvider(),
-});
 ```
 
 ## Security
@@ -253,5 +267,5 @@ const plugin = createDocumentToMarkdownPlugin({
 
 ## Related Tools
 
-- `upload` - Upload documents to blob storage before conversion
-- `dkg-create` - Create Knowledge Assets from converted content
+- `upload` — Upload documents to blob storage before conversion
+- `dkg-create` — Create Knowledge Assets from converted content
