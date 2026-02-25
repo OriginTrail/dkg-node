@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { View, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
 import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
@@ -19,6 +19,7 @@ import Container from "@/components/layout/Container";
 import Header from "@/components/layout/Header";
 import Chat from "@/components/Chat";
 import { SourceKAResolver } from "@/components/Chat/Message/SourceKAs/CollapsibleItem";
+import Markdown from "@/components/Markdown";
 import { useAlerts } from "@/components/Alerts";
 
 import {
@@ -26,6 +27,7 @@ import {
   type ToolCall,
   type ToolCallResultContent,
   makeCompletionRequest,
+  makeStreamingCompletionRequest,
   toContents,
 } from "@/shared/chat";
 import {
@@ -36,6 +38,34 @@ import {
 } from "@/shared/files";
 import { toError } from "@/shared/errors";
 import useSettings from "@/hooks/useSettings";
+import {
+  type ToolExecutionMode,
+  toToolExecutionMode,
+  toToolExecutionSettings,
+} from "@/shared/toolExecutionMode";
+
+function normalizeStreamingMarkdown(content: string): string {
+  const fencePattern = /^(`{3,})[^`]*$/gm;
+  let count = 0;
+  let lastFenceLength = 3;
+  let match: RegExpExecArray | null;
+  while ((match = fencePattern.exec(content)) !== null) {
+    lastFenceLength = match[1]!.length;
+    count++;
+  }
+  if (count % 2 === 1) {
+    return content + "\n" + "`".repeat(lastFenceLength);
+  }
+  return content;
+}
+
+const SCROLL_TOP_GAP = 28; // px from viewport top to user message after scroll (matches contentContainerStyle.paddingTop)
+
+function stripThinkTags(content: string): string {
+  let result = content.replaceAll(/<think>.*?<\/think>/gs, "");
+  result = result.replace(/<think>(?:(?!<\/think>).)*$/s, "");
+  return result;
+}
 
 export default function ChatPage() {
   const colors = useColors();
@@ -49,11 +79,46 @@ export default function ChatPage() {
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [streamingContent, setStreamingContent] = useState<string | null>(null);
+  const [messagesViewHeight, setMessagesViewHeight] = useState(0);
 
   const pendingToolCalls = useRef<Set<string>>(new Set()); // Track tool calls that need responses before calling LLM
   const toolKAContents = useRef<Map<string, any[]>>(new Map()); // Track KAs across tool calls in a single request
+  const dispatchedHiddenCalls = useRef<Set<string>>(new Set()); // Track auto-dispatched hidden tool calls
+  const reportedHiddenToolCallErrors = useRef<Set<string>>(new Set()); // Avoid duplicate hidden-mode normalization errors
+  const localToolCallIdCounter = useRef(0); // Local fallback IDs for tool calls missing an id
 
   const chatMessagesRef = useRef<ScrollView>(null);
+  const lastUserMessageYRef = useRef(0);
+  const scrollPendingRef = useRef(false);
+  const scrollTargetRef = useRef<number | null>(null);
+  const messagesViewHeightRef = useRef(0);
+
+  const [contentMinHeight, setContentMinHeight] = useState(0);
+  const settingsToolExecutionMode = toToolExecutionMode(settings);
+  const [toolExecutionMode, setToolExecutionMode] = useState<ToolExecutionMode>(
+    settingsToolExecutionMode,
+  );
+  const autoApproveTools = toolExecutionMode !== "ask";
+  const showToolExecutionPanels = toolExecutionMode === "auto_show";
+
+  useEffect(() => {
+    setToolExecutionMode(settingsToolExecutionMode);
+  }, [settingsToolExecutionMode]);
+
+  const handleToolExecutionModeChange = useCallback(
+    async (mode: ToolExecutionMode) => {
+      // Apply immediately in-memory to avoid stale-mode auto-runs
+      setToolExecutionMode(mode);
+      if (mode === "ask") tools.clearAllowedForSession();
+
+      const s = toToolExecutionSettings(mode);
+      await settings.set("autoApproveMcpTools", s.autoApproveMcpTools);
+      await settings.set("showMcpToolExecutionPanels", s.showMcpToolExecutionPanels);
+      await settings.reload();
+    },
+    [settings, tools],
+  );
 
   async function callTool(tc: ToolCall & { id: string }) {
     tools.saveCallInfo(tc.id, { input: tc.args, status: "loading" });
@@ -92,6 +157,105 @@ export default function ChatPage() {
       });
   }
 
+  function normalizeCompletionToolCalls(completion: ChatMessage) {
+    const toolCalls = completion.tool_calls ?? [];
+    if (toolCalls.length === 0) {
+      return {
+        completion,
+        normalizedToolCalls: [] as (ToolCall & { id: string })[],
+        droppedToolCalls: 0,
+      };
+    }
+
+    const normalizedToolCalls: (ToolCall & { id: string })[] = [];
+    let droppedToolCalls = 0;
+
+    for (const tc of toolCalls) {
+      if (!tc?.name) {
+        droppedToolCalls += 1;
+        continue;
+      }
+
+      const existingId =
+        typeof tc.id === "string" ? tc.id.trim() : "";
+      normalizedToolCalls.push({
+        ...tc,
+        id: existingId || `local-tool-call-${localToolCallIdCounter.current++}`,
+      });
+    }
+
+    return {
+      completion: {
+        ...completion,
+        tool_calls: normalizedToolCalls,
+      } as ChatMessage,
+      normalizedToolCalls,
+      droppedToolCalls,
+    };
+  }
+
+  function addAssistantCompletion(completion: ChatMessage) {
+    const {
+      completion: normalizedCompletion,
+      normalizedToolCalls,
+      droppedToolCalls,
+    } = normalizeCompletionToolCalls(completion);
+
+    setMessages((prevMessages) => {
+      const nextMessages = [...prevMessages, normalizedCompletion];
+      if (droppedToolCalls > 0) {
+        nextMessages.push({
+          role: "assistant",
+          content:
+            droppedToolCalls === 1
+              ? "Error: Received an invalid tool call and skipped it."
+              : `Error: Received ${droppedToolCalls} invalid tool calls and skipped them.`,
+        });
+      }
+      return nextMessages;
+    });
+
+    normalizedToolCalls.forEach((tc) => {
+      pendingToolCalls.current.add(tc.id);
+    });
+  }
+
+  // Auto-execute tool calls when panels are hidden (mode: auto_silent).
+  // Deps intentionally exclude tools/callTool — dispatchedHiddenCalls ref prevents double-dispatch.
+  useEffect(() => {
+    for (const [messageIndex, m] of messages.entries()) {
+      if (m.role !== "assistant" || !m.tool_calls) continue;
+      for (const [toolIndex, tc] of m.tool_calls.entries()) {
+        const tcId = tc.id || "";
+        if (!tcId) {
+          const errorKey = `${messageIndex}:${toolIndex}`;
+          if (!reportedHiddenToolCallErrors.current.has(errorKey)) {
+            reportedHiddenToolCallErrors.current.add(errorKey);
+            setMessages((prevMessages) => [
+              ...prevMessages,
+              {
+                role: "assistant",
+                content:
+                  "Error: Could not execute a tool call because it did not include a valid id.",
+              },
+            ]);
+          }
+          continue;
+        }
+        if (dispatchedHiddenCalls.current.has(tcId)) continue;
+        if (tools.getCallInfo(tcId)) continue;
+
+        const isAutoApproved =
+          autoApproveTools || tools.isAllowedForSession(tc.name);
+        if (!isAutoApproved || showToolExecutionPanels) continue;
+
+        dispatchedHiddenCalls.current.add(tcId);
+        callTool({ ...tc, id: tcId });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, autoApproveTools, showToolExecutionPanels]);
+
   function addToolResultAndCheckCompletion(toolResult: ChatMessage) {
     const kaContents: any[] = [];
     const otherContents: any[] = [];
@@ -117,6 +281,8 @@ export default function ChatPage() {
   }
 
   async function requestCompletion() {
+    if (isWeb) return requestCompletionStreaming();
+
     if (!mcp.token) throw new Error("Unauthorized");
 
     setIsGenerating(true);
@@ -153,16 +319,128 @@ export default function ChatPage() {
 
       toolKAContents.current.clear();
 
-      setMessages((prevMessages) => [...prevMessages, completion]);
-
-      if (completion.tool_calls && completion.tool_calls.length > 0) {
-        completion.tool_calls.forEach((tc: any) => {
-          pendingToolCalls.current.add(tc.id);
-        });
-      }
+      addAssistantCompletion(completion);
     } finally {
       setIsGenerating(false);
-      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
+    }
+  }
+
+  async function streamCompletion(messagesToSend: ChatMessage[]) {
+    let accumulatedContent = "";
+    let receivedToolCalls: ToolCall[] | null = null;
+    let rafId: number | null = null;
+
+    try {
+      await makeStreamingCompletionRequest(
+        { messages: messagesToSend, tools: tools.enabled },
+        { bearerToken: mcp.token! },
+        {
+          onDelta(content) {
+            accumulatedContent += content;
+            if (rafId === null) {
+              rafId = requestAnimationFrame(() => {
+                setStreamingContent(accumulatedContent);
+                rafId = null;
+              });
+            }
+          },
+          onToolCalls(toolCalls) {
+            receivedToolCalls = toolCalls;
+          },
+          onDone() {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            setStreamingContent(null);
+
+            const allKAContents: any[] = [];
+            toolKAContents.current.forEach((kaContents) => {
+              allKAContents.push(...kaContents);
+            });
+            toolKAContents.current.clear();
+
+            const completion: ChatMessage = {
+              role: "assistant",
+              content: accumulatedContent,
+              tool_calls: receivedToolCalls ?? undefined,
+            };
+
+            if (allKAContents.length > 0) {
+              completion.content = toContents(completion.content);
+              completion.content.push(...allKAContents);
+            }
+
+            setMessages((prev) => [...prev, completion]);
+
+            if (receivedToolCalls && receivedToolCalls.length > 0) {
+              receivedToolCalls.forEach((tc: any) => {
+                pendingToolCalls.current.add(tc.id);
+              });
+            }
+          },
+          onError(message) {
+            if (rafId !== null) cancelAnimationFrame(rafId);
+            setStreamingContent(null);
+            showAlert({
+              type: "error",
+              title: "LLM Error",
+              message,
+              timeout: 5000,
+            });
+          },
+        },
+      );
+    } finally {
+      // Cancel any pending RAF to prevent stale UI updates after errors
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    }
+  }
+
+  async function requestCompletionStreaming() {
+    if (!mcp.token) throw new Error("Unauthorized");
+
+    setIsGenerating(true);
+    try {
+      let currentMessages: ChatMessage[] = [];
+      await new Promise<void>((resolve) => {
+        setMessages((prevMessages) => {
+          currentMessages = prevMessages;
+          resolve();
+          return prevMessages;
+        });
+      });
+
+      await streamCompletion(currentMessages);
+    } catch (error) {
+      setStreamingContent(null);
+      showAlert({
+        type: "error",
+        title: "LLM Error",
+        message: error instanceof Error ? error.message : String(error),
+        timeout: 5000,
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  async function sendMessageStreaming(newMessage: ChatMessage) {
+    scrollPendingRef.current = true;
+    setMessages((prevMessages) => [...prevMessages, newMessage]);
+
+    if (!mcp.token) throw new Error("Unauthorized");
+
+    setIsGenerating(true);
+    try {
+      await streamCompletion([...messages, newMessage]);
+    } catch (error) {
+      setStreamingContent(null);
+      showAlert({
+        type: "error",
+        title: "LLM Error",
+        message: error instanceof Error ? error.message : String(error),
+        timeout: 5000,
+      });
+    } finally {
+      setIsGenerating(false);
     }
   }
 
@@ -177,6 +455,9 @@ export default function ChatPage() {
   }
 
   async function sendMessage(newMessage: ChatMessage) {
+    if (isWeb) return sendMessageStreaming(newMessage);
+
+    scrollPendingRef.current = true;
     setMessages((prevMessages) => [...prevMessages, newMessage]);
 
     if (!mcp.token) throw new Error("Unauthorized");
@@ -194,16 +475,9 @@ export default function ChatPage() {
         },
       );
 
-      setMessages((prevMessages) => [...prevMessages, completion]);
-
-      if (completion.tool_calls && completion.tool_calls.length > 0) {
-        completion.tool_calls.forEach((tc: any) => {
-          pendingToolCalls.current.add(tc.id);
-        });
-      }
+      addAssistantCompletion(completion);
     } finally {
       setIsGenerating(false);
-      setTimeout(() => chatMessagesRef.current?.scrollToEnd(), 100);
     }
   }
 
@@ -277,6 +551,22 @@ export default function ChatPage() {
     [mcp, showAlert],
   );
 
+  const lastUserMsgIdx = messages.reduce(
+    (a, m, i) => (m.role === "user" ? i : a),
+    -1,
+  );
+
+  const handleContentSizeChange = useCallback((_w: number, h: number) => {
+    if (scrollTargetRef.current !== null) {
+      const targetY = scrollTargetRef.current;
+      // Only scroll once content is tall enough for the scroll position to work
+      if (h >= targetY + messagesViewHeightRef.current) {
+        scrollTargetRef.current = null;
+        chatMessagesRef.current?.scrollTo({ y: targetY, animated: true });
+      }
+    }
+  }, []);
+
   const isLandingScreen = !messages.length && !isNativeMobile;
   console.debug("Messages:", messages);
   console.debug("Tools (enabled):", tools.enabled);
@@ -303,6 +593,17 @@ export default function ChatPage() {
             <Header handleLogout={() => mcp.disconnect()} />
             <Chat.Messages
               ref={chatMessagesRef}
+              onLayout={(e) => {
+                const h = e.nativeEvent.layout.height;
+                setMessagesViewHeight(h);
+                messagesViewHeightRef.current = h;
+              }}
+              onContentSizeChange={handleContentSizeChange}
+              contentContainerStyle={{
+                paddingTop: 28,
+                paddingBottom: 16,
+                ...(contentMinHeight > 0 && { minHeight: contentMinHeight }),
+              }}
               style={[
                 {
                   width: "100%",
@@ -349,12 +650,32 @@ export default function ChatPage() {
                   }
                 }
 
+                // Skip assistant messages that have only hidden tool calls and no visible content
+                const hasToolCalls = !!m.tool_calls?.length;
+                const allToolCallsHidden =
+                  hasToolCalls &&
+                  m.tool_calls!.every((tc) => {
+                    const isAutoApproved = autoApproveTools || tools.isAllowedForSession(tc.name);
+                    return isAutoApproved && !showToolExecutionPanels;
+                  });
+
+                const hasVisibleText = text.some((t) => t.trim());
+
+                if (
+                  allToolCallsHidden &&
+                  !hasVisibleText &&
+                  kas.length === 0 &&
+                  files.length === 0 &&
+                  images.length === 0
+                ) {
+                  return null;
+                }
+
                 const isLastMessage = i === messages.length - 1;
                 const isIdle = !isGenerating && !m.tool_calls?.length;
 
-                return (
+                const messageContent = (
                   <Chat.Message
-                    key={i}
                     icon={m.role as "user" | "assistant"}
                     style={{ gap: 8 }}
                   >
@@ -362,45 +683,51 @@ export default function ChatPage() {
                     <Chat.Message.SourceKAs kas={kas} resolver={kaResolver} />
 
                     {/* Images */}
-                    {images.map((image, i) => (
+                    {images.map((image, j) => (
                       <Chat.Message.Content.Image
-                        key={i}
+                        key={j}
                         url={image.uri}
                         authToken={mcp.token}
                       />
                     ))}
 
                     {/* Files */}
-                    {files.map((file, i) => (
-                      <Chat.Message.Content.File key={i} file={file} />
+                    {files.map((file, j) => (
+                      <Chat.Message.Content.File key={j} file={file} />
                     ))}
 
                     {/* Text (markdown) */}
-                    {text.map((c, i) => (
+                    {text.map((c, j) => (
                       <Chat.Message.Content.Text
-                        key={i}
+                        key={j}
                         text={c.replaceAll(/<think>.*?<\/think>/gs, "")}
                       />
                     ))}
 
                     {/* Tool calls */}
-                    {m.tool_calls?.map((_tc, i) => {
-                      const tcId = _tc.id || i.toString();
+                    {m.tool_calls?.map((_tc, j) => {
+                      const tcId = _tc.id || j.toString();
                       const tc = {
                         ..._tc,
                         id: tcId,
                         info: tools.getCallInfo(tcId),
                       };
+
+                      const isAutoApproved =
+                        autoApproveTools || tools.isAllowedForSession(tc.name);
+
+                      // Hide panel when auto-approved and panels are off
+                      if (isAutoApproved && !showToolExecutionPanels) {
+                        return null;
+                      }
+
                       const toolInfo = mcp.getToolInfo(tc.name);
 
                       const title = toolInfo
                         ? `${toolInfo.name} - ${mcp.name} (MCP Server)`
                         : tc.name;
                       const description = toolInfo?.description;
-                      const autoconfirm =
-                        (settings.autoApproveMcpTools ||
-                          tools.isAllowedForSession(tc.name)) &&
-                        !tc.info;
+                      const autoconfirm = isAutoApproved && !tc.info;
 
                       return (
                         <Chat.Message.ToolCall
@@ -432,13 +759,47 @@ export default function ChatPage() {
                           tools.reset();
                           pendingToolCalls.current.clear();
                           toolKAContents.current.clear();
+                          lastUserMessageYRef.current = 0;
+                          scrollPendingRef.current = false;
+                          scrollTargetRef.current = null;
+                          setContentMinHeight(0);
+                          dispatchedHiddenCalls.current.clear();
+                          reportedHiddenToolCallErrors.current.clear();
                         }}
                       />
                     )}
                   </Chat.Message>
                 );
+
+                if (i === lastUserMsgIdx) {
+                  return (
+                    <View
+                      key={i}
+                      onLayout={(e) => {
+                        const y = e.nativeEvent.layout.y;
+                        lastUserMessageYRef.current = y;
+                        if (scrollPendingRef.current) {
+                          scrollPendingRef.current = false;
+                          scrollTargetRef.current = Math.max(0, y - SCROLL_TOP_GAP);
+                          setContentMinHeight(y + messagesViewHeight);
+                        }
+                      }}
+                    >
+                      {messageContent}
+                    </View>
+                  );
+                }
+
+                return <View key={i}>{messageContent}</View>;
               })}
-              {isGenerating && <Chat.Thinking />}
+              {isGenerating && streamingContent === null && <Chat.Thinking />}
+              {streamingContent !== null && (
+                <Chat.Message icon="assistant">
+                  <Markdown>
+                    {normalizeStreamingMarkdown(stripThinkTags(streamingContent))}
+                  </Markdown>
+                </Chat.Message>
+              )}
             </Chat.Messages>
           </Container>
 
@@ -541,6 +902,8 @@ export default function ChatPage() {
                 onToolServerTick={(_, enabled) => {
                   tools.toggleAll(enabled);
                 }}
+                toolExecutionMode={toolExecutionMode}
+                onToolExecutionModeChange={handleToolExecutionModeChange}
                 disabled={isGenerating}
                 style={[{ maxWidth: 800 }, isWeb && { pointerEvents: "auto" }]}
               />
