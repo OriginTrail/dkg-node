@@ -321,7 +321,9 @@ export default function ChatPage() {
 
       addAssistantCompletion(completion);
     } finally {
-      setIsGenerating(false);
+      if (pendingToolCalls.current.size === 0) {
+        setIsGenerating(false);
+      }
     }
   }
 
@@ -418,7 +420,9 @@ export default function ChatPage() {
         timeout: 5000,
       });
     } finally {
-      setIsGenerating(false);
+      if (pendingToolCalls.current.size === 0) {
+        setIsGenerating(false);
+      }
     }
   }
 
@@ -440,7 +444,9 @@ export default function ChatPage() {
         timeout: 5000,
       });
     } finally {
-      setIsGenerating(false);
+      if (pendingToolCalls.current.size === 0) {
+        setIsGenerating(false);
+      }
     }
   }
 
@@ -477,7 +483,9 @@ export default function ChatPage() {
 
       addAssistantCompletion(completion);
     } finally {
-      setIsGenerating(false);
+      if (pendingToolCalls.current.size === 0) {
+        setIsGenerating(false);
+      }
     }
   }
 

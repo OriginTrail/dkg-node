@@ -112,6 +112,7 @@ export default function ChatInput({
     startScrollTop: number;
   } | null>(null);
   const restoreUserSelectRef = useRef<string | null>(null);
+  const modeDropdownContainerRef = useRef<View>(null);
   const isBusy = disabled || isUploading;
   const isWeb = Platform.OS === "web";
   const isInputAtMaxHeight = inputHeight >= CHAT_INPUT_MAX_HEIGHT;
@@ -121,6 +122,23 @@ export default function ChatInput({
   const activeMode = TOOL_EXECUTION_MODE_OPTIONS.find(
     (m) => m.value === toolExecutionMode,
   )!;
+
+  // Close mode dropdown on click outside (web only)
+  useEffect(() => {
+    if (!isModeDropdownOpen || !isWeb) return;
+    const handler = (e: MouseEvent) => {
+      // Ignore clicks inside the dropdown container (trigger + menu)
+      const container = modeDropdownContainerRef.current as unknown as HTMLElement | null;
+      if (container && container.contains(e.target as Node)) return;
+      setIsModeDropdownOpen(false);
+    };
+    // setTimeout(0) prevents the opening click from immediately triggering close
+    const id = setTimeout(() => document.addEventListener("click", handler), 0);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("click", handler);
+    };
+  }, [isModeDropdownOpen, isWeb]);
 
   const clearHideScrollbarTimeout = () => {
     if (!hideScrollbarTimeoutRef.current) return;
@@ -497,7 +515,7 @@ export default function ChatInput({
               </Text>
             </Pressable>
 
-            <View style={styles.modeSelectorContainer}>
+            <View ref={modeDropdownContainerRef} style={styles.modeSelectorContainer}>
               <Pressable
                 style={[
                   styles.modeSelectorTrigger,
@@ -535,14 +553,20 @@ export default function ChatInput({
                   ]}
                 >
                   {TOOL_EXECUTION_MODE_OPTIONS.map((option) => {
+                    const isSelected = option.value === toolExecutionMode;
                     return (
                       <Pressable
                         key={option.value}
-                        style={[
+                        style={(state) => [
                           styles.modeSelectorOption,
-                          option.value === toolExecutionMode && {
+                          isSelected && {
                             backgroundColor: colors.backgroundFlat,
                           },
+                          "hovered" in state &&
+                            (state as any).hovered &&
+                            !isSelected && {
+                              backgroundColor: colors.backgroundFlat + "66",
+                            },
                         ]}
                         onPress={() => {
                           onToolExecutionModeChange?.(option.value);
