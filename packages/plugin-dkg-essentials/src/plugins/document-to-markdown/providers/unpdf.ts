@@ -45,8 +45,14 @@ export class UnpdfProvider implements DocumentConversionProvider {
     });
 
     // Clamp page range to valid bounds (1-indexed inputs, 0-indexed array)
-    const effectiveStart = Math.max(1, options?.pageStart ?? 1);
-    const effectiveEnd = Math.min(totalPages, options?.pageEnd ?? totalPages);
+    const effectiveStart = Math.min(
+      totalPages,
+      Math.max(1, options?.pageStart ?? 1),
+    );
+    const effectiveEnd = Math.min(
+      totalPages,
+      Math.max(effectiveStart, options?.pageEnd ?? totalPages),
+    );
 
     let pages = text;
     if (options?.pageStart != null || options?.pageEnd != null) {

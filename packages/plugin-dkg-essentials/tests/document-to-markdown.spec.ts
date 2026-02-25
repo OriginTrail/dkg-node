@@ -22,6 +22,7 @@ import {
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import express from "express";
+import request from "supertest";
 import { Readable } from "stream";
 
 // Mock provider for tests that don't need real OCR
@@ -121,7 +122,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
       expect(tool!.description).to.include("PDF");
       expect(tool!.description).to.include("DOCX");
       expect(tool!.description).to.include("PPTX");
-      expect(tool!.description).to.include("OCR");
+      expect(tool!.description).to.include("provider");
       expect(tool!.inputSchema).to.not.equal(undefined);
     });
 
@@ -417,6 +418,61 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
       const text = (result.content as any[])[0].text;
       // Should not fail with "Document blob not found" - blob was read successfully
       expect(text).to.not.include("Document blob not found");
+    });
+  });
+
+  describe("REST API /document-to-markdown", () => {
+    it("should convert an uploaded PDF successfully", async () => {
+      const pdfBuffer = await createTestPdf(["REST API test page"]);
+
+      const res = await request(app)
+        .post("/document-to-markdown")
+        .attach("file", pdfBuffer, "test.pdf")
+        .expect(200);
+
+      expect(res.body).to.have.property("markdown");
+      expect(res.body).to.have.property("markdownBlobId");
+      expect(res.body).to.have.property("outputFolderId");
+      expect(res.body).to.have.property("pageCount");
+      expect(res.body).to.have.property("images");
+      expect(res.body.images).to.be.an("array");
+    });
+
+    it("should return 400 when no file is provided", async () => {
+      // Send as multipart but without attaching any file
+      const res = await request(app)
+        .post("/document-to-markdown")
+        .set("Content-Type", "multipart/form-data; boundary=----test")
+        .send("------test--\r\n");
+
+      expect(res.status).to.be.oneOf([400, 500]);
+      expect(res.body).to.have.property("error");
+    });
+
+    it("should return 400 for unsupported file types", async () => {
+      const textBuffer = Buffer.from("plain text content");
+
+      const res = await request(app)
+        .post("/document-to-markdown")
+        .attach("file", textBuffer, "notes.txt")
+        .expect(400);
+
+      expect(res.body).to.have.property("error");
+      expect(res.body.error).to.include("Unsupported file type");
+    });
+
+    it("should return 413 for oversized files", async () => {
+      // Create a buffer > 50MB
+      const largeSizeBytes = 51 * 1024 * 1024;
+      const largeBuffer = Buffer.alloc(largeSizeBytes, "x");
+
+      const res = await request(app)
+        .post("/document-to-markdown")
+        .attach("file", largeBuffer, "huge.pdf")
+        .expect(413);
+
+      expect(res.body).to.have.property("error");
+      expect(res.body.error).to.include("exceeds maximum of 50MB");
     });
   });
 

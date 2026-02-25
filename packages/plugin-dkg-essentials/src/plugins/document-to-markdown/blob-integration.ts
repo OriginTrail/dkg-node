@@ -11,7 +11,7 @@ import type {
   DocumentConversionOutput,
   ConversionResult,
 } from "./types";
-import { getBasename } from "./validation";
+import { getBasename, sanitizePathComponent } from "./validation";
 
 const BLOB_PREFIX = "document-conversions";
 
@@ -55,10 +55,11 @@ async function uploadImages(
   folderId: string,
 ): Promise<void> {
   for (const image of images) {
-    const imageBlobId = `${BLOB_PREFIX}/${folderId}/${image.id}`; // ID already includes extension (e.g., "img-0.jpeg")
+    const safeImageId = sanitizePathComponent(image.id);
+    const imageBlobId = `${BLOB_PREFIX}/${folderId}/${safeImageId}`;
     const imageStream = Readable.toWeb(Readable.from(image.data));
     await ctx.blob.put(imageBlobId, imageStream, {
-      name: image.id,
+      name: safeImageId,
       mimeType: `image/${image.originalFormat}`,
     });
     image.blobId = imageBlobId;
@@ -75,7 +76,8 @@ async function uploadMarkdown(
   filename: string,
   folderId: string,
 ): Promise<string> {
-  const baseName = getBasename(filename);
+  const safeFilename = sanitizePathComponent(filename);
+  const baseName = getBasename(safeFilename);
   const markdownFilename = `${baseName}.md`;
   const markdownBlobId = `${BLOB_PREFIX}/${folderId}/${markdownFilename}`;
   const markdownBuffer = Buffer.from(markdown, "utf-8");

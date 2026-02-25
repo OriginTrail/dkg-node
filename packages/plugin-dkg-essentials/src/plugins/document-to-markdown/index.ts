@@ -23,7 +23,12 @@ import type {
   DocumentConversionConfig,
 } from "./types";
 import { integrateWithBlobStorage } from "./blob-integration";
-import { validateFileType, validateFileSize } from "./validation";
+import {
+  validateFileType,
+  validateFileSize,
+  MAX_FILE_SIZE_BYTES,
+  MAX_FILE_SIZE_MB,
+} from "./validation";
 import { createProvider } from "./providers";
 
 // Re-export types for external use
@@ -174,14 +179,30 @@ export function createDocumentToMarkdownPlugin(
         async (req, res) => {
           let fileReceived = false;
 
-          const bb = busboy({ headers: req.headers });
+          const bb = busboy({
+            headers: req.headers,
+            limits: { fileSize: MAX_FILE_SIZE_BYTES },
+          });
 
           bb.on("file", async (_name, file, info) => {
             fileReceived = true;
+            let truncated = false;
+
+            file.on("limit", () => {
+              truncated = true;
+            });
+
             try {
               const documentBuffer = await consumers.buffer(
                 Readable.toWeb(file),
               );
+
+              if (truncated) {
+                res.status(413).json({
+                  error: `File size exceeds maximum of ${MAX_FILE_SIZE_MB}MB.`,
+                });
+                return;
+              }
 
               const result = await processDocument(
                 ctx,

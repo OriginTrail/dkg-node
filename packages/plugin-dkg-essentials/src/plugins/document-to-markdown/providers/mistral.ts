@@ -241,12 +241,19 @@ export class MistralProvider implements DocumentConversionProvider {
     const client = createMistralClient(this.apiKey);
     const response = await callOcrApi(client, buffer, mimeType, options);
 
-    // Apply page range filter if specified
+    // Apply page range filter if specified, clamping to valid bounds
     let pages = response.pages;
     if (options?.pageStart !== undefined || options?.pageEnd !== undefined) {
-      const start = (options.pageStart ?? 1) - 1; // Convert to 0-indexed
-      const end = options.pageEnd ?? pages.length;
-      pages = pages.slice(Math.max(0, start), end);
+      const totalPages = pages.length;
+      const effectiveStart = Math.min(
+        totalPages,
+        Math.max(1, options.pageStart ?? 1),
+      );
+      const effectiveEnd = Math.min(
+        totalPages,
+        Math.max(effectiveStart, options.pageEnd ?? totalPages),
+      );
+      pages = pages.slice(effectiveStart - 1, effectiveEnd);
     }
 
     const filteredResponse = { ...response, pages };

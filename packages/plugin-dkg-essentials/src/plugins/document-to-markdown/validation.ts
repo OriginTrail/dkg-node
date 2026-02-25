@@ -70,6 +70,22 @@ export function getMimeType(extension: SupportedExtension): string {
 }
 
 /**
+ * Sanitize a string for safe use as a path component in blob IDs.
+ * Strips directory traversal sequences and path separators to prevent
+ * writes outside the intended blob prefix (CWE-22).
+ */
+export function sanitizePathComponent(name: string): string {
+  // Extract only the final segment (strips any directory components)
+  const basename = name.split(/[/\\]/).pop() || name;
+  // Remove any remaining ".." sequences
+  const sanitized = basename.replace(/\.\./g, "");
+  if (!sanitized) {
+    throw new Error(`Invalid path component: '${name}'`);
+  }
+  return sanitized;
+}
+
+/**
  * Get base filename without extension
  */
 export function getBasename(filename: string): string {
