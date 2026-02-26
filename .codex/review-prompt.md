@@ -24,10 +24,11 @@ When both exist, report blockers first.
 
 ### Review Method
 
-Do two passes:
+Do three passes:
 
-1. **Blockers pass** — Scan for correctness bugs, security issues, API/schema contract breaks, missing migrations, data integrity risks, and missing tests for changed behavior. These are `🔴 Bug` comments.
-2. **Maintainability pass** — Scan for code bloat, readability issues, naming problems, pattern violations, hardcoded values. These are `🟡 Issue`, `🔵 Nit`, or `💡 Suggestion` comments.
+1. **Context + risk-map pass (mandatory)** — Read full touched files (not only hunk lines) and identify high-risk zones: platform/runtime boundaries, event handlers, async cleanup (`finally`), auth/validation boundaries, and repeated predicates/guards.
+2. **Blockers pass** — Scan for correctness bugs, security issues, API/schema contract breaks, missing migrations, data integrity risks, and missing tests for changed behavior. These are `🔴 Bug` comments.
+3. **Maintainability pass** — Scan for code bloat, readability issues, naming problems, pattern violations, hardcoded values, and architecture drift in touched areas. These are `🟡 Issue`, `🔵 Nit`, or `💡 Suggestion` comments.
 
 ### Comment Gate
 
@@ -53,8 +54,11 @@ If any check fails, skip the comment.
 - Boundary conditions — empty arrays, null inputs, zero values, maximum values.
 - Error handling — swallowed errors, missing error propagation, unhelpful error messages. Do not flag missing error handling for internal code that cannot reasonably fail.
 - Streaming/multipart handlers — verify a request cannot send multiple responses (e.g., multi-file parts triggering repeated `res.json()` calls). If a route expects one file, ensure parser limits and single-response guards exist.
+- Unsafe runtime assumptions hidden by type assertions (`as ...`, `as any`, non-null `!`) when values come from events, external I/O, or platform-specific APIs.
+- Platform/runtime compatibility assumptions — usage of globals/APIs (`window`, `document`, `Node`, `process`, browser-only APIs) in cross-runtime code paths must be guarded.
 
 #### Security
+
 
 - Injection risks (SQL, command, XSS) when handling user input.
 - Hardcoded secrets — API keys, passwords, tokens in code.
@@ -77,10 +81,17 @@ If any check fails, skip the comment.
 - Changed behavior must have updated tests reflecting the new expectations.
 - If tests are present but brittle (testing implementation details rather than behavior), flag it.
 - For single-file upload endpoints, look for regression coverage of multi-file/malformed multipart inputs and confirm no double-response behavior.
+- Prefer tests that validate production behavior directly. If a test re-implements production decision logic locally, and could stay green while runtime behavior regresses, flag it and suggest importing shared runtime logic or testing via a higher-level behavior path.
 
 Missing tests for changed behavior are blockers (`🔴 Bug`) only when the change affects user-facing behavior, API contracts, or data integrity. Missing tests for internal refactors or trivial changes are `🟡 Issue`.
 
 ### Pass 2: Maintainability
+
+#### Architecture Direction (Touched Area)
+
+- Evaluate whether the diff makes the touched area more or less maintainable (coupling, cohesion, readability of control flow).
+- Flag **architecture drift** when business decisions become more scattered (same guard/predicate duplicated across multiple call paths, UI/state/network logic further entangled, or test/runtime logic diverging).
+- When the same invariant-like predicate appears repeatedly in changed code, prefer a named helper/shared utility if it clearly reduces divergence risk.
 
 #### Code Bloat and Unnecessary Complexity
 
@@ -88,7 +99,7 @@ Missing tests for changed behavior are blockers (`🔴 Bug`) only when the chang
 - **Over-engineering** — Abstractions, helpers, or utilities for one-time operations. Premature generalization. Feature flags or config for things that could just be code.
 - **Speculative generality** — Code handling hypothetical future requirements nobody asked for.
 - **Dead code** — Unused variables, unreachable branches, commented-out code.
-- **Duplicate code** — Same logic repeated instead of extracted. But do not suggest extraction for only 2-3 similar lines — that is premature abstraction.
+- **Duplicate code** — Same logic repeated instead of extracted. Do not suggest extraction for only 2-3 similar lines unless the repeated logic encodes a correctness invariant across multiple paths (e.g., identical guard logic in multiple `finally` blocks).
 
 #### Readability and Naming
 
@@ -169,4 +180,4 @@ The `line` field must refer to the line number in the new version of the file (r
 
 ## Summary
 
-Write a brief (2–4 sentence) overall assessment in the `summary` field. Lead with blockers if any exist. Mention whether the PR is clean/minimal or has code quality issues. If the PR looks good, say so.
+Write a brief (2–4 sentence) overall assessment in the `summary` field. Lead with blockers if any exist. Mention whether the PR is clean/minimal or has code quality issues. Include one sentence on maintainability direction in touched areas (improved / neutral / worsened, and why). If the PR looks good, say so.

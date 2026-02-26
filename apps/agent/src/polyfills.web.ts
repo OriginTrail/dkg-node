@@ -16,6 +16,22 @@ const CHAT_INPUT_SCROLLBAR_CSS = `
   }
 `;
 
+const CHAT_MESSAGES_SELECTOR = '[data-testid="chat-messages"]';
+const CHAT_MESSAGES_SCROLLBAR_STYLE_ID = "chat-messages-scrollbar-style";
+// Only target the ScrollView itself — NOT descendants (*).
+// Nested scrollable elements (ToolCall code blocks, SourceKAs, ProfileCard)
+// must keep their own scrollbars visible.
+const CHAT_MESSAGES_SCROLLBAR_CSS = `
+  ${CHAT_MESSAGES_SELECTOR} {
+    scrollbar-width: none;
+  }
+  ${CHAT_MESSAGES_SELECTOR}::-webkit-scrollbar {
+    width: 0 !important;
+    height: 0 !important;
+    background: transparent;
+  }
+`;
+
 // Polyfill crypto.subtle for non-secure contexts (HTTP)
 // This is needed because crypto.subtle is only available in secure contexts (HTTPS or localhost)
 if (
@@ -53,12 +69,17 @@ if (
   }
 }
 
-if (
-  typeof document !== "undefined" &&
-  !document.getElementById(CHAT_INPUT_SCROLLBAR_STYLE_ID)
-) {
-  const style = document.createElement("style");
-  style.id = CHAT_INPUT_SCROLLBAR_STYLE_ID;
-  style.textContent = CHAT_INPUT_SCROLLBAR_CSS;
-  document.head.appendChild(style);
+if (typeof document !== "undefined") {
+  if (!document.getElementById(CHAT_INPUT_SCROLLBAR_STYLE_ID)) {
+    const style = document.createElement("style");
+    style.id = CHAT_INPUT_SCROLLBAR_STYLE_ID;
+    style.textContent = CHAT_INPUT_SCROLLBAR_CSS;
+    document.head.appendChild(style);
+  }
+  if (!document.getElementById(CHAT_MESSAGES_SCROLLBAR_STYLE_ID)) {
+    const style = document.createElement("style");
+    style.id = CHAT_MESSAGES_SCROLLBAR_STYLE_ID;
+    style.textContent = CHAT_MESSAGES_SCROLLBAR_CSS;
+    document.head.appendChild(style);
+  }
 }
