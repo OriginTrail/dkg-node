@@ -510,6 +510,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           description: "Capture accepted (202)",
           schema: z.object({
             status: z.string(),
+            requestId: z.string(),
             receivedAt: z.string(),
             captureID: z.string(),
             eventCount: z.number(),
@@ -626,10 +627,11 @@ export default defineDkgPlugin((ctx, mcp, api) => {
             error instanceof Error ? error.name : "UnknownError";
           const errorMessage =
             error instanceof Error ? error.message : String(error);
-          console.error(
-            `[EPCIS] Capture status request failed, captureID: ${captureID}`,
-            { errorName, errorMessage },
-          );
+          console.error("[EPCIS] Capture status request failed", {
+            captureID,
+            errorName,
+            errorMessage,
+          });
           return res.status(500).json({
             error: "Failed to get capture status",
           } as any);
