@@ -24,10 +24,11 @@ When both exist, report blockers first.
 
 ### Review Method
 
-Do two passes:
+Do three passes:
 
-1. **Blockers pass** — Scan for correctness bugs, security issues, API/schema contract breaks, missing migrations, data integrity risks, and missing tests for changed behavior. These are `🔴 Bug` comments.
-2. **Maintainability pass** — Scan for code bloat, readability issues, naming problems, pattern violations, hardcoded values. These are `🟡 Issue`, `🔵 Nit`, or `💡 Suggestion` comments.
+1. **Context + risk-map pass (mandatory)** — Read full touched files (not only hunk lines) and identify high-risk zones: platform/runtime boundaries, event handlers, async cleanup (`finally`), auth/validation boundaries, and repeated predicates/guards.
+2. **Blockers pass** — Scan for correctness bugs, security issues, API/schema contract breaks, missing migrations, data integrity risks, and missing tests for changed behavior. These are `🔴 Bug` comments.
+3. **Maintainability pass** — Scan for code bloat, readability issues, naming problems, pattern violations, hardcoded values, and architecture drift in touched areas. These are `🟡 Issue`, `🔵 Nit`, or `💡 Suggestion` comments.
 
 ### Comment Gate
 
@@ -48,40 +49,55 @@ If any check fails, skip the comment.
 ### Pass 1: Blockers
 
 #### Correctness
+
 - Logic errors, off-by-one, null/undefined handling, incorrect assumptions, race conditions.
 - Boundary conditions — empty arrays, null inputs, zero values, maximum values.
 - Error handling — swallowed errors, missing error propagation, unhelpful error messages. Do not flag missing error handling for internal code that cannot reasonably fail.
+- Unsafe runtime assumptions hidden by type assertions (`as ...`, `as any`, non-null `!`) when values come from events, external I/O, or platform-specific APIs.
+- Platform/runtime compatibility assumptions — usage of globals/APIs (`window`, `document`, `Node`, `process`, browser-only APIs) in cross-runtime code paths must be guarded.
 
 #### Security
+
 - Injection risks (SQL, command, XSS) when handling user input.
 - Hardcoded secrets — API keys, passwords, tokens in code.
 - Missing input validation at system boundaries (user input, external APIs). Not for internal function calls.
 - Auth bypass, privilege escalation, or missing authorization checks.
 
 #### API Compatibility
+
 - Breaking changes to API response schemas or status codes without migration path.
 - Removed or renamed API endpoints, query parameters, or response fields that existing consumers depend on.
 - Database schema changes that require migration or backfill.
 - MCP tool signature changes (renamed tools, changed input schemas) that break existing clients.
 
 #### Tests for Changed Behavior
+
 - New behavior must have corresponding tests covering core functionality and error handling.
 - Bug fixes must include a regression test that would have caught the original bug.
 - Changed behavior must have updated tests reflecting the new expectations.
 - If tests are present but brittle (testing implementation details rather than behavior), flag it.
+- Prefer tests that validate production behavior directly. If a test re-implements production decision logic locally, and could stay green while runtime behavior regresses, flag it and suggest importing shared runtime logic or testing via a higher-level behavior path.
 
 Missing tests for changed behavior are blockers (`🔴 Bug`) only when the change affects user-facing behavior, API contracts, or data integrity. Missing tests for internal refactors or trivial changes are `🟡 Issue`.
 
 ### Pass 2: Maintainability
 
+#### Architecture Direction (Touched Area)
+
+- Evaluate whether the diff makes the touched area more or less maintainable (coupling, cohesion, readability of control flow).
+- Flag **architecture drift** when business decisions become more scattered (same guard/predicate duplicated across multiple call paths, UI/state/network logic further entangled, or test/runtime logic diverging).
+- When the same invariant-like predicate appears repeatedly in changed code, prefer a named helper/shared utility if it clearly reduces divergence risk.
+
 #### Code Bloat and Unnecessary Complexity
+
 - **Excessive code** — More lines than necessary. Could this be done in fewer lines without sacrificing clarity?
 - **Over-engineering** — Abstractions, helpers, or utilities for one-time operations. Premature generalization. Feature flags or config for things that could just be code.
 - **Speculative generality** — Code handling hypothetical future requirements nobody asked for.
 - **Dead code** — Unused variables, unreachable branches, commented-out code.
-- **Duplicate code** — Same logic repeated instead of extracted. But do not suggest extraction for only 2-3 similar lines — that is premature abstraction.
+- **Duplicate code** — Same logic repeated instead of extracted. Do not suggest extraction for only 2-3 similar lines unless the repeated logic encodes a correctness invariant across multiple paths (e.g., identical guard logic in multiple `finally` blocks).
 
 #### Readability and Naming
+
 - **Confusing variable/function names** — Names that don't describe what the thing is or does. Generic names like `data`, `result`, `item`, `temp`, `val` when a specific name would be clearer.
 - **Misleading names** — Names that suggest different behavior than what the code does.
 - **Inconsistent naming** — Not following conventions in the rest of the codebase.
@@ -91,6 +107,7 @@ Missing tests for changed behavior are blockers (`🔴 Bug`) only when the chang
 - **Unclear control flow** — Complex conditionals that could be simplified or decomposed.
 
 #### Architecture and Pattern Violations
+
 - **Inline validation instead of Zod schemas** — Validation logic written in code (if/else checks, manual type coercion) instead of using Zod schemas in `openAPIRoute()`. All request validation belongs in the schema, not handler code. This applies to both API routes and MCP tool `inputSchema`.
 - **Missing `openAPIRoute()` wrapper** — API endpoints defined without the OpenAPI wrapper.
 - **Wrong import paths in tests** — Tests importing from `src/` instead of `dist/`.
@@ -98,13 +115,16 @@ Missing tests for changed behavior are blockers (`🔴 Bug`) only when the chang
 - **Mixing concerns** — Route handlers doing business logic, database queries in API handlers, etc.
 
 #### Hardcoded Values and Magic Constants
+
 Flag only when the value is:
+
 - **Reused 3+ times** in touched files or the diff — should be a named constant.
 - **Domain-significant** — timeout values, retry counts, port numbers, API URLs, status messages. Even if used once, these belong in constants or environment variables.
 
 Do not flag one-off numeric literals that are self-explanatory in context (e.g., `array.slice(0, 2)`, `Math.round(x * 100) / 100`).
 
 #### Performance (Only Obvious Issues)
+
 - N+1 queries — database queries inside loops.
 - Blocking operations in async contexts — synchronous I/O in async code.
 - Unnecessary work in hot paths — redundant allocations, repeated computations.
@@ -120,6 +140,7 @@ Do not flag one-off numeric literals that are self-explanatory in context (e.g.,
 ## Comment Format
 
 Use severity prefixes:
+
 - `🔴 Bug:` — Correctness error, security issue, API break, data integrity risk. Will cause incorrect behavior.
 - `🟡 Issue:` — Code quality problem that should be fixed. Bloated code, bad naming, pattern violation, missing tests.
 - `🔵 Nit:` — Minor improvement, optional.
@@ -153,4 +174,4 @@ The `line` field must refer to the line number in the new version of the file (r
 
 ## Summary
 
-Write a brief (2–4 sentence) overall assessment in the `summary` field. Lead with blockers if any exist. Mention whether the PR is clean/minimal or has code quality issues. If the PR looks good, say so.
+Write a brief (2–4 sentence) overall assessment in the `summary` field. Lead with blockers if any exist. Mention whether the PR is clean/minimal or has code quality issues. Include one sentence on maintainability direction in touched areas (improved / neutral / worsened, and why). If the PR looks good, say so.

@@ -36,13 +36,20 @@ import {
   getChatInputHeightFromText,
 } from "../../shared/chatInputHeight";
 import { getChatInputKeyAction } from "../../shared/chatInputKeyPress";
+import {
+  SCROLLBAR_HIDE_DELAY_MS,
+  SCROLLBAR_TRACK_INSET,
+  SCROLLBAR_MIN_THUMB_HEIGHT,
+  SCROLLBAR_THUMB_WIDTH,
+  SCROLLBAR_TRACK_WIDTH,
+  SCROLLBAR_THUMB_BORDER_RADIUS,
+  SCROLLBAR_THUMB_OPACITY,
+  SCROLLBAR_TRACK_RIGHT,
+} from "../../shared/customScrollbar";
 
 import ChatInputFilesSelected from "./Input/FilesSelected";
 import ChatInputToolsSelector from "./Input/ToolsSelector";
 
-const CHAT_INPUT_SCROLLBAR_HIDE_DELAY_MS = 5000;
-const CHAT_INPUT_SCROLLBAR_TRACK_INSET = 8;
-const CHAT_INPUT_SCROLLBAR_MIN_THUMB_HEIGHT = 24;
 const CHAT_INPUT_TEST_ID = "chat-input";
 const CHAT_INPUT_SELECTOR = `[data-testid="${CHAT_INPUT_TEST_ID}"]`;
 
@@ -99,7 +106,7 @@ export default function ChatInput({
   const [inputHeight, setInputHeight] = useState(CHAT_INPUT_MIN_HEIGHT);
   const [isCustomScrollbarVisible, setIsCustomScrollbarVisible] = useState(false);
   const [customScrollbarThumbTop, setCustomScrollbarThumbTop] = useState(
-    CHAT_INPUT_SCROLLBAR_TRACK_INSET,
+    SCROLLBAR_TRACK_INSET,
   );
   const [customScrollbarThumbHeight, setCustomScrollbarThumbHeight] = useState(0);
   const hideScrollbarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -112,6 +119,7 @@ export default function ChatInput({
     startScrollTop: number;
   } | null>(null);
   const restoreUserSelectRef = useRef<string | null>(null);
+  const modeDropdownContainerRef = useRef<View>(null);
   const isBusy = disabled || isUploading;
   const isWeb = Platform.OS === "web";
   const isInputAtMaxHeight = inputHeight >= CHAT_INPUT_MAX_HEIGHT;
@@ -121,6 +129,29 @@ export default function ChatInput({
   const activeMode = TOOL_EXECUTION_MODE_OPTIONS.find(
     (m) => m.value === toolExecutionMode,
   )!;
+
+  // Close mode dropdown on click outside (web only)
+  useEffect(() => {
+    if (!isModeDropdownOpen || !isWeb) return;
+    const handler = (e: MouseEvent) => {
+      // Ignore clicks inside the dropdown container (trigger + menu)
+      const container = modeDropdownContainerRef.current;
+      if (
+        isHTMLElement(container) &&
+        typeof Node !== "undefined" &&
+        e.target instanceof Node &&
+        container.contains(e.target)
+      )
+        return;
+      setIsModeDropdownOpen(false);
+    };
+    // setTimeout(0) prevents the opening click from immediately triggering close
+    const id = setTimeout(() => document.addEventListener("click", handler), 0);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("click", handler);
+    };
+  }, [isModeDropdownOpen, isWeb]);
 
   const clearHideScrollbarTimeout = () => {
     if (!hideScrollbarTimeoutRef.current) return;
@@ -138,7 +169,7 @@ export default function ChatInput({
     hideScrollbarTimeoutRef.current = setTimeout(() => {
       setIsCustomScrollbarVisible(false);
       hideScrollbarTimeoutRef.current = null;
-    }, CHAT_INPUT_SCROLLBAR_HIDE_DELAY_MS);
+    }, SCROLLBAR_HIDE_DELAY_MS);
   };
 
   const updateCustomScrollbar = ({
@@ -155,7 +186,7 @@ export default function ChatInput({
       viewportHeight >= CHAT_INPUT_MAX_HEIGHT &&
       contentHeight > viewportHeight + 1;
     if (!isScrollable) {
-      setCustomScrollbarThumbTop(CHAT_INPUT_SCROLLBAR_TRACK_INSET);
+      setCustomScrollbarThumbTop(SCROLLBAR_TRACK_INSET);
       setCustomScrollbarThumbHeight(0);
       hideCustomScrollbar();
       return;
@@ -163,19 +194,19 @@ export default function ChatInput({
 
     const trackHeight = Math.max(
       0,
-      viewportHeight - CHAT_INPUT_SCROLLBAR_TRACK_INSET * 2,
+      viewportHeight - SCROLLBAR_TRACK_INSET * 2,
     );
     if (trackHeight <= 0) return;
 
     const thumbHeight = Math.max(
-      CHAT_INPUT_SCROLLBAR_MIN_THUMB_HEIGHT,
+      SCROLLBAR_MIN_THUMB_HEIGHT,
       Math.min(trackHeight, (viewportHeight / contentHeight) * trackHeight),
     );
     const maxScrollTop = Math.max(1, contentHeight - viewportHeight);
     const clampedScrollTop = Math.min(maxScrollTop, Math.max(0, scrollTop));
     const maxThumbOffset = Math.max(0, trackHeight - thumbHeight);
     const thumbTop =
-      CHAT_INPUT_SCROLLBAR_TRACK_INSET +
+      SCROLLBAR_TRACK_INSET +
       (clampedScrollTop / maxScrollTop) * maxThumbOffset;
 
     setCustomScrollbarThumbTop(thumbTop);
@@ -203,10 +234,10 @@ export default function ChatInput({
 
     const trackHeight = Math.max(
       1,
-      viewportHeight - CHAT_INPUT_SCROLLBAR_TRACK_INSET * 2,
+      viewportHeight - SCROLLBAR_TRACK_INSET * 2,
     );
     const thumbHeight = Math.max(
-      CHAT_INPUT_SCROLLBAR_MIN_THUMB_HEIGHT,
+      SCROLLBAR_MIN_THUMB_HEIGHT,
       Math.min(trackHeight, (viewportHeight / contentHeight) * trackHeight),
     );
     const maxThumbOffset = Math.max(1, trackHeight - thumbHeight);
@@ -345,7 +376,7 @@ export default function ChatInput({
     setMessage("");
     setSelectedFiles([]);
     setInputHeight(CHAT_INPUT_MIN_HEIGHT);
-    setCustomScrollbarThumbTop(CHAT_INPUT_SCROLLBAR_TRACK_INSET);
+    setCustomScrollbarThumbTop(SCROLLBAR_TRACK_INSET);
     setCustomScrollbarThumbHeight(0);
     inputScrollTopRef.current = 0;
     hideCustomScrollbar();
@@ -497,7 +528,7 @@ export default function ChatInput({
               </Text>
             </Pressable>
 
-            <View style={styles.modeSelectorContainer}>
+            <View ref={modeDropdownContainerRef} style={styles.modeSelectorContainer}>
               <Pressable
                 style={[
                   styles.modeSelectorTrigger,
@@ -535,14 +566,20 @@ export default function ChatInput({
                   ]}
                 >
                   {TOOL_EXECUTION_MODE_OPTIONS.map((option) => {
+                    const isSelected = option.value === toolExecutionMode;
                     return (
                       <Pressable
                         key={option.value}
-                        style={[
+                        style={(state) => [
                           styles.modeSelectorOption,
-                          option.value === toolExecutionMode && {
+                          isSelected && {
                             backgroundColor: colors.backgroundFlat,
                           },
+                          "hovered" in state &&
+                            (state as any).hovered &&
+                            !isSelected && {
+                              backgroundColor: colors.backgroundFlat + "66",
+                            },
                         ]}
                         onPress={() => {
                           onToolExecutionModeChange?.(option.value);
@@ -639,16 +676,16 @@ const styles = StyleSheet.create({
   inputScrollbarTrack: {
     position: "absolute",
     top: 0,
-    right: 5,
+    right: SCROLLBAR_TRACK_RIGHT,
     bottom: 0,
-    width: 8,
+    width: SCROLLBAR_TRACK_WIDTH,
   },
   inputScrollbarThumb: {
     position: "absolute",
     right: 0,
-    width: 6,
-    borderRadius: 999,
-    opacity: 0.72,
+    width: SCROLLBAR_THUMB_WIDTH,
+    borderRadius: SCROLLBAR_THUMB_BORDER_RADIUS,
+    opacity: SCROLLBAR_THUMB_OPACITY,
   },
   toolbar: {
     flexDirection: "row",
