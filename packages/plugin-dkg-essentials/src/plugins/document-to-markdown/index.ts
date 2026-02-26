@@ -470,6 +470,7 @@ export function createDocumentToMarkdownPlugin(
           console.error("Error converting document to markdown:", message);
 
           return {
+            isError: true,
             content: [
               {
                 type: "text",
