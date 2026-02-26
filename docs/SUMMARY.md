@@ -39,6 +39,8 @@
       * [Launch an IPO](build-a-dkg-node-ai-agent/advanced-features-and-toolkits/dkg-paranets/initial-paranet-offerings-ipos/launching-your-ipo.md)
       * [Incentives pool](build-a-dkg-node-ai-agent/advanced-features-and-toolkits/dkg-paranets/initial-paranet-offerings-ipos/paranets-incentives-pool.md)
       * [IPO voting](build-a-dkg-node-ai-agent/advanced-features-and-toolkits/dkg-paranets/initial-paranet-offerings-ipos/ipo-voting.md)
+* [Plugins](build-a-dkg-node-ai-agent/plugins/README.md)
+  * [EPCIS Plugin](build-a-dkg-node-ai-agent/plugins/epcis-plugin.md)
 * [Contributing a plugin](build-a-dkg-node-ai-agent/contributing-a-plugin.md)
 
 ## Contribute to the DKG&#x20;
