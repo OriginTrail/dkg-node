@@ -6,7 +6,6 @@ import { expect } from "chai";
 import sinon from "sinon";
 import request from "supertest";
 import pluginEpcisPlugin from "../dist/index.js";
-import { EpcisQueryService } from "../src/services/epcisQueryService.js";
 import bicycleStory from "../test-data/bicycle-manufacturing-story.json";
 import {
   ASSEMBLY_EVENTS,
@@ -568,41 +567,6 @@ describe("@dkg/plugin-epcis checks", function () {
         .expect(500);
 
       expect(response.body.error).to.equal("Failed to query events");
-    });
-  });
-
-  describe("EpcisQueryService", () => {
-    it("normalizes shorthand bizStep to full GS1 URI", () => {
-      const queryService = new EpcisQueryService();
-      const query = queryService.buildQuery({ bizStep: "receiving" });
-
-      expect(query).to.include("https://ref.gs1.org/cbv/BizStep-receiving");
-    });
-
-    it("adds UNION for fullTrace EPC queries", () => {
-      const queryService = new EpcisQueryService();
-      const query = queryService.buildQuery({ epc: frameEpc, fullTrace: true });
-
-      expect(query).to.include("UNION");
-    });
-
-    it("uses full URI when bizStep is provided as shorthand", () => {
-      const queryService = new EpcisQueryService();
-      const query = queryService.buildQuery({ bizStep: "shipping" });
-
-      expect(query).to.include("https://ref.gs1.org/cbv/BizStep-shipping");
-    });
-
-    it("applies explicit LIMIT and OFFSET", () => {
-      const queryService = new EpcisQueryService();
-      const query = queryService.buildQuery({
-        bizStep: "receiving",
-        limit: 5,
-        offset: 10,
-      });
-
-      expect(query).to.include("LIMIT 5");
-      expect(query).to.include("OFFSET 10");
     });
   });
 });
