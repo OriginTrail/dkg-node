@@ -1,4 +1,8 @@
 import { expect } from "chai";
+import {
+  isThinkingVisible,
+  shouldStopGenerating,
+} from "../../src/shared/thinkingIndicator";
 
 /**
  * Unit tests for the Thinking indicator visibility invariant.
@@ -12,24 +16,6 @@ import { expect } from "chai";
  * in every `finally` block of sendMessageStreaming, requestCompletionStreaming,
  * requestCompletion, and sendMessage.
  */
-
-/**
- * Pure decision function matching the guard logic in chat.tsx finally blocks.
- * Returns true when isGenerating should be set to false.
- */
-function shouldStopGenerating(pendingToolCallsSize: number): boolean {
-  return pendingToolCallsSize === 0;
-}
-
-/**
- * Pure predicate matching the JSX condition for <Chat.Thinking />.
- */
-function isThinkingVisible(
-  isGenerating: boolean,
-  streamingContent: string | null,
-): boolean {
-  return isGenerating && streamingContent === null;
-}
 
 describe("Thinking indicator visibility", () => {
   describe("shouldStopGenerating", () => {

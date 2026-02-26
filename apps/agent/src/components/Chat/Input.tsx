@@ -135,8 +135,14 @@ export default function ChatInput({
     if (!isModeDropdownOpen || !isWeb) return;
     const handler = (e: MouseEvent) => {
       // Ignore clicks inside the dropdown container (trigger + menu)
-      const container = modeDropdownContainerRef.current as unknown as HTMLElement | null;
-      if (container && container.contains(e.target as Node)) return;
+      const container = modeDropdownContainerRef.current;
+      if (
+        isHTMLElement(container) &&
+        typeof Node !== "undefined" &&
+        e.target instanceof Node &&
+        container.contains(e.target)
+      )
+        return;
       setIsModeDropdownOpen(false);
     };
     // setTimeout(0) prevents the opening click from immediately triggering close
