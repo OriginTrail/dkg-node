@@ -43,6 +43,10 @@ import {
   toToolExecutionMode,
   toToolExecutionSettings,
 } from "@/shared/toolExecutionMode";
+import {
+  isThinkingVisible,
+  shouldStopGenerating,
+} from "@/shared/thinkingIndicator";
 
 function normalizeStreamingMarkdown(content: string): string {
   const fencePattern = /^(`{3,})[^`]*$/gm;
@@ -321,7 +325,9 @@ export default function ChatPage() {
 
       addAssistantCompletion(completion);
     } finally {
-      setIsGenerating(false);
+      if (shouldStopGenerating(pendingToolCalls.current.size)) {
+        setIsGenerating(false);
+      }
     }
   }
 
@@ -418,7 +424,9 @@ export default function ChatPage() {
         timeout: 5000,
       });
     } finally {
-      setIsGenerating(false);
+      if (shouldStopGenerating(pendingToolCalls.current.size)) {
+        setIsGenerating(false);
+      }
     }
   }
 
@@ -440,7 +448,9 @@ export default function ChatPage() {
         timeout: 5000,
       });
     } finally {
-      setIsGenerating(false);
+      if (shouldStopGenerating(pendingToolCalls.current.size)) {
+        setIsGenerating(false);
+      }
     }
   }
 
@@ -477,7 +487,9 @@ export default function ChatPage() {
 
       addAssistantCompletion(completion);
     } finally {
-      setIsGenerating(false);
+      if (shouldStopGenerating(pendingToolCalls.current.size)) {
+        setIsGenerating(false);
+      }
     }
   }
 
@@ -792,7 +804,7 @@ export default function ChatPage() {
 
                 return <View key={i}>{messageContent}</View>;
               })}
-              {isGenerating && streamingContent === null && <Chat.Thinking />}
+              {isThinkingVisible(isGenerating, streamingContent) && <Chat.Thinking />}
               {streamingContent !== null && (
                 <Chat.Message icon="assistant">
                   <Markdown>
