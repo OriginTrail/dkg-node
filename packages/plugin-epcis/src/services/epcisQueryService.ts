@@ -66,9 +66,9 @@ export class EpcisQueryService {
         // Default: only search epcList
         wherePatterns.push(`?event epcis:epcList "${epcValue}" .`);
       }
-    } else {
-      optionalClauses.push("OPTIONAL { ?event epcis:epcList ?epc . }");
     }
+    // Always bind ?epc for GROUP_CONCAT projection
+    optionalClauses.push("OPTIONAL { ?event epcis:epcList ?epc . }");
 
     // Parent ID filter (AggregationEvent)
     if (params.parentID) {
