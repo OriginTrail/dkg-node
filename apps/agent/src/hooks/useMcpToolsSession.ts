@@ -73,7 +73,13 @@ export default function useMcpToolsSession(availableTools: ToolInfo[]) {
   const getCallInfo = useCallback((id: string) => toolCalls[id], [toolCalls]);
 
   const allowForSession = useCallback((id: string) => {
-    setToolsAllowed((t) => [...t, id]);
+    setToolsAllowed((allowedTools) =>
+      allowedTools.includes(id) ? allowedTools : [...allowedTools, id],
+    );
+  }, []);
+
+  const clearAllowedForSession = useCallback(() => {
+    setToolsAllowed([]);
   }, []);
 
   const isAllowedForSession = useCallback(
@@ -95,6 +101,7 @@ export default function useMcpToolsSession(availableTools: ToolInfo[]) {
     saveCallInfo,
     getCallInfo,
     allowForSession,
+    clearAllowedForSession,
     isAllowedForSession,
     reset,
   };

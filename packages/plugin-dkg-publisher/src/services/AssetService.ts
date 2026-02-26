@@ -543,4 +543,130 @@ export class AssetService extends EventEmitter {
       failed: Number(failedResult?.count || 0),
     };
   }
+
+  /**
+   * Get asset by content ID (@id from JSON-LD)
+   */
+  async getAssetByContentId(
+    contentId: string,
+  ): Promise<AssetStatus | null> {
+    // We need to search in the stored content files
+    // This requires reading contentUrl and parsing JSON
+    const assetsToSearch = await this.db
+      .select()
+      .from(assets)
+      .orderBy(desc(assets.createdAt));
+
+    for (const asset of assetsToSearch) {
+      try {
+        // Fetch and parse the content
+        const response = await fetch(asset.contentUrl);
+        if (!response.ok) continue;
+
+        const content = await response.json();
+        
+        // Check if content has the matching @id
+        // Content might be wrapped in {private: {...}} or {public: {...}}
+        let actualContent = content;
+        if (content.private) actualContent = content.private;
+        if (content.public) actualContent = content.public;
+
+        if (actualContent["@id"] === contentId) {
+          return {
+            id: asset.id,
+            status: asset.status,
+            ual: asset.ual,
+            transactionHash: asset.transactionHash,
+            publishedAt: asset.publishedAt,
+            attemptCount: asset.attemptCount || 0,
+            lastError: asset.lastError,
+            metadata: { source: asset.source, sourceId: asset.sourceId },
+          };
+        }
+      } catch (error) {
+        // Skip assets with invalid or inaccessible content
+        continue;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Get recent assets for display (all users, no filtering by userId)
+   */
+  async getRecentAssets(
+    limit: number = 20,
+    statusFilter?: "published" | "failed" | "publishing" | "queued",
+    offset: number = 0,
+  ): Promise<AssetStatus[]> {
+    let query = this.db
+      .select()
+      .from(assets)
+      .orderBy(desc(assets.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    if (statusFilter) {
+      const results = await this.db
+        .select()
+        .from(assets)
+        .where(eq(assets.status, statusFilter))
+        .orderBy(desc(assets.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      return results.map((asset) => ({
+        id: asset.id,
+        status: asset.status,
+        ual: asset.ual,
+        transactionHash: asset.transactionHash,
+        publishedAt: asset.publishedAt,
+        attemptCount: asset.attemptCount || 0,
+        lastError: asset.lastError,
+        metadata: { source: asset.source, sourceId: asset.sourceId },
+      }));
+    }
+
+    const results = await query;
+
+    return results.map((asset) => ({
+      id: asset.id,
+      status: asset.status,
+      ual: asset.ual,
+      transactionHash: asset.transactionHash,
+      publishedAt: asset.publishedAt,
+      attemptCount: asset.attemptCount || 0,
+      lastError: asset.lastError,
+      metadata: { source: asset.source, sourceId: asset.sourceId },
+    }));
+  }
+
+  /**
+   * Get assets by status for display (all users, no filtering by userId)
+   */
+  async getAssetsByStatusForDisplay(
+    status: "published" | "failed" | "publishing" | "queued",
+    limit: number = 20,
+    offset: number = 0,
+  ): Promise<AssetStatus[]> {
+    const results = await this.db
+      .select()
+      .from(assets)
+      .where(eq(assets.status, status))
+      .orderBy(desc(assets.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return results.map((asset) => ({
+      id: asset.id,
+      status: asset.status,
+      ual: asset.ual,
+      transactionHash: asset.transactionHash,
+      publishedAt: asset.publishedAt,
+      attemptCount: asset.attemptCount || 0,
+      lastError: asset.lastError,
+      metadata: { source: asset.source, sourceId: asset.sourceId },
+    }));
+  }
 }

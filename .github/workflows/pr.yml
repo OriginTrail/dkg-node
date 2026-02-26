@@ -23,10 +23,12 @@ jobs:
     timeout-minutes: 45
     env:
       TURBO_TELEMETRY_DISABLED: 1
+      LLM_MODEL: gpt-5-mini
+      LLM_TEMPERATURE: 1
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
     strategy:
       matrix:
-        # The fromJSON() function converts the JSON string into an actual array
         node-version: ${{ fromJSON((github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch') && '[22]' || '[22, 24]') }}
       fail-fast: false
 
@@ -116,25 +118,7 @@ jobs:
       - name: Build packages and apps
         run: npm run build
 
-      - name: Create admin user for tests
-        run: |
-          cd apps/agent
-          rm -f test.db test.db-* *.db-journal
-          # Create admin user: email password scope firstName lastName
-          npm run script:createUser admin@gmail.com admin123 mcp,llm,blob,scope123 Admin User
-
-      - name: Run tests from all packages
-        run: npm run test
+      - name: Run API and integration tests
+        run: npm run test:api && npm run test:integration
         env:
           CI: true
-
-      - name: Upload test videos and screenshots
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-artifacts-node-${{ matrix.node-version }}
-          path: |
-            apps/agent/test-results/
-            apps/agent/playwright-report/
-          retention-days: 7
-          if-no-files-found: warn

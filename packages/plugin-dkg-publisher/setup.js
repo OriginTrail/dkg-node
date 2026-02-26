@@ -446,7 +446,7 @@ async function setup() {
       "gnosis:100 (Gnosis Mainnet)",
       "gnosis:10200 (Gnosis Testnet)",
       "base:8453 (Base Mainnet)",
-      "base:84530 (Base Testnet)",
+      "base:84532 (Base Testnet)",
       "otp:20430 (NeuroWeb Testnet)",
       "otp:2043 (NeuroWeb Mainnet)",
       "custom (Enter manually)",
@@ -478,7 +478,7 @@ async function setup() {
         blockchain = "base:8453";
         break;
       case "5":
-        blockchain = "base:84530";
+        blockchain = "base:84532";
         break;
       case "6":
         blockchain = "otp:20430";
