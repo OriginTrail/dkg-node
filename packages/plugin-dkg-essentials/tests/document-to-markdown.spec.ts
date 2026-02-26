@@ -13,6 +13,10 @@ import {
   UnpdfProvider,
   createUnpdfProvider,
 } from "../dist/index.js";
+import { formatOcrResponseAsMarkdown } from "../dist/plugins/document-to-markdown/providers/mistral.js";
+import { normalizePageRange } from "../dist/plugins/document-to-markdown/page-range.js";
+import { classifyConversionError } from "../dist/plugins/document-to-markdown/conversion-errors.js";
+import { DocumentValidationError } from "../dist/plugins/document-to-markdown/validation.js";
 import {
   createExpressApp,
   createInMemoryBlobStorage,
@@ -32,6 +36,7 @@ const createMockProvider = (overrides?: Partial<any>) => ({
     markdown: "# Mock Content",
     images: [],
     pageCount: 1,
+    processedPageCount: 1,
   }),
   ...overrides,
 });
@@ -198,6 +203,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
           markdown: "# Mock Converted Content",
           images: [],
           pageCount: 3,
+          processedPageCount: 3,
         }),
       });
 
@@ -225,6 +231,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
       expect(result.content).to.be.an("array");
       const text = (result.content as any[])[0].text;
       expect(text).to.include("Mock Converted Content");
+      expect(text).to.include("Total Pages:** 3");
       expect(text).to.include("Pages Processed:** 3");
       expect(mockProvider.convert.calledOnce).to.equal(true);
     });
@@ -434,8 +441,26 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
       expect(res.body).to.have.property("markdownBlobId");
       expect(res.body).to.have.property("outputFolderId");
       expect(res.body).to.have.property("pageCount");
+      expect(res.body).to.have.property("processedPageCount");
       expect(res.body).to.have.property("images");
       expect(res.body.images).to.be.an("array");
+      expect(res.body.processedPageCount).to.equal(res.body.pageCount);
+    });
+
+    it("should return 400 when multiple files are provided", async () => {
+      const firstPdf = await createTestPdf(["First PDF"]);
+      const secondPdf = await createTestPdf(["Second PDF"]);
+
+      const res = await request(app)
+        .post("/document-to-markdown")
+        .attach("file", firstPdf, "first.pdf")
+        .attach("file", secondPdf, "second.pdf")
+        .expect(400);
+
+      expect(res.body).to.have.property("error");
+      expect(res.body.error).to.include(
+        "Exactly one file must be provided in the request",
+      );
     });
 
     it("should return 400 when no file is provided", async () => {
@@ -445,7 +470,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
         .set("Content-Type", "multipart/form-data; boundary=----test")
         .send("------test--\r\n");
 
-      expect(res.status).to.be.oneOf([400, 500]);
+      expect(res.status).to.equal(400);
       expect(res.body).to.have.property("error");
     });
 
@@ -459,6 +484,39 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
 
       expect(res.body).to.have.property("error");
       expect(res.body.error).to.include("Unsupported file type");
+    });
+
+    it("should return 500 for unexpected provider failures", async () => {
+      const providerFailure = createMockProvider({
+        convert: sinon
+          .stub()
+          .rejects(new Error("Unexpected provider runtime failure")),
+      });
+
+      const failingPlugin = createDocumentToMarkdownPlugin({
+        provider: providerFailure,
+      });
+
+      const { server, connect } = await createMcpServerClientPair();
+      const failingRouter = express.Router();
+      const failingApp = createExpressApp();
+      const failingContext = {
+        dkg: createMockDkgClient(),
+        blob: createInMemoryBlobStorage(),
+      };
+
+      failingPlugin(failingContext, server, failingRouter);
+      await connect();
+      failingApp.use("/", failingRouter);
+
+      const pdfBuffer = await createTestPdf(["Provider failure test page"]);
+      const res = await request(failingApp)
+        .post("/document-to-markdown")
+        .attach("file", pdfBuffer, "test.pdf")
+        .expect(500);
+
+      expect(res.body).to.have.property("error");
+      expect(res.body.error).to.include("Unexpected provider runtime failure");
     });
 
     it("should return 413 for oversized files", async () => {
@@ -536,6 +594,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
         const result = await provider.convert(pdfBuffer, "test.pdf");
 
         expect(result.pageCount).to.equal(3);
+        expect(result.processedPageCount).to.equal(3);
       });
 
       it("should include page separators in output", async () => {
@@ -574,6 +633,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
         expect(result.markdown).to.include("<!-- Page 2 -->");
         // Total pageCount should still be the full document count
         expect(result.pageCount).to.equal(3);
+        expect(result.processedPageCount).to.equal(1);
       });
 
       it("should handle pageStart only (no pageEnd)", async () => {
@@ -592,6 +652,7 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
         expect(result.markdown).to.include("Page three text");
         expect(result.markdown).to.include("<!-- Page 2 -->");
         expect(result.markdown).to.include("<!-- Page 3 -->");
+        expect(result.processedPageCount).to.equal(2);
       });
 
       it("should handle pageEnd only (no pageStart)", async () => {
@@ -610,6 +671,27 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
         expect(result.markdown).to.not.include("Page three text");
         expect(result.markdown).to.include("<!-- Page 1 -->");
         expect(result.markdown).to.include("<!-- Page 2 -->");
+        expect(result.processedPageCount).to.equal(2);
+      });
+
+      it("should normalize non-integer page bounds", async () => {
+        const pdfBuffer = await createTestPdf([
+          "Page one text",
+          "Page two text",
+          "Page three text",
+        ]);
+
+        const result = await provider.convert(pdfBuffer, "test.pdf", {
+          pageStart: 2.9,
+          pageEnd: 3.1,
+        });
+
+        expect(result.markdown).to.not.include("Page one text");
+        expect(result.markdown).to.include("Page two text");
+        expect(result.markdown).to.include("Page three text");
+        expect(result.markdown).to.include("<!-- Page 2 -->");
+        expect(result.markdown).to.include("<!-- Page 3 -->");
+        expect(result.processedPageCount).to.equal(2);
       });
 
       it("should convert single-page PDF", async () => {
@@ -620,7 +702,100 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
         expect(result.markdown).to.include("Only page");
         expect(result.markdown).to.include("<!-- Page 1 -->");
         expect(result.pageCount).to.equal(1);
+        expect(result.processedPageCount).to.equal(1);
       });
+    });
+  });
+
+  describe("MistralProvider Helpers", () => {
+    it("should preserve source page numbers when start page offset is provided", () => {
+      const markdown = formatOcrResponseAsMarkdown(
+        {
+          pages: [{ markdown: "Second page" }, { markdown: "Third page" }],
+        } as any,
+        2,
+      );
+
+      expect(markdown).to.include("## Page 2");
+      expect(markdown).to.include("## Page 3");
+      expect(markdown).to.not.include("## Page 1");
+    });
+  });
+
+  describe("Page Range Helpers", () => {
+    it("should return full range when no filter is requested", () => {
+      const result = normalizePageRange(5);
+
+      expect(result).to.deep.equal({
+        startPage: 1,
+        endPage: 5,
+        hasPageFilter: false,
+      });
+    });
+
+    it("should clamp and normalize invalid page boundaries", () => {
+      const result = normalizePageRange(3, { pageStart: -5, pageEnd: 99 });
+
+      expect(result).to.deep.equal({
+        startPage: 1,
+        endPage: 3,
+        hasPageFilter: true,
+      });
+    });
+
+    it("should normalize non-integer page bounds to integers", () => {
+      const result = normalizePageRange(5, {
+        pageStart: 2.9,
+        pageEnd: 4.2,
+      });
+
+      expect(result).to.deep.equal({
+        startPage: 2,
+        endPage: 4,
+        hasPageFilter: true,
+      });
+    });
+
+    it("should handle empty documents without negative bounds", () => {
+      const result = normalizePageRange(0, { pageStart: 5, pageEnd: 10 });
+
+      expect(result).to.deep.equal({
+        startPage: 1,
+        endPage: 0,
+        hasPageFilter: true,
+      });
+    });
+  });
+
+  describe("Error Classification Helpers", () => {
+    it("should preserve validation status codes", () => {
+      const result = classifyConversionError(
+        new DocumentValidationError("Too big", 413),
+      );
+
+      expect(result).to.deep.equal({
+        status: 413,
+        message: "Too big",
+        isUserError: true,
+      });
+    });
+
+    it("should classify provider format constraints as user errors", () => {
+      const result = classifyConversionError(
+        new Error("The unpdf provider only supports .pdf files"),
+      );
+
+      expect(result.status).to.equal(400);
+      expect(result.isUserError).to.equal(true);
+    });
+
+    it("should classify unexpected failures as internal errors", () => {
+      const result = classifyConversionError(
+        new Error("Unexpected provider runtime failure"),
+      );
+
+      expect(result.status).to.equal(500);
+      expect(result.isUserError).to.equal(false);
     });
   });
 });

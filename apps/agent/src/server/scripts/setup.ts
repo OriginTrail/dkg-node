@@ -9,8 +9,8 @@ import {
 import {
   getLLMProviderApiKeyEnvName,
   LLMProvider,
-  DEFAULT_SYSTEM_PROMPT,
 } from "@/shared/chat";
+import { DEFAULT_SYSTEM_PROMPT } from "@/shared/prompts/defaultSystemPrompt";
 
 async function setup() {
   const r = await prompts([

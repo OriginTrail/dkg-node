@@ -1,7 +1,7 @@
 /**
  * unpdf provider for document-to-markdown conversion.
  * Uses Mozilla pdf.js (via unpdf) to extract text from non-scanned PDFs.
- * Zero-config — no API key required.
+ * Zero-config - no API key required.
  */
 
 import { extractText } from "unpdf";
@@ -11,13 +11,14 @@ import type {
   DocumentConversionOptions,
   DocumentConversionOutput,
 } from "../types";
+import { normalizePageRange } from "../page-range";
 import { getFileExtension, validateFileSize } from "../validation";
 
 const PROVIDER_NAME = "unpdf";
 
 /**
  * unpdf provider for PDF text extraction.
- * Supports .pdf files only — for .docx/.pptx or scanned PDFs, use Mistral.
+ * Supports .pdf files only - for .docx/.pptx or scanned PDFs, use Mistral.
  */
 export class UnpdfProvider implements DocumentConversionProvider {
   readonly name = PROVIDER_NAME;
@@ -27,7 +28,12 @@ export class UnpdfProvider implements DocumentConversionProvider {
     filename: string,
     options?: DocumentConversionOptions,
   ): Promise<DocumentConversionOutput> {
-    // Only PDF is supported — reject other formats with a helpful message
+    type InternalDocumentConversionOptions = DocumentConversionOptions & {
+      __skipBaseValidation?: boolean;
+    };
+    const internalOptions = options as InternalDocumentConversionOptions | undefined;
+
+    // Only PDF is supported - reject other formats with a helpful message
     const ext = getFileExtension(filename);
     if (ext !== ".pdf") {
       throw new Error(
@@ -37,32 +43,29 @@ export class UnpdfProvider implements DocumentConversionProvider {
       );
     }
 
-    validateFileSize(buffer.length);
+    if (!internalOptions?.__skipBaseValidation) {
+      validateFileSize(buffer.length);
+    }
 
     // Extract text from PDF using pdf.js
     const { totalPages, text } = await extractText(new Uint8Array(buffer), {
       mergePages: false,
     });
 
-    // Clamp page range to valid bounds (1-indexed inputs, 0-indexed array)
-    const effectiveStart = Math.min(
+    const { startPage, endPage, hasPageFilter } = normalizePageRange(
       totalPages,
-      Math.max(1, options?.pageStart ?? 1),
-    );
-    const effectiveEnd = Math.min(
-      totalPages,
-      Math.max(effectiveStart, options?.pageEnd ?? totalPages),
+      options,
     );
 
     let pages = text;
-    if (options?.pageStart != null || options?.pageEnd != null) {
-      pages = text.slice(effectiveStart - 1, effectiveEnd);
+    if (hasPageFilter) {
+      pages = text.slice(startPage - 1, endPage);
     }
 
     // Format pages with separators
     const markdown = pages
       .map((pageText, i) => {
-        const pageNum = effectiveStart + i;
+        const pageNum = startPage + i;
         return `<!-- Page ${pageNum} -->\n\n${pageText}`;
       })
       .join("\n\n");
@@ -71,6 +74,7 @@ export class UnpdfProvider implements DocumentConversionProvider {
       markdown,
       images: [],
       pageCount: totalPages,
+      processedPageCount: pages.length,
     };
   }
 }

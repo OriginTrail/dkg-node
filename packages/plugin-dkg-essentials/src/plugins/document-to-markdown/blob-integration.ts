@@ -125,6 +125,7 @@ export async function integrateWithBlobStorage(
     markdown: finalMarkdown,
     images: output.images,
     pageCount: output.pageCount,
+    processedPageCount: output.processedPageCount ?? output.pageCount,
     outputFolderId: folderId,
     markdownBlobId,
   };

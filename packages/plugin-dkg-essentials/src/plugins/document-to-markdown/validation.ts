@@ -25,6 +25,16 @@ export const MIME_TYPE_MAP: Record<SupportedExtension, string> = {
 // VALIDATION FUNCTIONS
 // ============================================================================
 
+export class DocumentValidationError extends Error {
+  readonly statusCode: 400 | 413;
+
+  constructor(message: string, statusCode: 400 | 413 = 400) {
+    super(message);
+    this.name = "DocumentValidationError";
+    this.statusCode = statusCode;
+  }
+}
+
 /**
  * Get file extension from filename (lowercase, includes dot)
  */
@@ -41,7 +51,7 @@ export function getFileExtension(filename: string): string {
 export function validateFileType(filename: string): SupportedExtension {
   const ext = getFileExtension(filename);
   if (!SUPPORTED_EXTENSIONS.includes(ext as SupportedExtension)) {
-    throw new Error(
+    throw new DocumentValidationError(
       `Unsupported file type: '${ext || "(no extension)"}'. ` +
         `Supported: ${SUPPORTED_EXTENSIONS.join(", ")}`,
     );
@@ -56,8 +66,9 @@ export function validateFileType(filename: string): SupportedExtension {
 export function validateFileSize(sizeBytes: number): void {
   if (sizeBytes > MAX_FILE_SIZE_BYTES) {
     const sizeMB = (sizeBytes / (1024 * 1024)).toFixed(2);
-    throw new Error(
+    throw new DocumentValidationError(
       `File size (${sizeMB}MB) exceeds maximum of ${MAX_FILE_SIZE_MB}MB.`,
+      413,
     );
   }
 }
@@ -80,7 +91,7 @@ export function sanitizePathComponent(name: string): string {
   // Remove any remaining ".." sequences
   const sanitized = basename.replace(/\.\./g, "");
   if (!sanitized) {
-    throw new Error(`Invalid path component: '${name}'`);
+    throw new DocumentValidationError(`Invalid path component: '${name}'`);
   }
   return sanitized;
 }

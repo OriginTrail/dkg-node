@@ -14,6 +14,7 @@ import type {
   DocumentConversionOutput,
   ExtractedImage,
 } from "../types";
+import { normalizePageRange } from "../page-range";
 import { validateFileType, validateFileSize, getMimeType } from "../validation";
 
 // ============================================================================
@@ -96,10 +97,14 @@ function createMistralClient(apiKey: string): Mistral {
 /**
  * Clean Mistral OCR response and format as markdown
  */
-function formatOcrResponseAsMarkdown(response: OCRResponse): string {
+export function formatOcrResponseAsMarkdown(
+  response: OCRResponse,
+  startPage: number = 1,
+): string {
   const fullMarkdown = response.pages
     .map(
-      (page, index) => `---\n\n## Page ${index + 1}\n\n${page.markdown || ""}`,
+      (page, index) =>
+        `---\n\n## Page ${startPage + index}\n\n${page.markdown || ""}`,
     )
     .join("\n\n");
   return fullMarkdown;
@@ -230,36 +235,40 @@ export class MistralProvider implements DocumentConversionProvider {
     filename: string,
     options?: DocumentConversionOptions,
   ): Promise<DocumentConversionOutput> {
+    type InternalDocumentConversionOptions = DocumentConversionOptions & {
+      __skipBaseValidation?: boolean;
+      __validatedExtension?: ReturnType<typeof validateFileType>;
+    };
+    const internalOptions = options as InternalDocumentConversionOptions | undefined;
+
     // Validate file type and get MIME type
-    const extension = validateFileType(filename);
+    const extension =
+      internalOptions?.__validatedExtension ?? validateFileType(filename);
     const mimeType = getMimeType(extension);
 
     // Validate file size
-    validateFileSize(buffer.length);
+    if (!internalOptions?.__skipBaseValidation) {
+      validateFileSize(buffer.length);
+    }
 
     // Create client and call OCR API
     const client = createMistralClient(this.apiKey);
     const response = await callOcrApi(client, buffer, mimeType, options);
 
-    // Apply page range filter if specified, clamping to valid bounds
+    // Apply page range filter if specified
     let pages = response.pages;
-    if (options?.pageStart !== undefined || options?.pageEnd !== undefined) {
-      const totalPages = pages.length;
-      const effectiveStart = Math.min(
-        totalPages,
-        Math.max(1, options.pageStart ?? 1),
-      );
-      const effectiveEnd = Math.min(
-        totalPages,
-        Math.max(effectiveStart, options.pageEnd ?? totalPages),
-      );
-      pages = pages.slice(effectiveStart - 1, effectiveEnd);
+    const { startPage, endPage, hasPageFilter } = normalizePageRange(
+      pages.length,
+      options,
+    );
+    if (hasPageFilter) {
+      pages = pages.slice(startPage - 1, endPage);
     }
 
     const filteredResponse = { ...response, pages };
 
     // Format markdown
-    const markdown = formatOcrResponseAsMarkdown(filteredResponse);
+    const markdown = formatOcrResponseAsMarkdown(filteredResponse, startPage);
 
     // Extract images if enabled
     const includeImages = options?.includeImages !== false;
@@ -275,6 +284,7 @@ export class MistralProvider implements DocumentConversionProvider {
       markdown,
       images,
       pageCount: response.pages.length,
+      processedPageCount: pages.length,
     };
   }
 }

@@ -186,6 +186,7 @@ export class DkgService {
         name: this.dkgBlockchain,
         publicKey: wallet.address,
         privateKey: privateKey,
+        ...(process.env.PUBLISHER_PLUGIN_RPC_URL && { rpc: process.env.PUBLISHER_PLUGIN_RPC_URL }),
       },
       maxNumberOfRetries: 600,
       frequency: 2,

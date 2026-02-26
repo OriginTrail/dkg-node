@@ -29,6 +29,7 @@ import {
   MAX_FILE_SIZE_BYTES,
   MAX_FILE_SIZE_MB,
 } from "./validation";
+import { classifyConversionError } from "./conversion-errors";
 import { createProvider } from "./providers";
 
 // Re-export types for external use
@@ -55,6 +56,7 @@ export {
 
 // Re-export validation utilities
 export {
+  DocumentValidationError,
   validateFileType,
   validateFileSize,
   getFileExtension,
@@ -76,14 +78,24 @@ async function processDocument(
   filename: string,
   options?: DocumentConversionOptions,
 ): Promise<ConversionResult> {
+  type InternalDocumentConversionOptions = DocumentConversionOptions & {
+    __skipBaseValidation?: boolean;
+    __validatedExtension?: ReturnType<typeof validateFileType>;
+  };
+
   // Validate before handing off to provider (providers may also validate internally)
-  validateFileType(filename);
+  const extension = validateFileType(filename);
   validateFileSize(documentBuffer.length);
 
   console.log(`Converting document using provider: ${provider.name}`);
 
   // Convert document using provider
-  const output = await provider.convert(documentBuffer, filename, options);
+  const providerOptions: InternalDocumentConversionOptions = {
+    ...options,
+    __skipBaseValidation: true,
+    __validatedExtension: extension,
+  };
+  const output = await provider.convert(documentBuffer, filename, providerOptions);
 
   // Integrate with blob storage (upload images, upload markdown)
   const result = await integrateWithBlobStorage(ctx, output, filename);
@@ -132,28 +144,39 @@ export function createDocumentToMarkdownPlugin(
             "Returns the extracted markdown content and any images stored in blob storage.",
           tag: "Documents",
           response: {
-            schema: z.object({
-              markdown: z.string().openapi({
-                description: "The extracted markdown content",
-              }),
-              markdownBlobId: z.string().openapi({
-                description: "Blob ID of the stored markdown file",
-              }),
-              outputFolderId: z.string().openapi({
-                description: "Blob folder ID containing all conversion outputs",
-              }),
-              pageCount: z.number().openapi({
-                description: "Number of pages processed",
-              }),
-              images: z.array(
-                z.object({
-                  id: z.string(),
-                  blobId: z.string(),
+            schema: z.union([
+              z.object({
+                markdown: z.string().openapi({
+                  description: "The extracted markdown content",
                 }),
-              ).openapi({
-                description: "List of extracted images with their blob IDs",
+                markdownBlobId: z.string().openapi({
+                  description: "Blob ID of the stored markdown file",
+                }),
+                outputFolderId: z.string().openapi({
+                  description: "Blob folder ID containing all conversion outputs",
+                }),
+                pageCount: z.number().openapi({
+                  description: "Total number of pages in the source document",
+                }),
+                processedPageCount: z.number().openapi({
+                  description:
+                    "Number of pages included in the converted markdown output",
+                }),
+                images: z.array(
+                  z.object({
+                    id: z.string(),
+                    blobId: z.string(),
+                  }),
+                ).openapi({
+                  description: "List of extracted images with their blob IDs",
+                }),
               }),
-            }),
+              z.object({
+                error: z.string().openapi({
+                  description: "Error message when conversion fails",
+                }),
+              }),
+            ]),
           },
           finalizeRouteConfig(cfg) {
             cfg.request = {
@@ -177,72 +200,161 @@ export function createDocumentToMarkdownPlugin(
           },
         },
         async (req, res) => {
+          type DocumentToMarkdownRestResponse =
+            | { error: string }
+              | {
+                  markdown: string;
+                  markdownBlobId: string;
+                  outputFolderId: string;
+                  pageCount: number;
+                  processedPageCount: number;
+                  images: Array<{
+                    id: string;
+                    blobId: string;
+                  }>;
+                };
+
           let fileReceived = false;
+          let fileReadPromise: Promise<void> | null = null;
+          let uploadedFile:
+            | {
+                documentBuffer: Buffer;
+                filename: string;
+                truncated: boolean;
+              }
+            | null = null;
+          let responded = false;
+
+          const sendOnce = (
+            status: number,
+            body: DocumentToMarkdownRestResponse,
+          ): void => {
+            if (responded || res.headersSent) {
+              return;
+            }
+            responded = true;
+            res.status(status).json(body);
+          };
 
           const bb = busboy({
             headers: req.headers,
-            limits: { fileSize: MAX_FILE_SIZE_BYTES },
+            limits: { fileSize: MAX_FILE_SIZE_BYTES, files: 1 },
           });
 
-          bb.on("file", async (_name, file, info) => {
+          bb.on("file", (name, file, info) => {
+            if (responded) {
+              file.resume();
+              return;
+            }
+
+            if (name !== "file") {
+              file.resume();
+              sendOnce(400, { error: "Invalid file field. Expected 'file'." });
+              return;
+            }
+
+            if (fileReceived) {
+              file.resume();
+              sendOnce(400, {
+                error: "Exactly one file must be provided in the request.",
+              });
+              return;
+            }
+
             fileReceived = true;
             let truncated = false;
-
             file.on("limit", () => {
               truncated = true;
             });
 
-            try {
-              const documentBuffer = await consumers.buffer(
-                Readable.toWeb(file),
-              );
+            fileReadPromise = (async () => {
+              try {
+                const documentBuffer = await consumers.buffer(
+                  Readable.toWeb(file),
+                );
 
-              if (truncated) {
-                res.status(413).json({
+                if (responded) {
+                  return;
+                }
+
+                uploadedFile = {
+                  documentBuffer,
+                  filename: info.filename,
+                  truncated,
+                };
+              } catch (error) {
+                const message =
+                  error instanceof Error ? error.message : String(error);
+                console.error(
+                  "Error reading uploaded file for document conversion:",
+                  message,
+                );
+                sendOnce(400, { error: message });
+              }
+            })();
+          });
+
+          bb.on("filesLimit", () => {
+            sendOnce(400, {
+              error: "Exactly one file must be provided in the request.",
+            });
+          });
+
+          bb.on("error", (error: Error) => {
+            console.error("Error parsing multipart request:", error.message);
+            sendOnce(400, { error: "Invalid multipart request." });
+          });
+
+          bb.on("close", () => {
+            void (async () => {
+              if (fileReadPromise) {
+                await fileReadPromise;
+              }
+
+              if (responded) {
+                return;
+              }
+
+              if (!fileReceived || !uploadedFile) {
+                sendOnce(400, { error: "No file provided in the request." });
+                return;
+              }
+
+              if (uploadedFile.truncated) {
+                sendOnce(413, {
                   error: `File size exceeds maximum of ${MAX_FILE_SIZE_MB}MB.`,
                 });
                 return;
               }
 
-              const result = await processDocument(
-                ctx,
-                provider,
-                documentBuffer,
-                info.filename,
-              );
+              try {
+                const result = await processDocument(
+                  ctx,
+                  provider,
+                  uploadedFile.documentBuffer,
+                  uploadedFile.filename,
+                );
 
-              res.status(200).json({
-                markdown: result.markdown,
-                markdownBlobId: result.markdownBlobId,
-                outputFolderId: result.outputFolderId,
-                pageCount: result.pageCount,
-                images: result.images.map((img) => ({
-                  id: img.id,
-                  blobId: img.blobId ?? "",
-                })),
-              });
-            } catch (error) {
-              const message =
-                error instanceof Error ? error.message : String(error);
-              console.error(
-                "Error converting document to markdown:",
-                message,
-              );
-              res.status(400).json({ error: message });
-            }
-          });
-
-          bb.on("error", (error: Error) => {
-            console.error("Error parsing multipart request:", error.message);
-            res.status(400).json({ error: "Invalid multipart request." });
-          });
-
-          bb.on("close", () => {
-            if (!fileReceived) {
-              res
-                .status(400)
-                .json({ error: "No file provided in the request." });
-            }
+                sendOnce(200, {
+                  markdown: result.markdown,
+                  markdownBlobId: result.markdownBlobId,
+                  outputFolderId: result.outputFolderId,
+                  pageCount: result.pageCount,
+                  processedPageCount: result.processedPageCount,
+                  images: result.images.map((img) => ({
+                    id: img.id,
+                    blobId: img.blobId ?? "",
+                  })),
+                });
+              } catch (error) {
+                const { status, message } = classifyConversionError(error);
+                console.error(
+                  "Error converting document to markdown:",
+                  message,
+                );
+                sendOnce(status, { error: message });
+              }
+            })();
           });
 
           req.pipe(bb);
@@ -277,10 +389,14 @@ export function createDocumentToMarkdownPlugin(
             .object({
               pageStart: z
                 .number()
+                .int()
+                .min(1)
                 .optional()
                 .describe("First page to process (1-indexed)"),
               pageEnd: z
                 .number()
+                .int()
+                .min(1)
                 .optional()
                 .describe("Last page to process (inclusive)"),
               includeImages: z
@@ -338,10 +454,11 @@ export function createDocumentToMarkdownPlugin(
               : "";
 
           const response =
-            `✅ Document successfully converted to Markdown.\n\n` +
+            `Document successfully converted to Markdown.\n\n` +
             `**Output Folder:** ${result.outputFolderId}\n` +
             `**Markdown Blob ID:** ${result.markdownBlobId}\n` +
-            `**Pages Processed:** ${result.pageCount}` +
+            `**Total Pages:** ${result.pageCount}\n` +
+            `**Pages Processed:** ${result.processedPageCount}` +
             imageInfo +
             `\n\n---\n\n${result.markdown}`;
 
@@ -349,15 +466,14 @@ export function createDocumentToMarkdownPlugin(
             content: [{ type: "text", text: response }],
           };
         } catch (error) {
-          const message =
-            error instanceof Error ? error.message : String(error);
+          const { message } = classifyConversionError(error);
           console.error("Error converting document to markdown:", message);
 
           return {
             content: [
               {
                 type: "text",
-                text: `❌ Document conversion failed: ${message}`,
+                text: `Document conversion failed: ${message}`,
               },
             ],
           };

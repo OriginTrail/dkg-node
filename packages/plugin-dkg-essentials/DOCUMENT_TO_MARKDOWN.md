@@ -62,8 +62,8 @@ Full-featured OCR with multi-format support and image extraction. Handles scanne
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `pageStart` | number | 1 | First page to process (1-indexed, inclusive) |
-| `pageEnd` | number | Last page | Last page to process (1-indexed, inclusive) |
+| `pageStart` | integer | 1 | First page to process (1-indexed, inclusive) |
+| `pageEnd` | integer | Last page | Last page to process (1-indexed, inclusive) |
 | `includeImages` | boolean | true | Whether to extract and store images |
 
 Page range values are automatically clamped to valid bounds — out-of-range values are silently adjusted.
@@ -99,7 +99,7 @@ Page range values are automatically clamped to valid bounds — out-of-range val
 
 ### REST Endpoint
 
-`POST /document-to-markdown` accepts `multipart/form-data` with a `file` field. Returns the same response structure as the MCP tool.
+`POST /document-to-markdown` accepts `multipart/form-data` with a `file` field. The JSON response includes both `pageCount` (total pages) and `processedPageCount` (pages in markdown output).
 
 ## Output Structure
 
@@ -110,9 +110,10 @@ The tool returns a text response containing:
 1. **Status message** — Success or failure indication
 2. **Output folder ID** — UUID of the folder containing all outputs
 3. **Markdown blob ID** — ID of the generated markdown file
-4. **Page count** — Number of pages in the document
-5. **Image count** — Number of images extracted (if any)
-6. **Markdown content** — The full converted markdown
+4. **Total page count** — Number of pages in the source document
+5. **Processed page count** — Number of pages included in converted markdown output
+6. **Image count** — Number of images extracted (if any)
+7. **Markdown content** — The full converted markdown
 
 ### File Organization
 
@@ -226,6 +227,7 @@ class MyCustomProvider implements DocumentConversionProvider {
       markdown: "# Converted content",
       images: [],
       pageCount: 1,
+      processedPageCount: 1,
     };
   }
 }

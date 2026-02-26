@@ -7,9 +7,9 @@
  * Options for document conversion
  */
 export interface DocumentConversionOptions {
-  /** First page to process (1-indexed) */
+  /** First page to process (1-indexed integer) */
   pageStart?: number;
-  /** Last page to process (inclusive) */
+  /** Last page to process (inclusive 1-indexed integer) */
   pageEnd?: number;
   /** Whether to extract images (default: true) */
   includeImages?: boolean;
@@ -37,8 +37,13 @@ export interface DocumentConversionOutput {
   markdown: string;
   /** Extracted images */
   images: ExtractedImage[];
-  /** Total number of pages in the document */
+  /** Total number of pages in the source document */
   pageCount: number;
+  /**
+   * Number of pages included in the converted markdown output.
+   * If omitted by a provider, it defaults to `pageCount`.
+   */
+  processedPageCount?: number;
 }
 
 /**
@@ -49,8 +54,10 @@ export interface ConversionResult {
   markdown: string;
   /** Extracted images with blob IDs */
   images: ExtractedImage[];
-  /** Total number of pages processed */
+  /** Total number of pages in the source document */
   pageCount: number;
+  /** Number of pages included in the converted markdown output */
+  processedPageCount: number;
   /** Folder ID in blob storage */
   outputFolderId: string;
   /** Blob ID for the markdown file */
