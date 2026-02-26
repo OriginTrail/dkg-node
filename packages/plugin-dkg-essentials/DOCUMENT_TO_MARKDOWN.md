@@ -21,7 +21,7 @@ Zero-config text extraction powered by Mozilla's `pdf.js`. Good for simple PDF t
 
 - **Formats**: PDF only
 - **Images**: Not supported (returns empty array)
-- **Requirements**: None — works out of the box
+- **Requirements**: None - works out of the box
 
 ### Mistral OCR
 
@@ -44,8 +44,8 @@ Full-featured OCR with multi-format support and image extraction. Handles scanne
 | Extension | MIME Type | unpdf | Mistral |
 |-----------|-----------|:-----:|:-------:|
 | `.pdf` | `application/pdf` | Yes | Yes |
-| `.docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | — | Yes |
-| `.pptx` | `application/vnd.openxmlformats-officedocument.presentationml.presentation` | — | Yes |
+| `.docx` | `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | No | Yes |
+| `.pptx` | `application/vnd.openxmlformats-officedocument.presentationml.presentation` | No | Yes |
 
 ## Usage
 
@@ -66,7 +66,7 @@ Full-featured OCR with multi-format support and image extraction. Handles scanne
 | `pageEnd` | integer | Last page | Last page to process (1-indexed, inclusive) |
 | `includeImages` | boolean | true | Whether to extract and store images |
 
-Page range values are automatically clamped to valid bounds — out-of-range values are silently adjusted.
+Page range values are automatically clamped to valid bounds - out-of-range values are silently adjusted.
 
 ### Example: Using blob ID
 
@@ -99,7 +99,7 @@ Page range values are automatically clamped to valid bounds — out-of-range val
 
 ### REST Endpoint
 
-`POST /document-to-markdown` accepts `multipart/form-data` with a `file` field. The JSON response includes both `pageCount` (total pages) and `processedPageCount` (pages in markdown output).
+`POST /document-to-markdown` accepts `multipart/form-data` with exactly one `file` field. The JSON response includes both `pageCount` (total pages) and `processedPageCount` (pages in markdown output).
 
 ## Output Structure
 
@@ -107,25 +107,25 @@ Page range values are automatically clamped to valid bounds — out-of-range val
 
 The tool returns a text response containing:
 
-1. **Status message** — Success or failure indication
-2. **Output folder ID** — UUID of the folder containing all outputs
-3. **Markdown blob ID** — ID of the generated markdown file
-4. **Total page count** — Number of pages in the source document
-5. **Processed page count** — Number of pages included in converted markdown output
-6. **Image count** — Number of images extracted (if any)
-7. **Markdown content** — The full converted markdown
+1. **Status message** - Success or failure indication
+2. **Output folder ID** - UUID of the folder containing all outputs
+3. **Markdown blob ID** - ID of the generated markdown file
+4. **Total page count** - Number of pages in the source document
+5. **Processed page count** - Number of pages included in converted markdown output
+6. **Image count** - Number of images extracted (if any)
+7. **Markdown content** - The full converted markdown
 
 ### File Organization
 
 Outputs are stored in a nested folder structure:
 
-```
+```text
 document-conversions/
-└── {uuid}/
-    ├── {original-name}.md    # Converted markdown
-    ├── img-0.jpeg            # Extracted image 1
-    ├── img-1.jpeg            # Extracted image 2
-    └── ...
+  {uuid}/
+    {original-name}.md    # Converted markdown
+    img-0.jpeg            # Extracted image 1
+    img-1.jpeg            # Extracted image 2
+    ...
 ```
 
 ### Image References
@@ -173,7 +173,7 @@ All outputs are stored in blob storage under the `document-conversions/` prefix:
 **Via environment variable:**
 
 ```bash
-# Use unpdf (default) — no API key needed
+# Use unpdf (default) - no API key needed
 export DOCUMENT_CONVERSION_PROVIDER=unpdf
 
 # Use Mistral OCR
@@ -269,5 +269,5 @@ import {
 
 ## Related Tools
 
-- `upload` — Upload documents to blob storage before conversion
-- `dkg-create` — Create Knowledge Assets from converted content
+- `upload` - Upload documents to blob storage before conversion
+- `dkg-create` - Create Knowledge Assets from converted content
