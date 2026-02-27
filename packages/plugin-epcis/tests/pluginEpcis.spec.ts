@@ -26,6 +26,7 @@ import {
 } from "@dkg/plugins/testing";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import express from "express";
 
 const story = bicycleStory as any;
@@ -54,14 +55,24 @@ type ToolCallParams = {
   arguments?: Record<string, unknown>;
 };
 
-const MCP_TOOL_AUTH = {
+const MCP_TOOL_AUTH: { authInfo: AuthInfo } = {
   authInfo: {
+    token: "test-token",
+    clientId: "test-client",
     scopes: ["epcis.read", "epcis.write"],
   },
-} as const;
+};
+
+let setMcpClientAuthInfo: ((authInfo?: AuthInfo) => void) | null = null;
 
 function callToolWithAuth(client: Client, params: ToolCallParams) {
-  return client.callTool(params, undefined, MCP_TOOL_AUTH as any);
+  setMcpClientAuthInfo?.(MCP_TOOL_AUTH.authInfo);
+  return client.callTool(params);
+}
+
+function callToolWithoutAuth(client: Client, params: ToolCallParams) {
+  setMcpClientAuthInfo?.(undefined);
+  return client.callTool(params);
 }
 
 describe("@dkg/plugin-epcis checks", function () {
@@ -87,9 +98,11 @@ describe("@dkg/plugin-epcis checks", function () {
     };
     dkgQueryStub = sinon.stub(dkgContext.dkg.graph, "query");
 
-    const { server, client, connect } = await createMcpServerClientPair();
+    const { server, client, connect, setClientAuthInfo } =
+      await createMcpServerClientPair();
     mockMcpServer = server;
     mockMcpClient = client;
+    setMcpClientAuthInfo = setClientAuthInfo;
     apiRouter = express.Router();
     app = createExpressApp();
 
@@ -99,6 +112,7 @@ describe("@dkg/plugin-epcis checks", function () {
   });
 
   afterEach(() => {
+    setMcpClientAuthInfo = null;
     sinon.restore();
     if (originalMcpUrl !== undefined) {
       process.env.EXPO_PUBLIC_MCP_URL = originalMcpUrl;
@@ -560,6 +574,18 @@ describe("@dkg/plugin-epcis checks", function () {
       expect(payload.error).to.include(
         "At least one filter parameter is required.",
       );
+    });
+
+    it("returns Forbidden when MCP auth context is missing", async () => {
+      const result = await callToolWithoutAuth(mockMcpClient, {
+        name: "epcis-query",
+        arguments: { bizStep: "receiving" },
+      });
+      const payload = parseToolResult(result);
+
+      expect(result.isError).to.equal(true);
+      expect(payload.error).to.equal("Forbidden");
+      expect(payload.requiredScope).to.equal("epcis.read");
     });
 
     it("returns MCP error when DKG query fails", async () => {
