@@ -3,6 +3,7 @@ import { createPluginServer, defaultPlugin } from "@dkg/plugins";
 import { authorized, createOAuthPlugin } from "@dkg/plugin-oauth";
 import dkgEssentialsPlugin from "@dkg/plugin-dkg-essentials";
 import createFsBlobStorage from "@dkg/plugin-dkg-essentials/createFsBlobStorage";
+import epcisPlugin from "@dkg/plugin-epcis";
 import examplePlugin from "@dkg/plugin-example";
 import swaggerPlugin from "@dkg/plugin-swagger";
 //@ts-expect-error No types for dkg.js ...
@@ -32,7 +33,14 @@ const version = "1.0.0";
 const { oauthPlugin, openapiSecurityScheme } = createOAuthPlugin({
   storage: new SqliteOAuthStorageProvider(db),
   issuerUrl: new URL(process.env.EXPO_PUBLIC_MCP_URL),
-  scopesSupported: ["mcp", "llm", "scope123", "blob"],
+  scopesSupported: [
+    "mcp",
+    "llm",
+    "scope123",
+    "blob",
+    "epcis.read",
+    "epcis.write",
+  ],
   loginPageUrl: new URL(process.env.EXPO_PUBLIC_APP_URL + "/login"),
   schema: userCredentialsSchema,
   async login(credentials) {
@@ -100,7 +108,17 @@ const app = createPluginServer({
     defaultPlugin,
     oauthPlugin,
     (_, __, api) => {
+      api.get("/epcis/events", authorized(["epcis.read"]));
+      api.get("/epcis/events/track", authorized(["epcis.read"]));
+      api.get("/epcis/capture/:captureID", authorized(["epcis.write"]));
+      api.post("/epcis/capture", authorized(["epcis.write"]));
       api.use("/mcp", authorized(["mcp"]));
+      api.use("/mcp", (req, res, next) => {
+        if (res.locals.auth) {
+          (req as any).auth = res.locals.auth;
+        }
+        next();
+      });
       api.use("/llm", authorized(["llm"]));
       api.use("/blob", authorized(["blob"]));
       api.use("/change-password", authorized([]));
@@ -115,6 +133,7 @@ const app = createPluginServer({
     },
     accountManagementPlugin,
     dkgEssentialsPlugin,
+    epcisPlugin,
     examplePlugin.withNamespace("protected", {
       middlewares: [authorized(["scope123"])], // Allow only users with the "scope123" scope
     }),

@@ -3,6 +3,7 @@ import { createPluginServer, defaultPlugin } from "@dkg/plugins";
 import { authorized, createOAuthPlugin } from "@dkg/plugin-oauth";
 import dkgEssentialsPlugin from "@dkg/plugin-dkg-essentials";
 import createFsBlobStorage from "@dkg/plugin-dkg-essentials/createFsBlobStorage";
+import epcisPlugin from "@dkg/plugin-epcis";
 import {
   createInMemoryBlobStorage,
   createMockDkgClient,
@@ -84,7 +85,14 @@ export async function createTestServer(config: TestServerConfig = {}): Promise<{
   const { oauthPlugin, openapiSecurityScheme } = createOAuthPlugin({
     storage: testDatabase.oauthStorage,
     issuerUrl: new URL(oauthUrls.issuerUrl),
-    scopesSupported: ["mcp", "llm", "scope123", "blob"],
+    scopesSupported: [
+      "mcp",
+      "llm",
+      "scope123",
+      "blob",
+      "epcis.read",
+      "epcis.write",
+    ],
     loginPageUrl: new URL(oauthUrls.loginPageUrl),
     schema: userCredentialsSchema,
     async login(credentials: { email: string; password: string }) {
@@ -149,7 +157,17 @@ export async function createTestServer(config: TestServerConfig = {}): Promise<{
       oauthPlugin,
       // Same authorization middleware as real app
       (_, __, api) => {
+        api.get("/epcis/events", authorized(["epcis.read"]));
+        api.get("/epcis/events/track", authorized(["epcis.read"]));
+        api.get("/epcis/capture/:captureID", authorized(["epcis.write"]));
+        api.post("/epcis/capture", authorized(["epcis.write"]));
         api.use("/mcp", authorized(["mcp"]));
+        api.use("/mcp", (req, res, next) => {
+          if (res.locals.auth) {
+            (req as any).auth = res.locals.auth;
+          }
+          next();
+        });
         api.use("/llm", authorized(["llm"]));
         api.use("/blob", authorized(["blob"]));
       },
@@ -161,6 +179,7 @@ export async function createTestServer(config: TestServerConfig = {}): Promise<{
         });
       },
       dkgEssentialsPlugin,
+      epcisPlugin,
       // DKG Publisher Plugin for API contract testing
       mockDkgPublisherPlugin, // Mock version - tests interfaces without database
       // Test the namespace functionality

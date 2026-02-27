@@ -5,6 +5,7 @@ import compression from "compression";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerMcp } from "./registerMcp";
 import { BlobStorage } from "./types";
+export { withRequiredMcpScope } from "./mcpScopeGuard";
 
 //@ts-ignore
 import type DKG from "dkg.js";

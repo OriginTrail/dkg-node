@@ -1,4 +1,4 @@
-import { defineDkgPlugin } from "@dkg/plugins";
+import { defineDkgPlugin, withRequiredMcpScope } from "@dkg/plugins";
 import { openAPIRoute, z } from "@dkg/plugin-swagger";
 import type { EpcisQueryParams, ValidationResult } from "./model/types";
 import { EpcisQueryService } from "./services/epcisQueryService";
@@ -297,7 +297,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         ),
       },
     },
-    async (input) => {
+    withRequiredMcpScope("epcis.read", async (input) => {
       try {
         if (!hasAtLeastOneEpcisFilter(input)) {
           return mcpError({
@@ -335,7 +335,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         console.error("[EPCIS] DKG query failed:", error);
         return mcpError({ error: "Query failed" });
       }
-    },
+    }),
   );
 
   // MCP Tool: Track item journey (full traceability)
@@ -353,7 +353,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         ),
       },
     },
-    async (input) => {
+    withRequiredMcpScope("epcis.read", async (input) => {
       try {
         const { resultData, resultCount } = await executeEpcisEventsQuery({
           epc: input.epc,
@@ -376,7 +376,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         console.error(`[EPCIS] Item tracking failed, epc: ${input.epc}`, error);
         return mcpError({ error: "Tracking failed" });
       }
-    },
+    }),
   );
 
   // MCP Tool: Capture EPCISDocument and queue for publishing
@@ -396,7 +396,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           .optional(),
       },
     },
-    async (input) => {
+    withRequiredMcpScope("epcis.write", async (input) => {
       try {
         const response = await executeCapture(
           input.epcisDocument,
@@ -420,7 +420,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         console.error("[EPCIS] MCP capture failed:", error);
         return mcpError({ error: "Capture failed" });
       }
-    },
+    }),
   );
 
   // MCP Tool: Check publisher-tracked status by capture ID
@@ -438,7 +438,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           ),
       },
     },
-    async (input) => {
+    withRequiredMcpScope("epcis.write", async (input) => {
       try {
         const captureStatus = await parseCaptureStatus(input.captureID);
         if (captureStatus.notFound) {
@@ -475,7 +475,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           captureID: input.captureID,
         });
       }
-    },
+    }),
   );
 
   // POST /epcis/capture - Accept EPCISDocument and queue for publishing

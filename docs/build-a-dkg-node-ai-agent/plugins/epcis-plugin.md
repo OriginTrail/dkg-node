@@ -25,9 +25,22 @@ It provides both HTTP endpoints and MCP tools for:
    - This initializes publisher configuration (including `.env.publisher`) for the publisher flow.
 3. Configure runtime environment:
    - `EXPO_PUBLIC_MCP_URL=http://localhost:9200` (local same-host setup)
-4. Start the DKG Node server.
-5. Submit an EPCIS document via `POST /epcis/capture`.
-6. Query captured events via `GET /epcis/events`.
+4. Create a token with EPCIS scopes:
+   - `cd apps/agent && npm run script:createToken`
+   - Scope input examples:
+     - API only: `epcis.read epcis.write`
+     - MCP tools: `mcp epcis.read epcis.write`
+5. Start the DKG Node server.
+6. Submit an EPCIS document via `POST /epcis/capture`.
+7. Query captured events via `GET /epcis/events`.
+
+EPCIS authorization scopes:
+
+- `epcis.read`: `GET /epcis/events`, `GET /epcis/events/track`, and MCP tools `epcis-query`, `epcis-track-item`
+- `epcis.write`: `POST /epcis/capture`, `GET /epcis/capture/:captureID`, and MCP tools `epcis-capture`, `epcis-capture-status`
+- MCP transport still requires `mcp` scope on `/mcp`
+
+Implementation note: EPCIS MCP tool handlers are guarded with `withRequiredMcpScope(...)` in `packages/plugin-epcis/src/index.ts`, while keeping standard `mcp.registerTool(...)` registration.
 
 ## Capabilities
 
@@ -152,4 +165,3 @@ curl "http://localhost:9200/epcis/events?epc=urn:epc:id:sgtin:4012345.011111.100
 For full EPCIS field-level details and examples, see:
 
 - `packages/plugin-epcis/docs/EPCIS-Integration-Guide.md`
-
