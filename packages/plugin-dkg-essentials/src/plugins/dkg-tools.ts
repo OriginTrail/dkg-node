@@ -249,8 +249,8 @@ export default defineDkgPlugin((ctx, mcp) => {
     {
       title: "DKG Knowledge Asset get tool",
       description:
-        "A tool for running a GET operation on OriginTrail Decentralized Knowledge Graph (DKG) and retrieving a specific Knowledge Asset by its UAL (Unique Asset Locator), taking the UAL as input.",
-      inputSchema: { ual: z.string() },
+        "Retrieve a specific Knowledge Asset from the DKG by its UAL (Unique Asset Locator). ",
+      inputSchema: { ual: z.string().describe("The UAL (Unique Asset Locator) in format: did:dkg:{blockchainName}:{blockchainId}/{blockchainAddress}/{collectionId}/{assetId} or did:dkg:{blockchainName}:{blockchainId}/{blockchainAddress}/{collectionId}") },
     },
     async ({ ual }) => {
       const getAssetResult = await ctx.dkg.asset.get(ual);

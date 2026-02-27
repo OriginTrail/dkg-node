@@ -9,8 +9,8 @@ import {
 import {
   getLLMProviderApiKeyEnvName,
   LLMProvider,
-  DEFAULT_SYSTEM_PROMPT,
 } from "@/shared/chat";
+import { DEFAULT_SYSTEM_PROMPT } from "@/shared/prompts/defaultSystemPrompt";
 
 async function setup() {
   const r = await prompts([
@@ -49,6 +49,25 @@ async function setup() {
       message: (prev) => "System prompt",
       initial: DEFAULT_SYSTEM_PROMPT,
       format: (val) => (val === DEFAULT_SYSTEM_PROMPT ? "" : val.trim()),
+    },
+    {
+      type: "select",
+      name: "docConversionProvider",
+      message: "Document conversion provider",
+      choices: [
+        { title: "unpdf — basic PDF only", value: "unpdf" },
+        { title: "Mistral OCR — complex PDF/DOCX/PPTX", value: "mistral" },
+      ],
+      initial: 0,
+    },
+    {
+      type: (_, a) =>
+        a.docConversionProvider === "mistral" && a.llmProvider !== "mistralai"
+          ? "text"
+          : null,
+      name: "mistralApiKey",
+      message: "MISTRAL_API_KEY",
+      validate: (val) => val.length || "Required for Mistral OCR provider",
     },
     {
       type: "select",
@@ -132,8 +151,9 @@ async function setup() {
     {
       type: "text",
       name: "dbFilename",
-      message: "Database filename (i.e: example.db)",
+      message: "Database filename (e.g. example.db)",
       validate: (val) => val.length || "Required",
+      format: (val) => (val.endsWith(".db") ? val : `${val}.db`),
     },
   ]);
 
@@ -158,7 +178,8 @@ SMTP_USER="${r.smtpUsername || ""}"
 SMTP_PASS="${r.smtpPassword || ""}"
 SMTP_SECURE=${r.smtpSecure === undefined ? "true" : r.smtpSecure}
 SMTP_FROM="${r.smtpFrom || ""}"
-`,
+DOCUMENT_CONVERSION_PROVIDER="${r.docConversionProvider}"
+${r.docConversionProvider === "mistral" && r.llmProvider !== "mistralai" ? `MISTRAL_API_KEY="${r.mistralApiKey}"\n` : ""}`,
   );
 
   console.log("Creating .env.development.local file...");
