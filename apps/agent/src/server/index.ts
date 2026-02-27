@@ -3,7 +3,6 @@ import { createPluginServer, defaultPlugin } from "@dkg/plugins";
 import { authorized, createOAuthPlugin } from "@dkg/plugin-oauth";
 import dkgEssentialsPlugin from "@dkg/plugin-dkg-essentials";
 import createFsBlobStorage from "@dkg/plugin-dkg-essentials/createFsBlobStorage";
-import epcisPlugin, { applyEpcisHttpScopeGuards } from "@dkg/plugin-epcis";
 import examplePlugin from "@dkg/plugin-example";
 import swaggerPlugin from "@dkg/plugin-swagger";
 //@ts-expect-error No types for dkg.js ...
@@ -108,7 +107,6 @@ const app = createPluginServer({
     defaultPlugin,
     oauthPlugin,
     (_, __, api) => {
-      applyEpcisHttpScopeGuards(api, authorized);
       api.use("/mcp", authorized(["mcp"]));
       api.use("/mcp", (req, res, next) => {
         if (res.locals.auth) {
@@ -130,7 +128,6 @@ const app = createPluginServer({
     },
     accountManagementPlugin,
     dkgEssentialsPlugin,
-    epcisPlugin,
     examplePlugin.withNamespace("protected", {
       middlewares: [authorized(["scope123"])], // Allow only users with the "scope123" scope
     }),
