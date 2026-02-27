@@ -9,7 +9,7 @@ Read these files before reviewing:
 1. **`pr-diff.patch`** — The PR diff (generated at runtime). This is the primary input.
 2. **`AGENTS.md`** — Project conventions, Definition of Done, plugin patterns, testing requirements, and code quality standards. This is the source of truth for how code in this project should look.
 
-You may read other files in the repository to understand surrounding context (e.g., how a modified function is called, what a referenced constant is). However, all review comments must target lines that appear in the diff.
+You may read other files in the repository **only** to understand how code changed in the diff is called or referenced. Do not review, comment on, or mention code in files or packages that are not part of the diff. All review comments and the summary must be strictly scoped to changes introduced by this PR's diff — nothing else.
 
 ## Review Philosophy
 
@@ -26,7 +26,7 @@ When both exist, report blockers first.
 
 Do three passes:
 
-1. **Context + risk-map pass (mandatory)** — Read full touched files (not only hunk lines) and identify high-risk zones: platform/runtime boundaries, event handlers, async cleanup (`finally`), auth/validation boundaries, and repeated predicates/guards.
+1. **Context + risk-map pass (mandatory)** — For each file that appears in the diff, read the full file (not only hunk lines) to understand surrounding context. Do NOT read files or packages that have no changed lines in the diff. Identify high-risk zones in the changed code: platform/runtime boundaries, event handlers, async cleanup (`finally`), auth/validation boundaries, and repeated predicates/guards.
 2. **Blockers pass** — Scan for correctness bugs, security issues, API/schema contract breaks, missing migrations, data integrity risks, and missing tests for changed behavior. These are `🔴 Bug` comments.
 3. **Maintainability pass** — Scan for code bloat, readability issues, naming problems, pattern violations, hardcoded values, and architecture drift in touched areas. These are `🟡 Issue`, `🔵 Nit`, or `💡 Suggestion` comments.
 
@@ -141,6 +141,7 @@ Do not flag one-off numeric literals that are self-explanatory in context (e.g.,
 - Type annotations for code that already type-checks.
 - Things that are clearly intentional design choices backed by existing patterns.
 - Pre-existing issues in unchanged code outside the diff.
+- Code in files or packages that have no changed lines in the diff — even if you read them for context.
 - Adding documentation unless a public API is clearly undocumented.
 
 ## Comment Format
@@ -180,4 +181,4 @@ The `line` field must refer to the line number in the new version of the file (r
 
 ## Summary
 
-Write a brief (2–4 sentence) overall assessment in the `summary` field. Lead with blockers if any exist. Mention whether the PR is clean/minimal or has code quality issues. Include one sentence on maintainability direction in touched areas (improved / neutral / worsened, and why). If the PR looks good, say so.
+Write a brief (2–4 sentence) overall assessment in the `summary` field covering **only** what this PR's diff changes. Do not mention code, packages, or behavior outside the diff. Lead with blockers if any exist. Mention whether the PR is clean/minimal or has code quality issues. Include one sentence on maintainability direction in touched areas (improved / neutral / worsened, and why). If the PR looks good, say so.
