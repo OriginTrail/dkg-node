@@ -9,7 +9,7 @@ Read these files before reviewing:
 1. **`pr-diff.patch`** — The PR diff (generated at runtime). This is the primary input.
 2. **`AGENTS.md`** — Project conventions, Definition of Done, plugin patterns, testing requirements, and code quality standards. This is the source of truth for how code in this project should look.
 
-You may read other files in the repository to understand surrounding context (e.g., how a modified function is called, what a referenced constant is). However, all review comments must target lines that appear in the diff.
+You may read other files in the repository **only** to understand how code changed in the diff is called or referenced. Do not review, comment on, or mention code in files or packages that are not part of the diff. All review comments and the summary must be strictly scoped to changes introduced by this PR's diff — nothing else.
 
 ## Review Philosophy
 
@@ -55,15 +55,18 @@ Every comment must be traceable to changed behavior in this PR and anchored to a
 - Logic errors, off-by-one, null/undefined handling, incorrect assumptions, race conditions.
 - Boundary conditions — empty arrays, null inputs, zero values, maximum values.
 - Error handling — swallowed errors, missing error propagation, unhelpful error messages. Do not flag missing error handling for internal code that cannot reasonably fail.
+- Streaming/multipart handlers — verify a request cannot send multiple responses (e.g., multi-file parts triggering repeated `res.json()` calls). If a route expects one file, ensure parser limits and single-response guards exist.
 - Unsafe runtime assumptions hidden by type assertions (`as ...`, `as any`, non-null `!`) when values come from events, external I/O, or platform-specific APIs.
 - Platform/runtime compatibility assumptions — usage of globals/APIs (`window`, `document`, `Node`, `process`, browser-only APIs) in cross-runtime code paths must be guarded.
 
 #### Security
 
+
 - Injection risks (SQL, command, XSS) when handling user input.
 - Hardcoded secrets — API keys, passwords, tokens in code.
 - Missing input validation at system boundaries (user input, external APIs). Not for internal function calls.
 - Auth bypass, privilege escalation, or missing authorization checks.
+- Filesystem path confinement — when IDs/paths come from requests, verify storage layers enforce root containment via resolved-path checks; do not rely only on caller-side sanitization.
 
 #### API Compatibility
 
@@ -71,6 +74,7 @@ Every comment must be traceable to changed behavior in this PR and anchored to a
 - Removed or renamed API endpoints, query parameters, or response fields that existing consumers depend on.
 - Database schema changes that require migration or backfill.
 - MCP tool signature changes (renamed tools, changed input schemas) that break existing clients.
+- HTTP status semantics — ensure client/input errors are 4xx and unexpected internal failures are 5xx; blanket 400 handling in catch-all paths is a correctness/API contract issue.
 
 #### Tests for Changed Behavior
 
@@ -78,6 +82,7 @@ Every comment must be traceable to changed behavior in this PR and anchored to a
 - Bug fixes must include a regression test that would have caught the original bug.
 - Changed behavior must have updated tests reflecting the new expectations.
 - If tests are present but brittle (testing implementation details rather than behavior), flag it.
+- For single-file upload endpoints, look for regression coverage of multi-file/malformed multipart inputs and confirm no double-response behavior.
 - Prefer tests that validate production behavior directly. If a test re-implements production decision logic locally, and could stay green while runtime behavior regresses, flag it and suggest importing shared runtime logic or testing via a higher-level behavior path.
 
 Missing tests for changed behavior are blockers (`🔴 Bug`) only when the change affects user-facing behavior, API contracts, or data integrity. Missing tests for internal refactors or trivial changes are `🟡 Issue`.
@@ -115,6 +120,7 @@ Missing tests for changed behavior are blockers (`🔴 Bug`) only when the chang
 - **Wrong import paths in tests** — Tests importing from `src/` instead of `dist/`.
 - **Missing test categories** — Tests without "Core Functionality" and "Error Handling" describe blocks.
 - **Mixing concerns** — Route handlers doing business logic, database queries in API handlers, etc.
+- **Cross-provider behavior drift** — When multiple providers/implementations exist, verify shared options and output semantics behave consistently unless explicitly documented otherwise.
 
 #### Hardcoded Values and Magic Constants
 
@@ -178,4 +184,4 @@ The `line` field must refer to the line number in the new version of the file (r
 
 ## Summary
 
-Write a brief (2–4 sentence) overall assessment in the `summary` field. Lead with blockers if any exist. Mention whether the PR is clean/minimal or has code quality issues. Include one sentence on maintainability direction in touched areas (improved / neutral / worsened, and why). If the PR looks good, say so.
+Write a brief (2–4 sentence) overall assessment in the `summary` field covering **only** what this PR's diff changes. Do not mention code, packages, or behavior outside the diff. Lead with blockers if any exist. Mention whether the PR is clean/minimal or has code quality issues. Include one sentence on maintainability direction in touched areas (improved / neutral / worsened, and why). If the PR looks good, say so.
