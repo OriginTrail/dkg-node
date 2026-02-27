@@ -3,7 +3,7 @@ import { createPluginServer, defaultPlugin } from "@dkg/plugins";
 import { authorized, createOAuthPlugin } from "@dkg/plugin-oauth";
 import dkgEssentialsPlugin from "@dkg/plugin-dkg-essentials";
 import createFsBlobStorage from "@dkg/plugin-dkg-essentials/createFsBlobStorage";
-import epcisPlugin from "@dkg/plugin-epcis";
+import epcisPlugin, { applyEpcisHttpScopeGuards } from "@dkg/plugin-epcis";
 import {
   createInMemoryBlobStorage,
   createMockDkgClient,
@@ -157,10 +157,7 @@ export async function createTestServer(config: TestServerConfig = {}): Promise<{
       oauthPlugin,
       // Same authorization middleware as real app
       (_, __, api) => {
-        api.get("/epcis/events", authorized(["epcis.read"]));
-        api.get("/epcis/events/track", authorized(["epcis.read"]));
-        api.get("/epcis/capture/:captureID", authorized(["epcis.write"]));
-        api.post("/epcis/capture", authorized(["epcis.write"]));
+        applyEpcisHttpScopeGuards(api, authorized);
         api.use("/mcp", authorized(["mcp"]));
         api.use("/mcp", (req, res, next) => {
           if (res.locals.auth) {
@@ -251,6 +248,7 @@ export async function startTestServer(config: TestServerConfig = {}): Promise<{
 
       const actualPort = (server.address() as any)?.port || port;
       const url = `http://localhost:${actualPort}`;
+      process.env.EXPO_PUBLIC_MCP_URL = url;
 
       console.log(`Test server running at ${url}`);
 

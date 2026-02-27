@@ -78,6 +78,19 @@ describe("EPCIS Authorization Integration", () => {
       expect(readPayload.statusCode).to.equal(403);
       expect(readPayload.requiredScope).to.equal("epcis.read");
 
+      const trackItemResult = await callMcpTool(
+        testServer.app,
+        mcpOnlyToken,
+        sessionId,
+        "epcis-track-item",
+        { epc: "urn:epc:id:sgtin:4012345.011111.1001" },
+      );
+      const trackItemPayload = parseMcpPayload(trackItemResult);
+      expect(trackItemResult.result.isError).to.equal(true);
+      expect(trackItemPayload.error).to.equal("Forbidden");
+      expect(trackItemPayload.statusCode).to.equal(403);
+      expect(trackItemPayload.requiredScope).to.equal("epcis.read");
+
       const writeResult = await callMcpTool(
         testServer.app,
         mcpOnlyToken,
@@ -150,6 +163,15 @@ describe("EPCIS Authorization Integration", () => {
       );
       expect(readResult.result.isError).to.not.equal(true);
 
+      const trackItemResult = await callMcpTool(
+        testServer.app,
+        mcpReadToken,
+        sessionId,
+        "epcis-track-item",
+        { epc: "urn:epc:id:sgtin:4012345.011111.1001" },
+      );
+      expect(trackItemResult.result.isError).to.not.equal(true);
+
       const writeResult = await callMcpTool(
         testServer.app,
         mcpReadToken,
@@ -197,9 +219,10 @@ describe("EPCIS Authorization Integration", () => {
       await request(testServer.app)
         .get("/epcis/capture/123")
         .set("Authorization", `Bearer ${apiWriteToken}`)
-        .then((response) => {
-          expect(response.status).to.not.equal(401);
-          expect(response.status).to.not.equal(403);
+        .expect(404)
+        .expect(({ body }) => {
+          expect(body.error).to.equal("Capture not found");
+          expect(body.captureID).to.equal("123");
         });
 
       const mcpWriteToken = await createTestToken(
@@ -232,7 +255,21 @@ describe("EPCIS Authorization Integration", () => {
       );
       const statusPayload = parseMcpPayload(statusResult);
       expect(statusResult.result.isError).to.equal(true);
-      expect(statusPayload.error).to.not.equal("Forbidden");
+      expect(statusPayload.error).to.equal("Capture not found");
+      expect(statusPayload.captureID).to.equal("123");
+
+      const trackItemResult = await callMcpTool(
+        testServer.app,
+        mcpWriteToken,
+        sessionId,
+        "epcis-track-item",
+        { epc: "urn:epc:id:sgtin:4012345.011111.1001" },
+      );
+      const trackItemPayload = parseMcpPayload(trackItemResult);
+      expect(trackItemResult.result.isError).to.equal(true);
+      expect(trackItemPayload.error).to.equal("Forbidden");
+      expect(trackItemPayload.statusCode).to.equal(403);
+      expect(trackItemPayload.requiredScope).to.equal("epcis.read");
 
       const readResult = await callMcpTool(
         testServer.app,
@@ -268,9 +305,10 @@ describe("EPCIS Authorization Integration", () => {
       await request(testServer.app)
         .get("/epcis/capture/123")
         .set("Authorization", `Bearer ${apiToken}`)
-        .then((response) => {
-          expect(response.status).to.not.equal(401);
-          expect(response.status).to.not.equal(403);
+        .expect(404)
+        .expect(({ body }) => {
+          expect(body.error).to.equal("Capture not found");
+          expect(body.captureID).to.equal("123");
         });
 
       const mcpToken = await createTestToken(
@@ -288,6 +326,15 @@ describe("EPCIS Authorization Integration", () => {
         { bizStep: "receiving" },
       );
       expect(readResult.result.isError).to.not.equal(true);
+
+      const trackItemResult = await callMcpTool(
+        testServer.app,
+        mcpToken,
+        sessionId,
+        "epcis-track-item",
+        { epc: "urn:epc:id:sgtin:4012345.011111.1001" },
+      );
+      expect(trackItemResult.result.isError).to.not.equal(true);
 
       const captureResult = await callMcpTool(
         testServer.app,
@@ -309,7 +356,8 @@ describe("EPCIS Authorization Integration", () => {
       );
       const statusPayload = parseMcpPayload(statusResult);
       expect(statusResult.result.isError).to.equal(true);
-      expect(statusPayload.error).to.not.equal("Forbidden");
+      expect(statusPayload.error).to.equal("Capture not found");
+      expect(statusPayload.captureID).to.equal("123");
     });
   });
 });

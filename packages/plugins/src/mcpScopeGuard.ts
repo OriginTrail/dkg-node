@@ -15,10 +15,9 @@ export type McpScopeDeniedResult = {
 };
 
 export type McpScopeGuardOptions<Output = unknown> = {
+  // Fail-closed by default. Set true only for trusted non-authenticated flows.
   allowWhenScopeContextMissing?: boolean;
-  onMissingScope?: (
-    requiredScope: string,
-  ) => Output | McpScopeDeniedResult;
+  onMissingScope?: (requiredScope: string) => Output | McpScopeDeniedResult;
 };
 
 function getScopesFromContext(context: unknown): string[] | undefined {
@@ -64,7 +63,7 @@ export function withRequiredMcpScope<TInput, TResult>(
   // 2) If missing/insufficient, return missing-scope response.
   // 3) Otherwise execute the original handler.
   const {
-    allowWhenScopeContextMissing: allowWithoutScopeContext = true,
+    allowWhenScopeContextMissing: allowWithoutScopeContext = false,
     onMissingScope = createDefaultMissingScopeError,
   } = options;
 

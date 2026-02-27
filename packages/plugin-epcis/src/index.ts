@@ -18,6 +18,13 @@ import {
   requiredNonEmptyString,
 } from "./utils/epcisQueryValidation";
 import { formatSourceKAs } from "./utils/sourceKa";
+import { EPCIS_ROUTE_PATHS } from "./httpScopeGuards";
+
+export {
+  applyEpcisHttpScopeGuards,
+  EPCIS_HTTP_SCOPE_RULES,
+  EPCIS_ROUTE_PATHS,
+} from "./httpScopeGuards";
 
 const QUERY_LIMIT = {
   MIN: 1,
@@ -480,7 +487,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   // POST /epcis/capture - Accept EPCISDocument and queue for publishing
   api.post(
-    "/epcis/capture",
+    EPCIS_ROUTE_PATHS.capture,
     openAPIRoute(
       {
         tag: "EPCIS",
@@ -564,7 +571,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   // GET /epcis/capture/:captureID - Check capture status
   api.get(
-    "/epcis/capture/:captureID",
+    EPCIS_ROUTE_PATHS.captureStatus,
     openAPIRoute(
       {
         tag: "EPCIS",
@@ -642,7 +649,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   // GET /epcis/events - Query EPCIS events from DKG
   api.get(
-    "/epcis/events",
+    EPCIS_ROUTE_PATHS.events,
     openAPIRoute(
       {
         tag: "EPCIS",
@@ -759,7 +766,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   // GET /epcis/events/track - Track single EPC across full trace
   api.get(
-    "/epcis/events/track",
+    EPCIS_ROUTE_PATHS.trackEvents,
     openAPIRoute(
       {
         tag: "EPCIS",

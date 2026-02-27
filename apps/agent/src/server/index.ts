@@ -3,7 +3,7 @@ import { createPluginServer, defaultPlugin } from "@dkg/plugins";
 import { authorized, createOAuthPlugin } from "@dkg/plugin-oauth";
 import dkgEssentialsPlugin from "@dkg/plugin-dkg-essentials";
 import createFsBlobStorage from "@dkg/plugin-dkg-essentials/createFsBlobStorage";
-import epcisPlugin from "@dkg/plugin-epcis";
+import epcisPlugin, { applyEpcisHttpScopeGuards } from "@dkg/plugin-epcis";
 import examplePlugin from "@dkg/plugin-example";
 import swaggerPlugin from "@dkg/plugin-swagger";
 //@ts-expect-error No types for dkg.js ...
@@ -108,10 +108,7 @@ const app = createPluginServer({
     defaultPlugin,
     oauthPlugin,
     (_, __, api) => {
-      api.get("/epcis/events", authorized(["epcis.read"]));
-      api.get("/epcis/events/track", authorized(["epcis.read"]));
-      api.get("/epcis/capture/:captureID", authorized(["epcis.write"]));
-      api.post("/epcis/capture", authorized(["epcis.write"]));
+      applyEpcisHttpScopeGuards(api, authorized);
       api.use("/mcp", authorized(["mcp"]));
       api.use("/mcp", (req, res, next) => {
         if (res.locals.auth) {
