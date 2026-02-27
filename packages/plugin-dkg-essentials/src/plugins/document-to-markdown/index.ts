@@ -236,10 +236,19 @@ export function createDocumentToMarkdownPlugin(
             res.status(status).json(body);
           };
 
-          const bb = busboy({
-            headers: req.headers,
-            limits: { fileSize: MAX_FILE_SIZE_BYTES, files: 1 },
-          });
+          let bb: ReturnType<typeof busboy>;
+          try {
+            bb = busboy({
+              headers: req.headers,
+              limits: { fileSize: MAX_FILE_SIZE_BYTES, files: 1 },
+            });
+          } catch (error) {
+            const message =
+              error instanceof Error ? error.message : String(error);
+            console.error("Error initializing multipart parser:", message);
+            sendOnce(400, { error: "Invalid multipart request." });
+            return;
+          }
 
           bb.on("file", (name, file, info) => {
             if (responded) {

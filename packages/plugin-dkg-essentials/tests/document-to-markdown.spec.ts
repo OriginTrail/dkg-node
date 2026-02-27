@@ -474,6 +474,18 @@ describe("@dkg/plugin-dkg-essentials document-to-markdown", () => {
       expect(res.body).to.have.property("error");
     });
 
+    it("should return 400 for invalid non-multipart requests", async () => {
+      const res = await request(app)
+        .post("/document-to-markdown")
+        .set("Content-Type", "application/json")
+        .send({ filename: "test.pdf" })
+        .expect(400);
+
+      expect(res.body).to.deep.equal({
+        error: "Invalid multipart request.",
+      });
+    });
+
     it("should return 400 for unsupported file types", async () => {
       const textBuffer = Buffer.from("plain text content");
 
