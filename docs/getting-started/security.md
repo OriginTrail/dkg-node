@@ -87,10 +87,10 @@ Follow the prompts:
 
 Examples:
 
-- `epcis.read` → EPCIS event read routes only (no MCP)
-- `epcis.write` → EPCIS capture and capture-status routes only (no MCP)
-- `mcp epcis.read` → EPCIS read MCP tools over `/mcp`
-- `mcp epcis.write` → EPCIS capture/capture-status MCP tools over `/mcp`
+- `epcis.read` → EPCIS read scope (effective when EPCIS plugin is enabled)
+- `epcis.write` → EPCIS write scope (effective when EPCIS plugin is enabled)
+- `mcp epcis.read` → EPCIS read MCP tools over `/mcp` (when EPCIS plugin is enabled)
+- `mcp epcis.write` → EPCIS capture/capture-status MCP tools over `/mcp` (when EPCIS plugin is enabled)
 
 **When to use tokens**
 
@@ -112,13 +112,19 @@ DKG Node OAuth Tokens are standard **Bearer tokens**. Include them in the `Autho
 
 Access in the DKG Node is **scope-based**:
 
-- By default:
+- By default in the current `apps/agent/src/server/index.ts` runtime:
   - `/mcp` → requires `mcp` scope
   - `/llm` → requires `llm` scope
   - `/blob` → requires `blob` scope
-  - `GET /epcis/events`, `GET /epcis/events/track` → require `epcis.read`
-  - `POST /epcis/capture`, `GET /epcis/capture/:captureID` → require `epcis.write`
+  - `/change-password` and `/profile` → require authentication (empty scope list)
 - Only users or tokens with those scopes can access the corresponding routes.
+
+EPCIS scopes (`epcis.read`, `epcis.write`) are included in OAuth configuration, but EPCIS routes/tools are available only after the EPCIS plugin is mounted.
+
+When EPCIS is enabled and HTTP guards are applied, this mapping is used:
+
+- `GET /epcis/events`, `GET /epcis/events/track` → `epcis.read`
+- `POST /epcis/capture`, `GET /epcis/capture/:captureID` → `epcis.write`
 
 For EPCIS MCP tools (transported through `/mcp`), `/mcp` still requires `mcp`, and tools additionally require:
 

@@ -7,7 +7,7 @@ It provides both HTTP endpoints and MCP tools for:
 - capturing EPCIS documents
 - checking capture status
 - querying events with filters
-- retrieving published assets by UAL
+- tracking an item journey with full traceability
 
 ## Source
 
@@ -15,11 +15,18 @@ It provides both HTTP endpoints and MCP tools for:
 - Query service: `packages/plugin-epcis/src/services/epcisQueryService.ts`
 - Integration guide: `packages/plugin-epcis/docs/EPCIS-Integration-Guide.md`
 
+## Runtime state in this repository
+
+- The current main server setup in `apps/agent/src/server/index.ts` does **not** register `@dkg/plugin-epcis` by default.
+- This means `/epcis/*` routes and EPCIS MCP tools are unavailable in the default runtime until the plugin is mounted.
+- `epcis.read` and `epcis.write` are still declared OAuth scopes, but they only take effect for EPCIS once the plugin and HTTP scope guards are enabled.
+
 ## Quick Start
 
-1. Ensure publisher plugin and epcis plugin is enabled in server plugin registration:
-   - `apps/agent/src/server/index.ts` should include `dkgPublisherPlugin` in the `plugins` array.
+1. Enable EPCIS + publisher plugins in server plugin registration (this is not enabled by default in this repo):
    - `apps/agent/src/server/index.ts` should include `epcisPlugin` in the `plugins` array.
+   - `apps/agent/src/server/index.ts` should include `dkgPublisherPlugin` in the `plugins` array.
+   - If you want route-level EPCIS scope enforcement, apply `applyEpcisHttpScopeGuards(api, authorized)` in the auth middleware plugin.
 2. Run publisher plugin setup:
    - `cd packages/plugin-dkg-publisher && npm run setup`
    - This initializes publisher configuration (including `.env.publisher`) for the publisher flow.
@@ -56,13 +63,15 @@ Implementation note: EPCIS MCP tool handlers are guarded with `withRequiredMcpSc
 - `GET /epcis/events`  
   Queries EPCIS events with filtering and pagination.
 
-- `GET /epcis/asset/*ual`  
-  Retrieves an EPCIS asset by UAL.
+- `GET /epcis/events/track`  
+  Tracks a single EPC across all event types using full traceability.
 
 ### MCP Tools
 
 - `epcis-query`
 - `epcis-track-item`
+- `epcis-capture`
+- `epcis-capture-status`
 
 ## Configuration
 
@@ -148,6 +157,7 @@ curl "http://localhost:9200/epcis/events?epc=urn:epc:id:sgtin:4012345.011111.100
 - `POST /epcis/capture` validates the EPCIS document structure before publishing.
 - `GET /epcis/capture/:captureID` expects numeric capture IDs from publisher responses.
 - `GET /epcis/events` rejects invalid pagination and empty-string filter parameters.
+- `GET /epcis/events/track` requires a non-empty `epc` query parameter.
 
 ## Troubleshooting
 

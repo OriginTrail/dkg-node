@@ -34,6 +34,11 @@ This integration bridges **GS1 EPCIS 2.0** (Electronic Product Code Information 
 - **Publish** them as tamper-proof Knowledge Assets on the DKG
 - **Query** events using semantic filters across the distributed network
 
+### Runtime status in this repository
+
+The current default server setup in `apps/agent/src/server/index.ts` does **not** register `@dkg/plugin-epcis` by default.  
+This guide documents EPCIS behavior **when the EPCIS plugin is mounted** (and, for HTTP scope enforcement, when EPCIS scope guards are applied).
+
 ### Why Use DKG for EPCIS?
 
 | Traditional EPCIS       | EPCIS + DKG                           |
@@ -557,6 +562,9 @@ urn:epc:id:gdti:{CompanyPrefix}.{DocumentType}.{SerialNumber}
 ---
 
 ## 10. API Reference
+
+> The HTTP routes below are available when `@dkg/plugin-epcis` is registered on the server.
+> In this repository's current default runtime, EPCIS routes are not mounted until you enable the plugin.
 
 ### Authorization and required scopes
 
