@@ -26,6 +26,7 @@ import {
 } from "@dkg/plugins/testing";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import express from "express";
 
 const story = bicycleStory as any;
@@ -47,6 +48,31 @@ function expectResponseErrorMessage(
 ): void {
   expect(responseBody.error).to.be.a("string");
   expect(responseBody.error).to.include(messageFragment);
+}
+
+type ToolCallParams = {
+  name: string;
+  arguments?: Record<string, unknown>;
+};
+
+const MCP_TOOL_AUTH: { authInfo: AuthInfo } = {
+  authInfo: {
+    token: "test-token",
+    clientId: "test-client",
+    scopes: ["epcis.read", "epcis.write"],
+  },
+};
+
+let setMcpClientAuthInfo: ((authInfo?: AuthInfo) => void) | null = null;
+
+function callToolWithAuth(client: Client, params: ToolCallParams) {
+  setMcpClientAuthInfo?.(MCP_TOOL_AUTH.authInfo);
+  return client.callTool(params);
+}
+
+function callToolWithoutAuth(client: Client, params: ToolCallParams) {
+  setMcpClientAuthInfo?.(undefined);
+  return client.callTool(params);
 }
 
 describe("@dkg/plugin-epcis checks", function () {
@@ -72,9 +98,11 @@ describe("@dkg/plugin-epcis checks", function () {
     };
     dkgQueryStub = sinon.stub(dkgContext.dkg.graph, "query");
 
-    const { server, client, connect } = await createMcpServerClientPair();
+    const { server, client, connect, setClientAuthInfo } =
+      await createMcpServerClientPair();
     mockMcpServer = server;
     mockMcpClient = client;
+    setMcpClientAuthInfo = setClientAuthInfo;
     apiRouter = express.Router();
     app = createExpressApp();
 
@@ -84,6 +112,7 @@ describe("@dkg/plugin-epcis checks", function () {
   });
 
   afterEach(() => {
+    setMcpClientAuthInfo = null;
     sinon.restore();
     if (originalMcpUrl !== undefined) {
       process.env.EXPO_PUBLIC_MCP_URL = originalMcpUrl;
@@ -311,7 +340,7 @@ describe("@dkg/plugin-epcis checks", function () {
   describe("MCP Tools", () => {
     it("epcis-query returns assembly event results", async () => {
       dkgQueryStub.resolves(makeDkgQueryResult(ASSEMBLY_EVENTS));
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-query",
         arguments: { bizStep: "assembling" },
       });
@@ -325,7 +354,7 @@ describe("@dkg/plugin-epcis checks", function () {
 
     it("epcis-track-item returns journey timeline with numbered steps", async () => {
       dkgQueryStub.resolves(makeDkgQueryResult(BICYCLE_TRACE_EVENTS));
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-track-item",
         arguments: { epc: bicycleEpc },
       });
@@ -345,7 +374,7 @@ describe("@dkg/plugin-epcis checks", function () {
 
     it("epcis-capture captures valid document and returns capture details", async () => {
       fetchStub.resolves(publisherQueuedResponse(501));
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-capture",
         arguments: event1,
       });
@@ -359,7 +388,7 @@ describe("@dkg/plugin-epcis checks", function () {
     });
 
     it("epcis-capture returns validation error for invalid document", async () => {
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-capture",
         arguments: { epcisDocument: { type: "NotAnEPCIS" } },
       });
@@ -372,7 +401,7 @@ describe("@dkg/plugin-epcis checks", function () {
     it("epcis-capture returns publisher error when publisher is unavailable", async function () {
       this.timeout(15000);
       fetchStub.rejects(new Error("publisher down"));
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-capture",
         arguments: event1,
       });
@@ -391,7 +420,7 @@ describe("@dkg/plugin-epcis checks", function () {
           "2024-03-01T16:30:00.000Z",
         ),
       );
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-capture-status",
         arguments: { captureID: "123" },
       });
@@ -405,7 +434,7 @@ describe("@dkg/plugin-epcis checks", function () {
 
     it("epcis-capture-status returns error when capture is not found", async () => {
       fetchStub.resolves(jsonResponse({ error: "not found" }, 404));
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-capture-status",
         arguments: { captureID: "404" },
       });
@@ -418,7 +447,7 @@ describe("@dkg/plugin-epcis checks", function () {
 
     it("epcis-capture-status returns timeout error on publisher timeout", async () => {
       fetchStub.rejects(new DOMException("Timed out", "TimeoutError"));
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-capture-status",
         arguments: { captureID: "888" },
       });
@@ -434,7 +463,7 @@ describe("@dkg/plugin-epcis checks", function () {
     it("returns the same query event data for epcis-query and GET /epcis/events", async () => {
       dkgQueryStub.resolves(makeDkgQueryResult(ASSEMBLY_EVENTS));
 
-      const mcpResult = await mockMcpClient.callTool({
+      const mcpResult = await callToolWithAuth(mockMcpClient, {
         name: "epcis-query",
         arguments: { bizStep: "assembling" },
       });
@@ -453,7 +482,7 @@ describe("@dkg/plugin-epcis checks", function () {
       fetchStub.onFirstCall().resolves(publisherQueuedResponse(777));
       fetchStub.onSecondCall().resolves(publisherQueuedResponse(777));
 
-      const mcpResult = await mockMcpClient.callTool({
+      const mcpResult = await callToolWithAuth(mockMcpClient, {
         name: "epcis-capture",
         arguments: event1,
       });
@@ -535,7 +564,7 @@ describe("@dkg/plugin-epcis checks", function () {
     });
 
     it("returns MCP error when epcis-query has no filters", async () => {
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-query",
         arguments: {},
       });
@@ -547,9 +576,21 @@ describe("@dkg/plugin-epcis checks", function () {
       );
     });
 
+    it("returns Forbidden when MCP auth context is missing", async () => {
+      const result = await callToolWithoutAuth(mockMcpClient, {
+        name: "epcis-query",
+        arguments: { bizStep: "receiving" },
+      });
+      const payload = parseToolResult(result);
+
+      expect(result.isError).to.equal(true);
+      expect(payload.error).to.equal("Forbidden");
+      expect(payload.requiredScope).to.equal("epcis.read");
+    });
+
     it("returns MCP error when DKG query fails", async () => {
       dkgQueryStub.rejects(new Error("query exploded"));
-      const result = await mockMcpClient.callTool({
+      const result = await callToolWithAuth(mockMcpClient, {
         name: "epcis-query",
         arguments: { bizStep: "receiving" },
       });

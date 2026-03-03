@@ -34,6 +34,11 @@ This integration bridges **GS1 EPCIS 2.0** (Electronic Product Code Information 
 - **Publish** them as tamper-proof Knowledge Assets on the DKG
 - **Query** events using semantic filters across the distributed network
 
+### Runtime status in this repository
+
+The current default server setup in `apps/agent/src/server/index.ts` does **not** register `@dkg/plugin-epcis` by default.  
+This guide documents EPCIS behavior **when the EPCIS plugin is mounted** (and, for HTTP scope enforcement, when EPCIS scope guards are applied).
+
 ### Why Use DKG for EPCIS?
 
 | Traditional EPCIS       | EPCIS + DKG                           |
@@ -558,6 +563,29 @@ urn:epc:id:gdti:{CompanyPrefix}.{DocumentType}.{SerialNumber}
 
 ## 10. API Reference
 
+> The HTTP routes below are available when `@dkg/plugin-epcis` is registered on the server.
+> In this repository's current default runtime, EPCIS routes are not mounted until you enable the plugin.
+
+### Authorization and required scopes
+
+All EPCIS HTTP routes require a Bearer token in the `Authorization` header:
+
+```http
+Authorization: Bearer <access-token>
+```
+
+Scope requirements:
+
+- `GET /epcis/events`, `GET /epcis/events/track` -> `epcis.read`
+- `POST /epcis/capture`, `GET /epcis/capture/:captureID` -> `epcis.write`
+
+For MCP usage, `/mcp` still requires `mcp`, and EPCIS tools additionally require:
+
+- `epcis-query`, `epcis-track-item` -> `epcis.read`
+- `epcis-capture`, `epcis-capture-status` -> `epcis.write`
+
+Implementation note: EPCIS MCP tools keep standard `mcp.registerTool(...)` registration and enforce tool-level scopes by wrapping handlers with `withRequiredMcpScope(...)`.
+
 ### POST `/epcis/capture`
 
 Accept an EPCIS Document and queue it for publishing to DKG.
@@ -594,6 +622,8 @@ Accept an EPCIS Document and queue it for publishing to DKG.
 
 | Status                        | When                      | Description                                                             |
 | ----------------------------- | ------------------------- | ----------------------------------------------------------------------- |
+| **401 Unauthorized**          | Missing/invalid token     | No valid Bearer token was provided                                      |
+| **403 Forbidden**             | Missing `epcis.write`     | Token is valid but lacks required write scope                           |
 | **202 Accepted**              | Document valid and queued | Capture forwarded to publisher; includes `captureID` for status polling |
 | **400 Bad Request**           | Validation failed         | GS1 schema validation error or document contains no events              |
 | **500 Internal Server Error** | Publisher unreachable     | Publisher service unavailable after retry attempts                      |
@@ -654,6 +684,8 @@ Check the status of a previously submitted capture tracked by the publisher.
 
 | Status                        | When                     | Description                                         |
 | ----------------------------- | ------------------------ | --------------------------------------------------- |
+| **401 Unauthorized**          | Missing/invalid token    | No valid Bearer token was provided                  |
+| **403 Forbidden**             | Missing `epcis.write`    | Token is valid but lacks required write scope       |
 | **200 OK**                    | Capture found            | Returns current status, optional UAL and timestamps |
 | **404 Not Found**             | Unknown captureID        | No capture with this ID exists in the publisher     |
 | **500 Internal Server Error** | Upstream publisher error | Unexpected publisher/status lookup failure          |
@@ -729,11 +761,13 @@ Query EPCIS events from the DKG using SPARQL.
 
 **Responses:**
 
-| Status                        | When              | Description                                    |
-| ----------------------------- | ----------------- | ---------------------------------------------- |
-| **200 OK**                    | Query succeeded   | Returns matching events with pagination        |
-| **400 Bad Request**           | Validation failed | Missing filters, invalid date range, or params |
-| **500 Internal Server Error** | DKG query failed  | Failed to execute SPARQL query against DKG     |
+| Status                        | When                  | Description                                    |
+| ----------------------------- | --------------------- | ---------------------------------------------- |
+| **401 Unauthorized**          | Missing/invalid token | No valid Bearer token was provided             |
+| **403 Forbidden**             | Missing `epcis.read`  | Token is valid but lacks required read scope   |
+| **200 OK**                    | Query succeeded       | Returns matching events with pagination        |
+| **400 Bad Request**           | Validation failed     | Missing filters, invalid date range, or params |
+| **500 Internal Server Error** | DKG query failed      | Failed to execute SPARQL query against DKG     |
 
 **Example (HTTP 200 OK):**
 
@@ -794,11 +828,13 @@ Track a single EPC through its full supply chain journey. This endpoint always p
 
 **Responses:**
 
-| Status                        | When                  | Description                        |
-| ----------------------------- | --------------------- | ---------------------------------- |
-| **200 OK**                    | Query succeeded       | Returns matching events for EPC    |
-| **400 Bad Request**           | Missing/invalid `epc` | Query validation failed            |
-| **500 Internal Server Error** | DKG query failed      | Failed to execute full-trace query |
+| Status                        | When                  | Description                                  |
+| ----------------------------- | --------------------- | -------------------------------------------- |
+| **401 Unauthorized**          | Missing/invalid token | No valid Bearer token was provided           |
+| **403 Forbidden**             | Missing `epcis.read`  | Token is valid but lacks required read scope |
+| **200 OK**                    | Query succeeded       | Returns matching events for EPC              |
+| **400 Bad Request**           | Missing/invalid `epc` | Query validation failed                      |
+| **500 Internal Server Error** | DKG query failed      | Failed to execute full-trace query           |
 
 **Example (HTTP 200 OK):**
 
@@ -1010,21 +1046,21 @@ Each entry includes:
 
 SPARQL query results (from both the HTTP API and MCP tools) return events with the following fields:
 
-| Field          | Description                                       | Example                                                |
-| -------------- | ------------------------------------------------- | ------------------------------------------------------ |
-| `ual`          | Knowledge Asset graph containing this event       | `did:dkg:otp:2043/0x.../1/private`                     |
-| `eventType`    | Full EPCIS event type URI                         | `https://gs1.github.io/EPCIS/ObjectEvent`              |
-| `eventTime`    | When the event occurred (ISO 8601)                | `2024-03-01T08:00:00.000Z`                             |
-| `bizStep`      | Business step URI                                 | `https://ref.gs1.org/cbv/BizStep-receiving`            |
-| `bizLocation`  | Business location identifier                      | `urn:epc:id:sgln:4012345.00001.0`                      |
-| `disposition`  | Current state/condition URI                       | `https://ref.gs1.org/cbv/Disp-in_progress`             |
-| `readPoint`    | Scan/read location identifier                     | `urn:epc:id:sgln:4012345.00001.0`                      |
-| `action`       | Event action (`ADD`, `OBSERVE`, `DELETE`)          | `ADD`                                                  |
-| `parentID`     | Parent EPC (AggregationEvent)                     | `urn:epc:id:sscc:4012345.0000000001`                   |
-| `epcList`      | Observed EPCs (comma-separated)                   | `urn:epc:id:sgtin:4012345.011111.1001`                 |
-| `childEPCList` | Child EPCs (comma-separated, AggregationEvent)    | `urn:epc:id:sgtin:4012345.099999.9001`                 |
-| `inputEPCs`    | Input EPCs (comma-separated, TransformationEvent) | `urn:epc:id:sgtin:4012345.011111.1001, ...`            |
-| `outputEPCs`   | Output EPCs (comma-separated, TransformationEvent)| `urn:epc:id:sgtin:4012345.099999.9001`                 |
+| Field          | Description                                        | Example                                     |
+| -------------- | -------------------------------------------------- | ------------------------------------------- |
+| `ual`          | Knowledge Asset graph containing this event        | `did:dkg:otp:2043/0x.../1/private`          |
+| `eventType`    | Full EPCIS event type URI                          | `https://gs1.github.io/EPCIS/ObjectEvent`   |
+| `eventTime`    | When the event occurred (ISO 8601)                 | `2024-03-01T08:00:00.000Z`                  |
+| `bizStep`      | Business step URI                                  | `https://ref.gs1.org/cbv/BizStep-receiving` |
+| `bizLocation`  | Business location identifier                       | `urn:epc:id:sgln:4012345.00001.0`           |
+| `disposition`  | Current state/condition URI                        | `https://ref.gs1.org/cbv/Disp-in_progress`  |
+| `readPoint`    | Scan/read location identifier                      | `urn:epc:id:sgln:4012345.00001.0`           |
+| `action`       | Event action (`ADD`, `OBSERVE`, `DELETE`)          | `ADD`                                       |
+| `parentID`     | Parent EPC (AggregationEvent)                      | `urn:epc:id:sscc:4012345.0000000001`        |
+| `epcList`      | Observed EPCs (comma-separated)                    | `urn:epc:id:sgtin:4012345.011111.1001`      |
+| `childEPCList` | Child EPCs (comma-separated, AggregationEvent)     | `urn:epc:id:sgtin:4012345.099999.9001`      |
+| `inputEPCs`    | Input EPCs (comma-separated, TransformationEvent)  | `urn:epc:id:sgtin:4012345.011111.1001, ...` |
+| `outputEPCs`   | Output EPCs (comma-separated, TransformationEvent) | `urn:epc:id:sgtin:4012345.099999.9001`      |
 
 > Array fields (`epcList`, `childEPCList`, `inputEPCs`, `outputEPCs`) are returned as comma-separated strings from the SPARQL `GROUP_CONCAT`. Fields that don't apply to a specific event type will be empty strings.
 
@@ -1032,12 +1068,19 @@ SPARQL query results (from both the HTTP API and MCP tools) return events with t
 
 ## 12. Query Examples
 
+Set a token first (must include the scopes described above):
+
+```bash
+TOKEN="<your-access-token>"
+```
+
 ### Track a Single Item's Journey
 
 Use the dedicated track endpoint for full-trace item tracking:
 
 ```bash
-curl "http://localhost:9200/epcis/events/track?epc=urn:epc:id:sgtin:4012345.011111.1001"
+curl "http://localhost:9200/epcis/events/track?epc=urn:epc:id:sgtin:4012345.011111.1001" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Track All Events for a Product
@@ -1045,7 +1088,8 @@ curl "http://localhost:9200/epcis/events/track?epc=urn:epc:id:sgtin:4012345.0111
 Find all events where the carbon frame appears using the general query with full trace:
 
 ```bash
-curl "http://localhost:9200/epcis/events?epc=urn:epc:id:sgtin:4012345.011111.1001&fullTrace=true"
+curl "http://localhost:9200/epcis/events?epc=urn:epc:id:sgtin:4012345.011111.1001&fullTrace=true" \
+  -H "Authorization: Bearer $TOKEN"
 ```
 
 ### Find All Receiving Events

@@ -1,4 +1,4 @@
-import { defineDkgPlugin } from "@dkg/plugins";
+import { defineDkgPlugin, withRequiredMcpScope } from "@dkg/plugins";
 import { openAPIRoute, z } from "@dkg/plugin-swagger";
 import type { EpcisQueryParams, ValidationResult } from "./model/types";
 import { EpcisQueryService } from "./services/epcisQueryService";
@@ -18,6 +18,13 @@ import {
   requiredNonEmptyString,
 } from "./utils/epcisQueryValidation";
 import { formatSourceKAs } from "./utils/sourceKa";
+import { EPCIS_ROUTE_PATHS } from "./httpScopeGuards";
+
+export {
+  applyEpcisHttpScopeGuards,
+  EPCIS_HTTP_SCOPE_RULES,
+  EPCIS_ROUTE_PATHS,
+} from "./httpScopeGuards";
 
 const QUERY_LIMIT = {
   MIN: 1,
@@ -297,7 +304,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         ),
       },
     },
-    async (input) => {
+    withRequiredMcpScope("epcis.read", async (input) => {
       try {
         if (!hasAtLeastOneEpcisFilter(input)) {
           return mcpError({
@@ -335,7 +342,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         console.error("[EPCIS] DKG query failed:", error);
         return mcpError({ error: "Query failed" });
       }
-    },
+    }),
   );
 
   // MCP Tool: Track item journey (full traceability)
@@ -353,7 +360,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         ),
       },
     },
-    async (input) => {
+    withRequiredMcpScope("epcis.read", async (input) => {
       try {
         const { resultData, resultCount } = await executeEpcisEventsQuery({
           epc: input.epc,
@@ -376,7 +383,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         console.error(`[EPCIS] Item tracking failed, epc: ${input.epc}`, error);
         return mcpError({ error: "Tracking failed" });
       }
-    },
+    }),
   );
 
   // MCP Tool: Capture EPCISDocument and queue for publishing
@@ -396,7 +403,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           .optional(),
       },
     },
-    async (input) => {
+    withRequiredMcpScope("epcis.write", async (input) => {
       try {
         const response = await executeCapture(
           input.epcisDocument,
@@ -420,7 +427,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         console.error("[EPCIS] MCP capture failed:", error);
         return mcpError({ error: "Capture failed" });
       }
-    },
+    }),
   );
 
   // MCP Tool: Check publisher-tracked status by capture ID
@@ -438,7 +445,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           ),
       },
     },
-    async (input) => {
+    withRequiredMcpScope("epcis.write", async (input) => {
       try {
         const captureStatus = await parseCaptureStatus(input.captureID);
         if (captureStatus.notFound) {
@@ -475,12 +482,12 @@ export default defineDkgPlugin((ctx, mcp, api) => {
           captureID: input.captureID,
         });
       }
-    },
+    }),
   );
 
   // POST /epcis/capture - Accept EPCISDocument and queue for publishing
   api.post(
-    "/epcis/capture",
+    EPCIS_ROUTE_PATHS.capture,
     openAPIRoute(
       {
         tag: "EPCIS",
@@ -564,7 +571,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   // GET /epcis/capture/:captureID - Check capture status
   api.get(
-    "/epcis/capture/:captureID",
+    EPCIS_ROUTE_PATHS.captureStatus,
     openAPIRoute(
       {
         tag: "EPCIS",
@@ -642,7 +649,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   // GET /epcis/events - Query EPCIS events from DKG
   api.get(
-    "/epcis/events",
+    EPCIS_ROUTE_PATHS.events,
     openAPIRoute(
       {
         tag: "EPCIS",
@@ -759,7 +766,7 @@ export default defineDkgPlugin((ctx, mcp, api) => {
 
   // GET /epcis/events/track - Track single EPC across full trace
   api.get(
-    "/epcis/events/track",
+    EPCIS_ROUTE_PATHS.trackEvents,
     openAPIRoute(
       {
         tag: "EPCIS",

@@ -26,19 +26,21 @@ When both exist, report blockers first.
 
 Do three passes:
 
-1. **Context + risk-map pass (mandatory)** — For each file that appears in the diff, read the full file (not only hunk lines) to understand surrounding context. Do NOT read files or packages that have no changed lines in the diff. Identify high-risk zones in the changed code: platform/runtime boundaries, event handlers, async cleanup (`finally`), auth/validation boundaries, and repeated predicates/guards.
+1. **Context + risk-map pass (mandatory)** — Start from diff hunks, then read surrounding or full touched files when needed to evaluate maintainability, coupling, naming, and extraction opportunities. Use this context to assess changed behavior, not to run unrelated file-wide audits.
 2. **Blockers pass** — Scan for correctness bugs, security issues, API/schema contract breaks, missing migrations, data integrity risks, and missing tests for changed behavior. These are `🔴 Bug` comments.
 3. **Maintainability pass** — Scan for code bloat, readability issues, naming problems, pattern violations, hardcoded values, and architecture drift in touched areas. These are `🟡 Issue`, `🔵 Nit`, or `💡 Suggestion` comments.
 
 ### Comment Gate
 
-Before posting any comment, verify all three conditions:
+Before posting any comment, verify all four conditions:
 
 1. **Introduced by this diff** — The issue is introduced or materially worsened by the changes in this PR, not pre-existing.
 2. **Materially impactful** — The issue affects correctness, security, readability, or maintainability in a meaningful way. Not a theoretical concern.
 3. **Concrete fix direction** — You can suggest a specific fix or clear direction. If you can only say "this seems off" without a concrete suggestion, do not comment.
+4. **Scope fit** — If the issue is mainly in pre-existing code, the PR must touch the same function/module and fixing it must directly simplify, de-risk, or de-duplicate the new/changed code.
 
 If any check fails, skip the comment.
+Every comment must be traceable to changed behavior in this PR and anchored to a right-side line present in `pr-diff.patch`. Prefer added/modified lines; use nearby unchanged hunk lines only when necessary to explain a directly related issue.
 
 **Uncertainty guard:** If you are not certain an issue is real and cannot verify it from the diff and allowed context, do not label it `🔴 Bug`. Downgrade to `🟡 Issue` or `💡 Suggestion`, or skip it entirely.
 
@@ -141,8 +143,9 @@ Do not flag one-off numeric literals that are self-explanatory in context (e.g.,
 - Type annotations for code that already type-checks.
 - Things that are clearly intentional design choices backed by existing patterns.
 - Pre-existing issues in unchanged code outside the diff.
-- Code in files or packages that have no changed lines in the diff — even if you read them for context.
+- Pre-existing issues in touched files when the PR does not introduce/worsen them.
 - Adding documentation unless a public API is clearly undocumented.
+- Repository-wide or file-wide audits not required by the changed behavior.
 
 ## Comment Format
 

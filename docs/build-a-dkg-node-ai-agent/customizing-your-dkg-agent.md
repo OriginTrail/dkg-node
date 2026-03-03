@@ -36,11 +36,9 @@ Your plugin comes pre-scaffolded with examples that show how to expose a tool bo
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-11-05 at 14.40.17.png" alt=""><figcaption></figcaption></figure>
 
-Within the `defineDkgPlugin` module, on line 6 we expose the plugin code via an MCP tool through `mcp.registerTool()`  and on line 50 the plugin exposes a classic HTTP API, in this case a GET route, via  `api.get()`&#x20;
+Within the `defineDkgPlugin` module, on line 6 we expose the plugin code via an MCP tool through `mcp.registerTool()` and on line 50 the plugin exposes a classic HTTP API, in this case a GET route, via `api.get()`&#x20;
 
 We recommend writing your custom plugin logic in your custom functions, like `yourCustomFunction` above, then use it within the `mcp.registerTool()` and `api.get()` code block.
-
-
 
 1.  **(Optional) Add dependencies**
 
@@ -49,9 +47,10 @@ We recommend writing your custom plugin logic in your custom functions, like `yo
     ```
 
     Run this inside your `plugin-<your-name>` directory.
-2. **(optional) Add additional source files if needed (e.g., utils.ts)**
-   * Place them in the `src/` directory.
-   * Import them into your `index.ts`.
+
+2.  **(optional) Add additional source files if needed (e.g., utils.ts)**
+    - Place them in the `src/` directory.
+    - Import them into your `index.ts`.
 3.  **Once your are done, make sure to build your plugin by running**
 
     ```bash
@@ -63,6 +62,7 @@ We recommend writing your custom plugin logic in your custom functions, like `yo
     ```bash
     turbo build
     ```
+
 4.  **Install your plugin in the DKG Node Agent**
 
     ```bash
@@ -71,6 +71,7 @@ We recommend writing your custom plugin logic in your custom functions, like `yo
     ```
 
     This package name is auto-generated (check `packages/plugin-<your-name>/package.json`).
+
 5.  **Make sure to import your plugin and register it through** `createPluginServer`\
     \
     Open `apps/agent/src/server/index.ts` and add:
@@ -87,12 +88,13 @@ We recommend writing your custom plugin logic in your custom functions, like `yo
         examplePlugin.withNamespace("protected", {
           middlewares: [authorized(["scope123"])],
         }),
-        
+
         // Add your own plugin here
         myCustomPlugin,
       ],
     });
     ```
+
 6.  **Run your DKG Node Agent**
 
     Start the agent from the project root folder and run `npm run dev` . Test that your plugin is registered and working
@@ -112,11 +114,13 @@ If you want to create your plugin outside of the monorepo and manage it as your 
     ```
 
     (or use an existing project)
+
 2.  **Add "@dkg/plugins" package as a dependency**
 
     ```bash
     npm install --save @dkg/plugins
     ```
+
 3.  **Define your plugin**
 
     ```ts
@@ -125,13 +129,13 @@ If you want to create your plugin outside of the monorepo and manage it as your 
     const myCustomPlugin = defineDkgPlugin((ctx, mcp, api) => {
       // Example MCP tool
       // mcp.registerTool("my-mcp-tool", ... );
-
       // Example API route
       // api.get("/my-get-route", (req, res) => ... );
     });
 
     export default myCustomPlugin;
     ```
+
 4.  **(Optional) Add configuration support**\
     You can export your plugin as a function that accepts options:
 
@@ -139,8 +143,9 @@ If you want to create your plugin outside of the monorepo and manage it as your 
     const configurablePlugin = (options: {...}) =>
       defineDkgPlugin((ctx, mcp, api) => { ... });
     ```
-5. **(Optional) Publish to npm**
-   * Run `npm publish` to share with the DKG builder community.
+
+5.  **(Optional) Publish to npm**
+    - Run `npm publish` to share with the DKG builder community.
 
 {% hint style="warning" %}
 💡**Tip:** See how the already existing plugins are created by looking into existing plugin packages in the monorepo, e.g `packages/plugin-auth` and `packages/plugin-example`.
@@ -151,22 +156,22 @@ If you want to create your plugin outside of the monorepo and manage it as your 
 DKG plugins are **functions** applied in the order you register them.\
 While you _can_ define inline functions, using `defineDkgPlugin` is recommended for:
 
-* **Type-safety**
-* **Extension methods**
+- **Type-safety**
+- **Extension methods**
 
 #### `defineDkgPlugin` arguments
 
 When you define a plugin, the DKG Node automatically injects three objects:
 
 1. **`ctx` (Context)**
-   * `ctx.logger` → Logger instance for logging messages
-   * `ctx.dkg` → DKG Client instance for interacting with the DKG network
+   - `ctx.logger` → Logger instance for logging messages
+   - `ctx.dkg` → DKG Client instance for interacting with the DKG network
 2. **`mcp` (MCP Server)**
-   * An instance of the MCP Server from `@modelcontextprotocol/sdk`
-   * Use it to register MCP tools and resources
+   - An instance of the MCP Server from `@modelcontextprotocol/sdk`
+   - Use it to register MCP tools and resources
 3. **`api` (API Server)**
-   * Express server instance from the express npm package
-   * Use it to expose REST API routes from your plugin
+   - Express server instance from the express npm package
+   - Use it to expose REST API routes from your plugin
 
 All registered routes and MCP tools become part of the **DKG Node API server**.
 
@@ -184,13 +189,36 @@ mcp.registerTool(
   {
     title: "Tool name",
     description: "Tool description",
-    inputSchema: { /* expected input variables and format */ },
+    inputSchema: {
+      /* expected input variables and format */
+    },
   },
   // YOUR TOOL CODE HERE
 );
 ```
 
+If your MCP tool needs scope-based authorization, use the same `mcp.registerTool(...)` API and wrap the handler with `withRequiredMcpScope`:
+
+```ts
+import { withRequiredMcpScope } from "@dkg/plugins";
+
+mcp.registerTool(
+  "my-protected-tool",
+  {
+    title: "Protected tool",
+    description: "Runs only when required scope is present",
+    inputSchema: {},
+  },
+  withRequiredMcpScope("my.scope", async (input, context) => {
+    // Put your real tool logic here (call services, validate input, query APIs, etc.).
+    // this is just an example response shape.
+    return { content: [{ type: "text", text: "ok" }] };
+  }),
+);
+```
+
 {% hint style="success" %}
+
 #### Including source Knowledge Assets in your MCP tool responses
 
 When building custom tools for your DKG Node Agent, you can attach **Source Knowledge Assets** to any MCP tool response, allowing the DKG Node Agent (and other agents you might use with your DKG Node) to display which Knowledge Assets were used to form the answer.
@@ -202,7 +230,7 @@ See the [Source Knowledge Assets in tool responses](https://app.gitbook.com/o/-M
 
 Expose routes through the API server for more “traditional” API calls.
 
-**Example of how to expose tools through API routes** **(auto-scaffolded  by `turbo gen plugin`):**
+**Example of how to expose tools through API routes** **(auto-scaffolded by `turbo gen plugin`):**
 
 ```ts
 api.get("/ROUTE_NAME", (req, res) => {
@@ -213,12 +241,12 @@ api.get("/ROUTE_NAME", (req, res) => {
 💡 **Tip: Test your API routes with Swagger**\
 When your DKG Node is running, all exposed API routes are automatically documented and testable via the Swagger UI:
 
-* Open [http://localhost:9200/swagger](http://localhost:9200/swagger)
-* You’ll see:
-  * All registered API routes
-  * Descriptions (from your route/tool definitions)
-  * Input/output schemas (from your route/tool definitions)
-  * Ability to **test requests directly in the browser**
+- Open [http://localhost:9200/swagger](http://localhost:9200/swagger)
+- You’ll see:
+  - All registered API routes
+  - Descriptions (from your route/tool definitions)
+  - Input/output schemas (from your route/tool definitions)
+  - Ability to **test requests directly in the browser**
 
 This makes it easy to confirm your plugin’s routes are working as expected.
 
@@ -264,9 +292,9 @@ import myCustomPlugin from "@dkg/plugin-<your-name>";
 
 #### Notes
 
-* `.withNamespace("...")` is optional — it scopes your plugin’s routes/tools under a namespace and lets you attach middlewares (e.g., auth/permissions) - more on that in the [Configure access & security](broken-reference) section&#x20;
-* All registered **MCP tools** and **API routes** from your plugins are exposed via the DKG Node API.
-* You can combine inline plugins and imported packages in the same `plugins` array.
+- `.withNamespace("...")` is optional — it scopes your plugin’s routes/tools under a namespace and lets you attach middlewares (e.g., auth/permissions) - more on that in the [Configure access & security](broken-reference) section&#x20;
+- All registered **MCP tools** and **API routes** from your plugins are exposed via the DKG Node API.
+- You can combine inline plugins and imported packages in the same `plugins` array.
 
 #### Run & verify
 
@@ -277,4 +305,3 @@ npm run dev
 ```
 
 (from the root folder) 🎉
-
