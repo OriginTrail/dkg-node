@@ -51,17 +51,24 @@ class LoginPage {
     throw new Error(`Element did not become stable within ${timeout}ms`);
   }
 
-  async login(email, password) {
-    // Wait for email input to be stable (password and login button will be loaded too)
-    await this.waitForStableElement(this.input_email);
+  async login(email, password, maxRetries = 5) {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      await this.waitForStableElement(this.input_email);
+      await this.input_email.fill(email);
+      await this.input_password.fill(password);
+      await this.btn_login.click();
 
-    // Wait for the page to fully settle (Expo hydration causes refreshes that clear inputs)
-    await this.page.waitForTimeout(120000);
+      await this.page.waitForTimeout(3000);
 
-    await this.input_email.fill(email);
-    await this.input_password.fill(password);
-    await this.btn_login.click();
+      const stillOnLogin = await this.input_email.isVisible().catch(() => false);
+      if (!stillOnLogin) {
+        return;
+      }
+      console.log(`Login attempt ${attempt} failed (still on login page), retrying...`);
+    }
+    throw new Error(`Still on login page after ${maxRetries} attempts`);
   }
+
   async successfullLogin() {
     await this.login("admin@gmail.com", "admin123");
     await this.waitForStableElement(this.page.getByTestId("chat-input"));
