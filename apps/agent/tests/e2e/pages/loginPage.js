@@ -54,6 +54,10 @@ class LoginPage {
   async login(email, password) {
     // Wait for email input to be stable (password and login button will be loaded too)
     await this.waitForStableElement(this.input_email);
+
+    // Wait for the page to fully settle (Expo hydration causes refreshes that clear inputs)
+    await this.page.waitForTimeout(120000);
+
     await this.input_email.fill(email);
     await this.input_password.fill(password);
     await this.btn_login.click();
