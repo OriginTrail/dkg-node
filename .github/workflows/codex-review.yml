@@ -75,8 +75,8 @@ jobs:
               }
             );
 
-            // Build set of valid (path:line) pairs from right-side diff hunk lines
-            // (added + context). This keeps comments bound to changed areas.
+            // Build set of valid (path:line) pairs from right-side added lines only.
+            // This enforces changed-lines-only inline comments.
             const validLines = new Set();
             for (const file of files) {
               // Skip binary/large/truncated files with no patch
@@ -100,8 +100,7 @@ jobs:
                 if (line.startsWith('-')) continue;
                 // Ignore hunk metadata lines
                 if (line.startsWith('\\')) continue;
-                // Context lines on the right side are also valid targets
-                validLines.add(`${file.filename}:${currentLine}`);
+                // Context lines are intentionally not valid targets.
                 currentLine++;
               }
             }
@@ -125,18 +124,20 @@ jobs:
               }
             }
 
-            // Build review body from summary only.
-            // Intentionally do NOT publish out-of-diff comments.
-            let body = review.summary || 'Codex review complete.';
+            if (validComments.length === 0) {
+              console.log('No inline comments to post; skipping review creation.');
+              return;
+            }
 
-            // Post the review
+            // Post inline comments only (no top-level summary comment)
             await github.rest.pulls.createReview({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: context.issue.number,
-              body,
               event: 'COMMENT',
               comments: validComments,
             });
 
-            console.log(`Review posted: ${validComments.length} inline comments, ${droppedComments.length} dropped out-of-diff comments`);
+            console.log(
+              `Review posted: ${validComments.length} inline comments, ${droppedComments.length} dropped out-of-diff comments`
+            );
