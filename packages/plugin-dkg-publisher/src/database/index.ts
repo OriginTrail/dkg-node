@@ -11,10 +11,16 @@ export function createDatabase(connectionString: string) {
   return drizzle(pool, { schema, mode: "default" });
 }
 
-export async function runMigrations(db: Database) {
-  await migrate(db, {
-    migrationsFolder: path.join(__dirname, "./migrations"),
-  });
+export async function runMigrations(connectionString: string) {
+  // Use a dedicated single connection (not the pool) for migration isolation.
+  const connection = await mysql.createConnection(connectionString);
+  try {
+    await migrate(drizzle(connection), {
+      migrationsFolder: path.join(__dirname, "../src/database/migrations"),
+    });
+  } finally {
+    await connection.end();
+  }
 }
 
 export * from "./schema";

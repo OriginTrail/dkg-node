@@ -395,6 +395,7 @@ export class AssetService extends EventEmitter {
       transactionHash?: string;
       errorType?: string;
       errorMessage?: string;
+      errorDetails?: Record<string, unknown>;
       gasUsed?: number;
       durationSeconds?: number;
     },

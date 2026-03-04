@@ -8,6 +8,7 @@ import { PublishingService } from "./PublishingService";
 import { WalletService } from "./WalletService";
 import { AssetService } from "./AssetService";
 import { queueLogger as logger } from "./Logger";
+import { serializeErrorDetails } from "./errorUtils";
 
 export interface QueueStats {
   waiting: number;
@@ -275,7 +276,11 @@ export class QueueService {
                 `❌ PUBLISHING FAILED for asset ${assetId}: ${result.error}`,
                 { workerId: i, assetId, error: result.error },
               );
-              throw new Error(result.error || "Publishing failed");
+              const publishError = new Error(result.error || "Publishing failed");
+              if (result.errorDetails) {
+                (publishError as any).errorDetails = result.errorDetails;
+              }
+              throw publishError;
             }
 
             logger.info(`🎉 PUBLISHING SUCCESSFUL for asset ${assetId}`, {
@@ -320,11 +325,14 @@ export class QueueService {
             }
 
             // Update publishing attempt record as failed
+            // Use pre-serialized errorDetails from PublishingService if available,
+            // otherwise serialize the raw error (e.g. "No available wallets")
             if (attemptId) {
               await this.assetService.updatePublishingAttempt(attemptId, {
                 status: "failed",
                 errorType: error.name || "Error",
                 errorMessage: error.message,
+                errorDetails: error.errorDetails ?? serializeErrorDetails(error),
                 durationSeconds: Math.floor(
                   (Date.now() - job.timestamp) / 1000,
                 ),

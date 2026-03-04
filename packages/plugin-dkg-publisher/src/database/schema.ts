@@ -11,7 +11,7 @@ import {
   index,
   primaryKey,
   char,
-  serial,
+  json,
 } from "drizzle-orm/mysql-core";
 import { relations } from "drizzle-orm";
 
@@ -19,7 +19,7 @@ import { relations } from "drizzle-orm";
 export const assets = mysqlTable(
   "assets",
   {
-    id: serial("id").primaryKey(),
+    id: int("id").autoincrement().primaryKey(),
     walletId: int("wallet_id").references(() => wallets.id, {
       onDelete: "set null",
     }),
@@ -81,9 +81,9 @@ export const assets = mysqlTable(
 export const wallets = mysqlTable(
   "wallets",
   {
-    id: serial("id").primaryKey(),
+    id: int("id").autoincrement().primaryKey(),
     address: varchar("address", { length: 42 }).notNull().unique(),
-    privateKey: text("private_key_encrypted").notNull(),
+    privateKey: text("private_key").notNull(),
     blockchain: varchar("blockchain", { length: 50 }).notNull(),
     isActive: boolean("is_active").default(true),
     isLocked: boolean("is_locked").default(false),
@@ -108,7 +108,7 @@ export const wallets = mysqlTable(
 export const publishingAttempts = mysqlTable(
   "publishing_attempts",
   {
-    id: serial("id").primaryKey(),
+    id: int("id").autoincrement().primaryKey(),
     assetId: int("asset_id")
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
@@ -129,6 +129,7 @@ export const publishingAttempts = mysqlTable(
     ual: varchar("ual", { length: 255 }),
     errorType: varchar("error_type", { length: 50 }),
     errorMessage: text("error_message"),
+    errorDetails: json("error_details"),
     startedAt: timestamp("started_at").notNull(),
     completedAt: timestamp("completed_at"),
     durationSeconds: int("duration_seconds"),
@@ -150,7 +151,7 @@ export const publishingAttempts = mysqlTable(
 export const batches = mysqlTable(
   "batches",
   {
-    id: serial("id").primaryKey(),
+    id: int("id").autoincrement().primaryKey(),
     batchName: varchar("batch_name", { length: 255 }),
     source: varchar("source", { length: 100 }),
     totalAssets: int("total_assets").notNull().default(0),
