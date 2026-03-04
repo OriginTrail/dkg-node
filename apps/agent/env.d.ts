@@ -15,7 +15,6 @@ declare global {
       DKG_BLOCKCHAIN: string;
       DKG_OTNODE_URL: string;
       ASYNC_PUBLISHING_ENABLED?: string;
-      MYSQL_PASSWORD?: string;
       DKGP_DATABASE_URL?: string;
       REDIS_URL?: string;
       WORKER_COUNT?: string;

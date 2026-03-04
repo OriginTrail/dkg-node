@@ -77,9 +77,12 @@ The setup script will:
 If you enable async publishing during setup, the Agent writes the consolidated Publisher settings into `apps/agent/.env`:
 
 - `ASYNC_PUBLISHING_ENABLED=true`
-- `MYSQL_PASSWORD`
 - `DKGP_DATABASE_URL`
 - `REDIS_URL`
+
+The setup stores `DKG_PUBLISH_WALLET` in `apps/agent/.env` without a `0x`
+prefix for compatibility with existing node env files, and Publisher wallet
+records are seeded into MySQL using the same bare 64-hex format.
 
 The Agent server only loads `@dkg/plugin-dkg-publisher` when `ASYNC_PUBLISHING_ENABLED=true`.
 

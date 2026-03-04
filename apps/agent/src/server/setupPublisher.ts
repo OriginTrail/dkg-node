@@ -1,7 +1,12 @@
 import path from "path";
 import { promises as fs } from "fs";
 import dotenv from "dotenv";
-import { provisionPublisherDatabase } from "@dkg/plugin-dkg-publisher";
+import { provisionPublisherDatabase } from "@dkg/plugin-dkg-publisher/provision";
+import {
+  isValidPrivateKey,
+  normalizePrivateKey,
+  stripPrivateKeyPrefix,
+} from "@dkg/plugin-dkg-publisher/privateKey";
 
 export type AsyncPublishingMode = "disabled" | "recommended" | "advanced";
 
@@ -16,6 +21,9 @@ export interface PublisherAdvancedOptions {
   mysqlPort?: number;
   mysqlUser?: string;
   mysqlDatabase?: string;
+  redisHost?: string;
+  redisPort?: number;
+  redisPassword?: string;
   redisUrl?: string;
   workerCount?: number;
   pollFrequency?: number;
@@ -90,15 +98,29 @@ export function isValidMysqlIdentifier(value: string) {
   return MYSQL_IDENTIFIER_PATTERN.test(value);
 }
 
+export { isValidPrivateKey, normalizePrivateKey, stripPrivateKeyPrefix };
+
+export function buildRedisUrl(options: PublisherAdvancedOptions = {}) {
+  if (options.redisUrl) {
+    return options.redisUrl;
+  }
+
+  const redisHost = options.redisHost || "localhost";
+  const redisPort = options.redisPort || 6379;
+  const redisPassword = options.redisPassword?.trim();
+  const auth = redisPassword ? `:${encodeURIComponent(redisPassword)}@` : "";
+
+  return `redis://${auth}${redisHost}:${redisPort}`;
+}
+
 export function buildPublisherDefaults(
   appUrl: string,
   mysqlPassword: string,
   options: PublisherAdvancedOptions = {},
 ) {
   return {
-    mysqlPassword,
     databaseUrl: buildPublisherDatabaseUrl(mysqlPassword, options),
-    redisUrl: options.redisUrl || "redis://localhost:6379",
+    redisUrl: buildRedisUrl(options),
     workerCount: options.workerCount || 1,
     pollFrequency: options.pollFrequency || 2000,
     storagePath: options.storagePath || "./data/publisher",
@@ -110,10 +132,10 @@ export function buildPublisherDefaults(
 
 export async function provisionAsyncPublishing(
   databaseUrl: string,
-  walletSeed?: {
+  walletSeeds: Array<{
     privateKey: string;
     blockchain: string;
-  },
+  }> = [],
 ) {
-  return provisionPublisherDatabase(databaseUrl, walletSeed);
+  return provisionPublisherDatabase(databaseUrl, walletSeeds);
 }

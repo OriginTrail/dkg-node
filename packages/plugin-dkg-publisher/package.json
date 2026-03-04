@@ -5,6 +5,23 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./provision": {
+      "types": "./dist/provision.d.ts",
+      "import": "./dist/provision.mjs",
+      "require": "./dist/provision.js"
+    },
+    "./privateKey": {
+      "types": "./dist/privateKey.d.ts",
+      "import": "./dist/privateKey.mjs",
+      "require": "./dist/privateKey.js"
+    }
+  },
   "scripts": {
     "dev": "tsup src/*.ts --format cjs,esm --dts --watch",
     "build": "tsup src/*.ts --format cjs,esm --dts",

@@ -13,42 +13,223 @@ import {
 } from "../helpers";
 import {
   buildPublisherDefaults,
+  isValidPrivateKey,
   isValidMysqlIdentifier,
-  resolveEngineMysqlPassword,
   provisionAsyncPublishing,
+  resolveEngineMysqlPassword,
+  stripPrivateKeyPrefix,
 } from "../setupPublisher";
 
 function formatEnvValue(value: string) {
   return `"${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
-function isValidPrivateKey(value: string) {
-  return /^0x[0-9a-fA-F]{64}$/.test(value);
+const promptOptions = {
+  onCancel: () => {
+    throw new Error("Setup cancelled by user");
+  },
+};
+
+const styles = {
+  reset: "\x1b[0m",
+  bold: "\x1b[1m",
+  cyan: "\x1b[36m",
+  blue: "\x1b[34m",
+  yellow: "\x1b[33m",
+};
+
+function printBanner() {
+  const lines = [
+    "+------------------------------------------------------------+",
+    "|                      DKG Agent Setup                       |",
+    "|                                                            |",
+    "|  This script will help you configure your DKG Agent.      |",
+    "+------------------------------------------------------------+",
+  ];
+
+  console.log(
+    `\n${styles.bold}${styles.blue}${lines.join("\n")}${styles.reset}\n`,
+  );
+}
+
+function printSection(title: string, description?: string) {
+  console.log(
+    `\n${styles.bold}${styles.cyan}=== ${title} ===${styles.reset}`,
+  );
+  if (description) {
+    console.log(`${styles.yellow}${description}${styles.reset}`);
+  }
+}
+
+function getRecommendedWorkerCount(walletCount: number) {
+  return Math.max(1, Math.min(Math.ceil(walletCount / 10), 5));
+}
+
+async function collectAdditionalPublisherWallets() {
+  const additionalWallets: string[] = [];
+  const addWalletsResponse = await prompts(
+    {
+      type: "confirm",
+      name: "addMoreWallets",
+      message:
+        "Add more publishing wallets now? The primary wallet will already be included.",
+      initial: false,
+    },
+    promptOptions,
+  );
+
+  let shouldAddWallet = addWalletsResponse.addMoreWallets === true;
+  while (shouldAddWallet) {
+    const walletResponse = await prompts(
+      {
+        type: "text",
+        name: "privateKey",
+        message: `Additional publish wallet private key #${additionalWallets.length + 1}`,
+        validate: (value) => {
+          if (!value.length) return "Required";
+          return (
+            isValidPrivateKey(value) ||
+            "Private key must be 64 hexadecimal characters, with or without a 0x prefix"
+          );
+        },
+      },
+      promptOptions,
+    );
+
+    additionalWallets.push(walletResponse.privateKey);
+
+    const continueResponse = await prompts(
+      {
+        type: "confirm",
+        name: "addAnotherWallet",
+        message: "Add another publishing wallet?",
+        initial: false,
+      },
+      promptOptions,
+    );
+    shouldAddWallet = continueResponse.addAnotherWallet === true;
+  }
+
+  return additionalWallets;
+}
+
+async function collectAdvancedPublisherOptions(
+  hasEngineDefaultMysqlPassword: boolean,
+) {
+  const connectionResponse = await prompts(
+    [
+      {
+        type: "text",
+        name: "mysqlHost",
+        message: "Publisher MySQL host",
+        initial: "localhost",
+      },
+      {
+        type: "number",
+        name: "mysqlPort",
+        message: "Publisher MySQL port",
+        initial: 3306,
+        min: 0,
+      },
+      {
+        type: "text",
+        name: "mysqlUser",
+        message: "Publisher MySQL username",
+        initial: "root",
+      },
+      {
+        type: "password",
+        name: "mysqlPassword",
+        message: hasEngineDefaultMysqlPassword
+          ? "Publisher MySQL password (leave blank to use the password set during dkg-node install)"
+          : "Publisher MySQL password",
+        validate: (value) =>
+          hasEngineDefaultMysqlPassword || value.length > 0
+            ? true
+            : "Required for async publishing",
+      },
+      {
+        type: "text",
+        name: "mysqlDatabase",
+        message: "Publisher MySQL database name",
+        initial: "dkg_publisher_db",
+        validate: (value) =>
+          isValidMysqlIdentifier(value) ||
+          "Use letters, numbers, and underscores only",
+      },
+      {
+        type: "text",
+        name: "redisHost",
+        message: "Publisher Redis host",
+        initial: "localhost",
+      },
+      {
+        type: "number",
+        name: "redisPort",
+        message: "Publisher Redis port",
+        initial: 6379,
+        min: 0,
+      },
+      {
+        type: "password",
+        name: "redisPassword",
+        message: "Publisher Redis password (leave blank if no password)",
+      },
+    ],
+    promptOptions,
+  );
+
+  const additionalWallets = await collectAdditionalPublisherWallets();
+  const totalWalletCount = 1 + additionalWallets.length;
+  const recommendedWorkerCount = getRecommendedWorkerCount(totalWalletCount);
+  const workerDefaultsResponse = await prompts(
+    [
+      {
+        type: "number",
+        name: "workerCount",
+        message: `Publisher worker count (default: ${recommendedWorkerCount}, based on wallet count; concurrency auto-balances)`,
+        initial: recommendedWorkerCount,
+        min: 1,
+      },
+      {
+        type: "number",
+        name: "pollFrequency",
+        message: "Publisher poll frequency (ms)",
+        initial: 2000,
+        min: 100,
+      },
+      {
+        type: "text",
+        name: "storagePath",
+        message: "Publisher storage path",
+        initial: "./data/publisher",
+      },
+      {
+        type: "text",
+        name: "storageBaseUrl",
+        message: "Publisher storage base URL",
+        initial: "http://localhost:9200/storage",
+      },
+    ],
+    promptOptions,
+  );
+
+  return {
+    ...connectionResponse,
+    ...workerDefaultsResponse,
+    additionalWallets,
+  };
 }
 
 async function setup() {
   const enginePassword = await resolveEngineMysqlPassword();
-
-  if (enginePassword.status === "found") {
-    console.log(
-      `Detected MySQL password from ${enginePassword.envPath}. Async publishing can reuse it.`,
-    );
-  } else if (enginePassword.status === "missing-file") {
-    console.log(
-      `Engine config not found at ${enginePassword.envPath}. Async publishing defaults will require advanced setup.`,
-    );
-  } else {
-    console.log(
-      `Engine config found at ${enginePassword.envPath}, but REPOSITORY_PASSWORD is missing.`,
-    );
-  }
+  printBanner();
 
   const asyncPublishingChoices =
     enginePassword.status === "found"
       ? [
           {
-            title:
-              "Yes (Recommended) - more seamless publishing and tracking",
+            title: "Yes (Recommended)",
             value: "recommended",
           },
           { title: "No", value: "disabled" },
@@ -59,7 +240,11 @@ async function setup() {
           { title: "Yes, with advanced configuration", value: "advanced" },
         ];
 
-  const response = await prompts([
+  printSection(
+    "DKG Agent LLM Configuration",
+    "Choose the language model provider, credentials, model, and default system prompt for your DKG Agent.",
+  );
+  const llmResponse = await prompts([
     {
       type: "select",
       name: "llmProvider",
@@ -96,6 +281,13 @@ async function setup() {
       initial: DEFAULT_SYSTEM_PROMPT,
       format: (value) => (value === DEFAULT_SYSTEM_PROMPT ? "" : value.trim()),
     },
+  ], promptOptions);
+
+  printSection(
+    "Document Processing",
+    "Choose how the agent should convert uploaded documents for downstream use.",
+  );
+  const documentResponse = await prompts([
     {
       type: "select",
       name: "docConversionProvider",
@@ -109,13 +301,30 @@ async function setup() {
     {
       type: (_, answers) =>
         answers.docConversionProvider === "mistral" &&
-        answers.llmProvider !== "mistralai"
+        llmResponse.llmProvider !== "mistralai"
           ? "text"
           : null,
       name: "mistralApiKey",
       message: "MISTRAL_API_KEY",
       validate: (value) => value.length || "Required for Mistral OCR provider",
     },
+  ], promptOptions);
+
+  printSection(
+    "DKG Interaction",
+    "Configure the DKG network, blockchain, and publishing setup for your DKG Agent.",
+  );
+  if (enginePassword.status === "missing-file") {
+    console.log(
+      `Publisher MySQL defaults were not found at ${enginePassword.envPath}. Use advanced async setup if you want to provide them manually.`,
+    );
+  } else if (enginePassword.status === "missing-key") {
+    console.log(
+      `Publisher MySQL defaults are incomplete in ${enginePassword.envPath} because REPOSITORY_PASSWORD is missing. Use advanced async setup if you want to provide the password manually.`,
+    );
+  }
+
+  const publishingResponse = await prompts([
     {
       type: "select",
       name: "dkgEnv",
@@ -151,13 +360,13 @@ async function setup() {
       message: "Publish wallet private key",
       initial: (_, answers) =>
         answers.dkgEnv === "development"
-          ? "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+          ? "ac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
           : "",
       validate: (value) => {
         if (!value.length) return "Required";
         return (
           isValidPrivateKey(value) ||
-          "Private key must be a 0x-prefixed 32-byte hex string"
+          "Private key must be 64 hexadecimal characters, with or without a 0x prefix"
         );
       },
     },
@@ -165,89 +374,26 @@ async function setup() {
       type: "select",
       name: "asyncPublishingMode",
       message:
-        "Enable async publishing for more seamless publishing and tracking of published knowledge assets?",
+        "Enable async publishing on the DKG for smoother publishing, easier status tracking, and queue management?",
       choices: asyncPublishingChoices,
       initial: 0,
     },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" &&
-        enginePassword.status !== "found"
-          ? "password"
-          : null,
-      name: "mysqlPassword",
-      message: "MYSQL_PASSWORD",
-      validate: (value) => value.length || "Required for async publishing",
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "text" : null,
-      name: "mysqlHost",
-      message: "Publisher MySQL host",
-      initial: "localhost",
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "number" : null,
-      name: "mysqlPort",
-      message: "Publisher MySQL port",
-      initial: 3306,
-      min: 0,
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "text" : null,
-      name: "mysqlUser",
-      message: "Publisher MySQL username",
-      initial: "root",
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "text" : null,
-      name: "mysqlDatabase",
-      message: "Publisher MySQL database name",
-      initial: "dkg_publisher_db",
-      validate: (value) =>
-        isValidMysqlIdentifier(value) ||
-        "Use letters, numbers, and underscores only",
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "text" : null,
-      name: "redisUrl",
-      message: "Publisher Redis URL",
-      initial: "redis://localhost:6379",
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "number" : null,
-      name: "workerCount",
-      message: "Publisher worker count",
-      initial: 1,
-      min: 1,
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "number" : null,
-      name: "pollFrequency",
-      message: "Publisher poll frequency (ms)",
-      initial: 2000,
-      min: 100,
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "text" : null,
-      name: "storagePath",
-      message: "Publisher storage path",
-      initial: "./data/publisher",
-    },
-    {
-      type: (_, answers) =>
-        answers.asyncPublishingMode === "advanced" ? "text" : null,
-      name: "storageBaseUrl",
-      message: "Publisher storage base URL",
-      initial: "http://localhost:9200/storage",
-    },
+  ], promptOptions);
+
+  const advancedPublisherResponse =
+    publishingResponse.asyncPublishingMode === "advanced"
+      ? (printSection(
+          "Advanced Async Publishing",
+          "Provide MySQL, Redis, wallet, worker, and storage overrides for the DKG Publisher Plugin.",
+        ),
+        await collectAdvancedPublisherOptions(enginePassword.status === "found"))
+      : null;
+
+  printSection(
+    "Email Configuration",
+    "Configure SMTP settings for password reset emails and other notifications.",
+  );
+  const emailResponse = await prompts([
     {
       type: "confirm",
       name: "smtpEnabled",
@@ -289,6 +435,13 @@ async function setup() {
       message: "SMTP Sender email",
       initial: "noreply@example.com",
     },
+  ], promptOptions);
+
+  printSection(
+    "DKG Agent Database",
+    "Choose the local SQLite database file used by the DKG Agent.",
+  );
+  const finalResponse = await prompts([
     {
       type: "text",
       name: "dbFilename",
@@ -296,16 +449,22 @@ async function setup() {
       validate: (value) => value.length || "Required",
       format: (value) => (value.endsWith(".db") ? value : `${value}.db`),
     },
-  ], {
-    onCancel: () => {
-      throw new Error("Setup cancelled by user");
-    },
-  });
+  ], promptOptions);
+
+  const response = {
+    ...llmResponse,
+    ...documentResponse,
+    ...publishingResponse,
+    ...(advancedPublisherResponse || {}),
+    ...emailResponse,
+    ...finalResponse,
+  };
 
   const requestedAsyncPublishing = response.asyncPublishingMode !== "disabled";
   const appUrl = "http://localhost:9200";
+  const envPublishWallet = stripPrivateKeyPrefix(response.dkgPublishWallet);
   const mysqlPassword =
-    enginePassword.mysqlPassword || response.mysqlPassword || "";
+    response.mysqlPassword?.trim() || enginePassword.mysqlPassword || "";
   const publisherDefaults =
     requestedAsyncPublishing && mysqlPassword
       ? buildPublisherDefaults(appUrl, mysqlPassword, {
@@ -313,7 +472,9 @@ async function setup() {
           mysqlPort: response.mysqlPort,
           mysqlUser: response.mysqlUser,
           mysqlDatabase: response.mysqlDatabase,
-          redisUrl: response.redisUrl,
+          redisHost: response.redisHost,
+          redisPort: response.redisPort,
+          redisPassword: response.redisPassword,
           workerCount: response.workerCount,
           pollFrequency: response.pollFrequency,
           storagePath: response.storagePath,
@@ -325,8 +486,10 @@ async function setup() {
     throw new Error("Async publishing requires a MySQL password");
   }
 
+  const additionalPublisherWallets = advancedPublisherResponse?.additionalWallets || [];
+
   let publisherProvisionResult:
-    | { databaseCreated: boolean; walletInserted: boolean }
+    | { databaseCreated: boolean; walletsInserted: number }
     | null = null;
   let publisherProvisionError: string | null = null;
 
@@ -334,10 +497,16 @@ async function setup() {
     try {
       publisherProvisionResult = await provisionAsyncPublishing(
         publisherDefaults.databaseUrl,
-        {
-          privateKey: response.dkgPublishWallet,
-          blockchain: response.dkgBlockchain,
-        },
+        [
+          {
+            privateKey: response.dkgPublishWallet,
+            blockchain: response.dkgBlockchain,
+          },
+          ...additionalPublisherWallets.map((privateKey) => ({
+            privateKey,
+            blockchain: response.dkgBlockchain,
+          })),
+        ],
       );
     } catch (error: any) {
       publisherProvisionError = error.message;
@@ -360,7 +529,7 @@ async function setup() {
     `LLM_TEMPERATURE=${formatEnvValue(String(response.llmTemperature))}`,
     `LLM_SYSTEM_PROMPT=${formatEnvValue(response.llmSystemPrompt)}`,
     `${getLLMProviderApiKeyEnvName(response.llmProvider)}=${formatEnvValue(response.llmApiKey)}`,
-    `DKG_PUBLISH_WALLET=${formatEnvValue(response.dkgPublishWallet)}`,
+    `DKG_PUBLISH_WALLET=${formatEnvValue(envPublishWallet)}`,
     `DKG_BLOCKCHAIN=${formatEnvValue(response.dkgBlockchain)}`,
     'DKG_OTNODE_URL="http://localhost:8900"',
     `ASYNC_PUBLISHING_ENABLED=${asyncPublishingEnabled ? "true" : "false"}`,
@@ -381,7 +550,6 @@ async function setup() {
   }
 
   if (publisherDefaults) {
-    envLines.push(`MYSQL_PASSWORD=${formatEnvValue(publisherDefaults.mysqlPassword)}`);
     envLines.push(`DKGP_DATABASE_URL=${formatEnvValue(publisherDefaults.databaseUrl)}`);
     envLines.push(`REDIS_URL=${formatEnvValue(publisherDefaults.redisUrl)}`);
     envLines.push(`WORKER_COUNT=${formatEnvValue(String(publisherDefaults.workerCount))}`);
@@ -450,14 +618,9 @@ To create new users, run 'npm run script:createUser' inside of the agent directo
 
   console.log(`Async publishing: ${asyncPublishingEnabled ? "enabled" : "disabled"}`);
   if (publisherDefaults) {
-    const passwordSource =
-      enginePassword.status === "found"
-        ? `Detected and copied MYSQL_PASSWORD from ${enginePassword.envPath}`
-        : "Used the MYSQL_PASSWORD provided during advanced setup";
-    console.log(passwordSource);
     if (publisherProvisionResult) {
       console.log(
-        `Publisher DB ready: created=${publisherProvisionResult.databaseCreated}, walletInserted=${publisherProvisionResult.walletInserted}`,
+        `Publisher DB ready: created=${publisherProvisionResult.databaseCreated}, walletsInserted=${publisherProvisionResult.walletsInserted}`,
       );
     }
     if (publisherProvisionError) {

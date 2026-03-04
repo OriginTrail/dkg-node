@@ -1,6 +1,7 @@
 import mysql from "mysql2/promise";
 import { Wallet } from "ethers";
 import { runMigrations } from "./database";
+import { normalizePrivateKey, stripPrivateKeyPrefix } from "./privateKey";
 
 export interface PublisherWalletSeed {
   privateKey: string;
@@ -9,7 +10,7 @@ export interface PublisherWalletSeed {
 
 export interface PublisherProvisionResult {
   databaseCreated: boolean;
-  walletInserted: boolean;
+  walletsInserted: number;
 }
 
 const MYSQL_IDENTIFIER_PATTERN = /^[A-Za-z0-9_]+$/;
@@ -39,11 +40,11 @@ function getAdminConnectionString(connectionString: string) {
 
 export async function provisionPublisherDatabase(
   connectionString: string,
-  walletSeed?: PublisherWalletSeed,
+  walletSeeds: PublisherWalletSeed[] = [],
 ): Promise<PublisherProvisionResult> {
   const { databaseName } = getDatabaseName(connectionString);
   let databaseCreated = false;
-  let walletInserted = false;
+  let walletsInserted = 0;
 
   const adminConnection = await mysql.createConnection(
     getAdminConnectionString(connectionString),
@@ -65,29 +66,33 @@ export async function provisionPublisherDatabase(
 
   await runMigrations(connectionString);
 
-  if (!walletSeed) {
-    return { databaseCreated, walletInserted };
+  if (!walletSeeds.length) {
+    return { databaseCreated, walletsInserted };
   }
 
-  const address = new Wallet(walletSeed.privateKey).address;
   const databaseConnection = await mysql.createConnection(connectionString);
 
   try {
-    const [existingWallets] = await databaseConnection.execute(
-      "SELECT id FROM wallets WHERE address = ? LIMIT 1",
-      [address],
-    );
-
-    if ((existingWallets as unknown[]).length === 0) {
-      await databaseConnection.execute(
-        "INSERT INTO wallets (address, private_key, blockchain) VALUES (?, ?, ?)",
-        [address, walletSeed.privateKey, walletSeed.blockchain],
+    for (const walletSeed of walletSeeds) {
+      const normalizedPrivateKey = normalizePrivateKey(walletSeed.privateKey);
+      const storedPrivateKey = stripPrivateKeyPrefix(walletSeed.privateKey);
+      const address = new Wallet(normalizedPrivateKey).address;
+      const [existingWallets] = await databaseConnection.execute(
+        "SELECT id FROM wallets WHERE address = ? LIMIT 1",
+        [address],
       );
-      walletInserted = true;
+
+      if ((existingWallets as unknown[]).length === 0) {
+        await databaseConnection.execute(
+          "INSERT INTO wallets (address, private_key, blockchain) VALUES (?, ?, ?)",
+          [address, storedPrivateKey, walletSeed.blockchain],
+        );
+        walletsInserted += 1;
+      }
     }
   } finally {
     await databaseConnection.end();
   }
 
-  return { databaseCreated, walletInserted };
+  return { databaseCreated, walletsInserted };
 }

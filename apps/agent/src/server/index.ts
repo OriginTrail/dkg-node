@@ -1,5 +1,9 @@
 import path from "path";
-import { createPluginServer, defaultPlugin } from "@dkg/plugins";
+import {
+  createPluginServer,
+  defaultPlugin,
+  type DkgPlugin,
+} from "@dkg/plugins";
 import { authorized, createOAuthPlugin } from "@dkg/plugin-oauth";
 import dkgEssentialsPlugin from "@dkg/plugin-dkg-essentials";
 import createFsBlobStorage from "@dkg/plugin-dkg-essentials/createFsBlobStorage";
@@ -83,7 +87,7 @@ async function main() {
 
   const blobStorage = createFsBlobStorage(path.join(__dirname, "../data"));
   const otnodeUrl = new URL(process.env.DKG_OTNODE_URL);
-  const plugins = [
+  const plugins: DkgPlugin[] = [
     defaultPlugin,
     oauthPlugin,
     (_, __, api) => {
