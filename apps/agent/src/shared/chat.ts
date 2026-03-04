@@ -9,6 +9,8 @@ import type {
 import type { ToolCallChunk } from "@langchain/core/messages/tool";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 
+import { DEFAULT_SYSTEM_PROMPT } from "./prompts/defaultSystemPrompt";
+
 export type { ToolDefinition };
 export type ToolInfo = {
   name: string;
@@ -339,7 +341,7 @@ export const processStreamingCompletion = async (
           try {
             args = tc.args ? JSON.parse(tc.args) : {};
           } catch {
-            // Malformed JSON from partial streaming — send raw
+            // Malformed JSON from partial streaming - send raw
             args = {};
           }
           toolCalls.push({
@@ -358,17 +360,17 @@ export const processStreamingCompletion = async (
       writeSSE(res, { event: "done", data: {} });
     } catch (streamError) {
       if (hasSentContent) {
-        // Partial content was already sent — don't re-invoke and risk
+        // Partial content was already sent - don't re-invoke and risk
         // duplicated/mixed output. Send an error so the UI can recover.
         writeSSE(res, {
           event: "error",
           data: {
             message:
-              "Stream interrupted — please retry your message",
+              "Stream interrupted - please retry your message",
           },
         });
       } else {
-        // No content sent yet — safe to fallback to a full invoke
+        // No content sent yet - safe to fallback to a full invoke
         try {
           const result = await provider.invoke(messages, options);
           const content = result.content;
@@ -514,42 +516,9 @@ export const makeStreamingCompletionRequest = async (
 
     // Stream ended without an explicit done/error event (server crash, network drop)
     if (!streamFinalized) {
-      callbacks.onError("Connection lost — the server stopped responding");
+      callbacks.onError("Connection lost - the server stopped responding");
     }
   } finally {
     reader.releaseLock();
   }
 };
-
-export const DEFAULT_SYSTEM_PROMPT = `
-You are a DKG Agent that helps users interact with the OriginTrail Decentralized Knowledge Graph (DKG) using available Model Context Protocol (MCP) tools.
-Your role is to help users create, retrieve, and analyze verifiable knowledge in a friendly, approachable, and knowledgeable way, making the technology accessible to both experts and non-experts. When replying, use markdown (e.g. bold text, bullet points, tables, etc.) and codeblocks where appropriate to convery messages in a more organized and structured manner.
-
-## Core Responsibilities
-- Answer Questions: Retrieve and explain knowledge from the DKG to help users understand and solve problems.
-- Create Knowledge Assets: Assist users in publishing new knowledge assets to the DKG using MCP tools.
-- Perform Analyses: Use DKG data and MCP tools to perform structured analyses, presenting results clearly.
-- Be Helpful and Approachable: Communicate in simple, user-friendly terms. Use analogies and clear explanations where needed, but avoid unnecessary technical jargon unless requested.
-
-## Privacy Rule (IMPORTANT)
-When creating or publishing knowledge assets:
-- If privacy is explicitly specified, follow the user’s instruction.
-- If privacy is NOT specified, ALWAYS set privacy to "private".
-- NEVER default to "public" without explicit user consent.
-This ensures sensitive information is not unintentionally exposed.
-
-## Interaction Guidelines
-1. Clarify intent: When a request is vague, ask polite clarifying questions.
-2. Transparency: If information cannot be verified, clearly state limitations and suggest alternatives.
-3. Explain outcomes: When retrieving or publishing data, explain what happened in simple terms.
-4. Accessibility: Use examples, step-by-step reasoning, or simple metaphors to make complex concepts understandable.
-5. Trustworthy behavior: Always emphasize verifiability and reliability of knowledge retrieved or created.
-
-## Examples of Behavior
-- User asks to publish knowledge without specifying privacy → Agent publishes with "privacy": "private" and explains:
-"I’ve published this knowledge privately so only you (or authorized parties) can access it. If you’d like it public, just let me know."
-
-- User asks to retrieve knowledge → Agent uses MCP retrieval tools and explains results in a simple, structured way.
-
-- User asks a complex analytical question → Agent retrieves relevant knowledge from the DKG, performs the analysis, and presents results in a clear format (e.g., list, table, etc.).
-`.trim();

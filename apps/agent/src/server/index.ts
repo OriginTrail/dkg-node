@@ -32,7 +32,14 @@ const version = "1.0.0";
 const { oauthPlugin, openapiSecurityScheme } = createOAuthPlugin({
   storage: new SqliteOAuthStorageProvider(db),
   issuerUrl: new URL(process.env.EXPO_PUBLIC_MCP_URL),
-  scopesSupported: ["mcp", "llm", "scope123", "blob"],
+  scopesSupported: [
+    "mcp",
+    "llm",
+    "scope123",
+    "blob",
+    "epcis.read",
+    "epcis.write",
+  ],
   loginPageUrl: new URL(process.env.EXPO_PUBLIC_APP_URL + "/login"),
   schema: userCredentialsSchema,
   async login(credentials) {
@@ -101,6 +108,12 @@ const app = createPluginServer({
     oauthPlugin,
     (_, __, api) => {
       api.use("/mcp", authorized(["mcp"]));
+      api.use("/mcp", (req, res, next) => {
+        if (res.locals.auth) {
+          (req as any).auth = res.locals.auth;
+        }
+        next();
+      });
       api.use("/llm", authorized(["llm"]));
       api.use("/blob", authorized(["blob"]));
       api.use("/change-password", authorized([]));
