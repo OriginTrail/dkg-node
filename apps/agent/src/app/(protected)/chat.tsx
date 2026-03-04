@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { View, Platform, KeyboardAvoidingView, ScrollView } from "react-native";
-import { Image } from "expo-image";
 import * as Clipboard from "expo-clipboard";
+import { Image } from "expo-image";
 import { fetch } from "expo/fetch";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { KeyboardAvoidingView, Platform, ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 //import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -11,17 +11,18 @@ import {
 } from "@dkg/plugin-dkg-essentials/utils";
 
 import { useMcpClient } from "@/client";
-import useMcpToolsSession from "@/hooks/useMcpToolsSession";
-import useColors from "@/hooks/useColors";
-import usePlatform from "@/hooks/usePlatform";
-import Page from "@/components/layout/Page";
-import Container from "@/components/layout/Container";
-import Header from "@/components/layout/Header";
+import { useAlerts } from "@/components/Alerts";
 import Chat from "@/components/Chat";
 import { SourceKAResolver } from "@/components/Chat/Message/SourceKAs/CollapsibleItem";
+import Container from "@/components/layout/Container";
+import Header from "@/components/layout/Header";
+import Page from "@/components/layout/Page";
 import Markdown from "@/components/Markdown";
-import { useAlerts } from "@/components/Alerts";
+import useColors from "@/hooks/useColors";
+import useMcpToolsSession from "@/hooks/useMcpToolsSession";
+import usePlatform from "@/hooks/usePlatform";
 
+import useSettings from "@/hooks/useSettings";
 import {
   type ChatMessage,
   type ToolCall,
@@ -30,23 +31,22 @@ import {
   makeStreamingCompletionRequest,
   toContents,
 } from "@/shared/chat";
+import { toError } from "@/shared/errors";
 import {
   FileDefinition,
   parseFilesFromContent,
   serializeFiles,
   uploadFiles,
 } from "@/shared/files";
-import { toError } from "@/shared/errors";
-import useSettings from "@/hooks/useSettings";
+import {
+  isThinkingVisible,
+  shouldStopGenerating,
+} from "@/shared/thinkingIndicator";
 import {
   type ToolExecutionMode,
   toToolExecutionMode,
   toToolExecutionSettings,
 } from "@/shared/toolExecutionMode";
-import {
-  isThinkingVisible,
-  shouldStopGenerating,
-} from "@/shared/thinkingIndicator";
 
 function normalizeStreamingMarkdown(content: string): string {
   const fencePattern = /^(`{3,})[^`]*$/gm;
@@ -509,8 +509,8 @@ export default function ChatPage() {
             parsedContent.metadata
               .at(0)
               ?.[
-                "https://ontology.origintrail.io/dkg/1.0#publishTime"
-              ]?.at(0)?.["@value"] ?? Date.now(),
+              "https://ontology.origintrail.io/dkg/1.0#publishTime"
+            ]?.at(0)?.["@value"] ?? Date.now(),
           ).getTime(),
           txHash: parsedContent.metadata
             .at(0)
@@ -542,7 +542,7 @@ export default function ChatPage() {
             parsedContent.metadata
               .at(0)
               ?.["https://ontology.origintrail.io/dkg/1.0#publishTx"]?.at(0)?.[
-              "@value"
+            "@value"
             ] ?? "unknown";
           resolved.publisher =
             parsedContent.metadata
@@ -639,8 +639,8 @@ export default function ChatPage() {
                 const text: string[] = [];
 
                 for (const c of toContents(m.content)) {
-                  if (c.type === "image_url") {
-                    images.push({ uri: c.image_url as string });
+                  if (c.type === "image_url" && typeof c.image_url === "string") {
+                    images.push({ uri: c.image_url });
                     continue;
                   }
 
