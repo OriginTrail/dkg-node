@@ -37,7 +37,9 @@ describe("chat input height", () => {
     });
 
     it("derives height from explicit text line breaks", () => {
-      expect(getChatInputHeightFromText("hello")).to.equal(CHAT_INPUT_MIN_HEIGHT);
+      expect(getChatInputHeightFromText("hello")).to.equal(
+        CHAT_INPUT_MIN_HEIGHT,
+      );
       expect(getChatInputHeightFromText("a\nb\nc")).to.equal(
         CHAT_INPUT_VERTICAL_PADDING * 2 + CHAT_INPUT_LINE_HEIGHT * 3,
       );

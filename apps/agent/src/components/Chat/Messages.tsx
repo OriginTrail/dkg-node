@@ -1,10 +1,4 @@
-import {
-  forwardRef,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react";
 import {
   NativeScrollEvent,
   NativeSyntheticEvent,
@@ -62,7 +56,8 @@ export default forwardRef<ScrollView, ScrollViewProps>(
       (node: ScrollView | null) => {
         scrollViewRef.current = node;
         if (typeof ref === "function") ref(node);
-        else if (ref) (ref as React.MutableRefObject<ScrollView | null>).current = node;
+        else if (ref)
+          (ref as React.MutableRefObject<ScrollView | null>).current = node;
       },
       [ref],
     );
@@ -87,8 +82,7 @@ export default forwardRef<ScrollView, ScrollViewProps>(
       contentHeight: number,
       viewportHeight: number,
     ) => {
-      const isScrollable =
-        isWeb && contentHeight > viewportHeight + 1;
+      const isScrollable = isWeb && contentHeight > viewportHeight + 1;
 
       if (!isScrollable) {
         setThumbTop(SCROLLBAR_TRACK_INSET);
@@ -96,7 +90,8 @@ export default forwardRef<ScrollView, ScrollViewProps>(
         return;
       }
 
-      const trackVisualHeight = viewportHeight - SCROLLBAR_TRACK_VERTICAL_PADDING * 2;
+      const trackVisualHeight =
+        viewportHeight - SCROLLBAR_TRACK_VERTICAL_PADDING * 2;
       const trackHeight = Math.max(
         0,
         trackVisualHeight - SCROLLBAR_TRACK_INSET * 2,
@@ -108,10 +103,7 @@ export default forwardRef<ScrollView, ScrollViewProps>(
         Math.min(trackHeight, (viewportHeight / contentHeight) * trackHeight),
       );
       const maxScrollTop = Math.max(1, contentHeight - viewportHeight);
-      const clampedScrollTop = Math.min(
-        maxScrollTop,
-        Math.max(0, scrollTop),
-      );
+      const clampedScrollTop = Math.min(maxScrollTop, Math.max(0, scrollTop));
       const maxThumbOffset = Math.max(0, trackHeight - newThumbHeight);
       const newThumbTop =
         SCROLLBAR_TRACK_INSET +
@@ -125,15 +117,18 @@ export default forwardRef<ScrollView, ScrollViewProps>(
 
     const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       if (isWeb) {
-        const { contentOffset, layoutMeasurement, contentSize } =
-          e.nativeEvent;
+        const { contentOffset, layoutMeasurement, contentSize } = e.nativeEvent;
         const metrics = {
           scrollTop: contentOffset.y,
           contentHeight: contentSize.height,
           viewportHeight: layoutMeasurement.height,
         };
         scrollMetricsRef.current = metrics;
-        updateThumb(metrics.scrollTop, metrics.contentHeight, metrics.viewportHeight);
+        updateThumb(
+          metrics.scrollTop,
+          metrics.contentHeight,
+          metrics.viewportHeight,
+        );
       }
       props.onScroll?.(e);
     };
@@ -206,7 +201,8 @@ export default forwardRef<ScrollView, ScrollViewProps>(
       cancelEventSelection(event);
 
       const { contentHeight, viewportHeight } = scrollMetricsRef.current;
-      const trackVisualHeight = viewportHeight - SCROLLBAR_TRACK_VERTICAL_PADDING * 2;
+      const trackVisualHeight =
+        viewportHeight - SCROLLBAR_TRACK_VERTICAL_PADDING * 2;
       const trackHeight = Math.max(
         1,
         trackVisualHeight - SCROLLBAR_TRACK_INSET * 2,
@@ -221,7 +217,10 @@ export default forwardRef<ScrollView, ScrollViewProps>(
       const deltaY = pageY - drag.startPageY;
       const nextScrollTop = Math.min(
         maxScrollTop,
-        Math.max(0, drag.startScrollTop + (deltaY / maxThumbOffset) * maxScrollTop),
+        Math.max(
+          0,
+          drag.startScrollTop + (deltaY / maxThumbOffset) * maxScrollTop,
+        ),
       );
 
       scrollViewRef.current?.scrollTo({ y: nextScrollTop, animated: false });

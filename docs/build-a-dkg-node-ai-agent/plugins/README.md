@@ -11,4 +11,3 @@ Plugins can expose:
 ## Available Plugins
 
 - [EPCIS Plugin](epcis-plugin.md)
-

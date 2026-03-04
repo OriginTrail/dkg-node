@@ -16,9 +16,9 @@ Here's the demo code for a [**staging paranet**](https://github.com/OriginTrail/
 
 In decentralized networks, anyone can technically contribute data, but not all data should be trusted. Without a system for validation, there is a risk of:
 
-* **Spam or false data** being introduced into the network.
-* **Duplicate or low-quality data** reducing the efficiency and reliability of the system.
-* **Unauthorized modifications** that could disrupt the credibility of shared knowledge.
+- **Spam or false data** being introduced into the network.
+- **Duplicate or low-quality data** reducing the efficiency and reliability of the system.
+- **Unauthorized modifications** that could disrupt the credibility of shared knowledge.
 
 To prevent these issues, **paranet uses a curator-based system**, in which **only authorized users (curators) can decide which Knowledge Assets get added to the network**.
 
@@ -34,9 +34,9 @@ This structured approach ensures that only **reliable and relevant data** is add
 \
 When creating a **paranet**, we can define permissions for:
 
-* [ ] **Nodes** – Who can join the network. (Not added yet)
-* [ ] **Miners** – Who can validate data. (Not added yet)
-* [x] &#x20;**KC submissions** – Who can add a new **collection of Knowledge Assets**.
+- [ ] **Nodes** – Who can join the network. (Not added yet)
+- [ ] **Miners** – Who can validate data. (Not added yet)
+- [x] &#x20;**KC submissions** – Who can add a new **collection of Knowledge Assets**.
 
 ### Adding a curator
 
@@ -59,7 +59,7 @@ DkgClient.paranet.removeCurator(paranetUAL, PUBLIC_KEY);
 
 ```js
 isCurator = await DkgClient.paranet.isCurator(paranetUAL, PUBLIC_KEY);
-console.log('Is user a curator?', isCurator);
+console.log("Is user a curator?", isCurator);
 ```
 
 ### **Staging — Submitting KC to a paranet**
@@ -91,17 +91,20 @@ console.log('Knowledge Collection Created:', createKcResult);
 
 ```js
 stageToParanetResult = await DkgClient.paranet.stageKnowledgeCollection(
-    createKcResult.UAL,
-    paranetUAL,
+  createKcResult.UAL,
+  paranetUAL,
 );
-console.log('Knowledge Collection Staged to Paranet:', stageToParanetResult);
+console.log("Knowledge Collection Staged to Paranet:", stageToParanetResult);
 ```
 
 **Check if KC is staged for approval:**
 
 ```js
-isStaged = await DkgClient.paranet.isKnowledgeCollectionStaged(createKcResult.UAL, paranetUAL);
-console.log('Is KC staged to Paranet?', isStaged);
+isStaged = await DkgClient.paranet.isKnowledgeCollectionStaged(
+  createKcResult.UAL,
+  paranetUAL,
+);
+console.log("Is KC staged to Paranet?", isStaged);
 ```
 
 ### Reviewing and approving KC
@@ -111,38 +114,52 @@ A curator can **accept or reject** a knowledge collection:
 **Reject a KC:**
 
 ```js
-DkgClient.paranet.reviewKnowledgeCollection(createKcResult.UAL, paranetUAL, false);
-console.log('Knowledge Collection Rejected');
+DkgClient.paranet.reviewKnowledgeCollection(
+  createKcResult.UAL,
+  paranetUAL,
+  false,
+);
+console.log("Knowledge Collection Rejected");
 ```
 
 **Accept a KC:**
 
 ```js
-DkgClient.paranet.reviewKnowledgeCollection(createKcResult.UAL, paranetUAL, true);
-console.log('Knowledge Collection Approved');
+DkgClient.paranet.reviewKnowledgeCollection(
+  createKcResult.UAL,
+  paranetUAL,
+  true,
+);
+console.log("Knowledge Collection Approved");
 ```
 
 **Check approval status:**
 
 ```js
-approvalStatus = await DkgClient.paranet.getKnowledgeCollectionApprovalStatus(createKcResult.UAL, paranetUAL);
-console.log('KC Approval Status:', approvalStatus);
+approvalStatus = await DkgClient.paranet.getKnowledgeCollectionApprovalStatus(
+  createKcResult.UAL,
+  paranetUAL,
+);
+console.log("KC Approval Status:", approvalStatus);
 ```
 
 **Check if KC is registered:**
 
 ```js
-isRegistered = await DkgClient.paranet.isKnowledgeCollectionRegistered(createKcResult.UAL, paranetUAL);
-console.log('Is KC registered to Paranet?', isRegistered);
+isRegistered = await DkgClient.paranet.isKnowledgeCollectionRegistered(
+  createKcResult.UAL,
+  paranetUAL,
+);
+console.log("Is KC registered to Paranet?", isRegistered);
 ```
 
 ### **Conclusion**
 
-* **Curators manage which KC entries are accepted to a paranet.** Users who wish to submit data to a paranet must go through the **staging process**.
+- **Curators manage which KC entries are accepted to a paranet.** Users who wish to submit data to a paranet must go through the **staging process**.
 
 {% hint style="info" %}
 **The curator** doesn't have to be human; it can also be an AI agent.
 {% endhint %}
 
-* **KC must first be submitted for approval**, and then the curator can **accept or reject it**.
-* **All operations are tied to the user's public key**, enabling **secure and decentralized data management**. 🚀
+- **KC must first be submitted for approval**, and then the curator can **accept or reject it**.
+- **All operations are tied to the user's public key**, enabling **secure and decentralized data management**. 🚀

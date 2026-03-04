@@ -13,7 +13,9 @@ const jenkinsUrl = process.env.JENKINS_URL;
 // Check if required environment variables are set
 if (!teamsHookBaseURL) {
   console.error("Error: DKG_Node_Teams_Hook environment variable is not set");
-  console.error("Please add DKG_Node_Teams_Hook to your .env file in apps/agent/");
+  console.error(
+    "Please add DKG_Node_Teams_Hook to your .env file in apps/agent/",
+  );
   process.exit(1);
 }
 

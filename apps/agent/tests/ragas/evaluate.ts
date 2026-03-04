@@ -365,7 +365,8 @@ class DkgNodeRagasEvaluator {
       scores.answer_similarity || 0,
       scores.answer_correctness || 0,
     ];
-    const overall_score = metricScores.reduce((sum, score) => sum + score, 0) / metricScores.length;
+    const overall_score =
+      metricScores.reduce((sum, score) => sum + score, 0) / metricScores.length;
 
     return {
       timestamp,
@@ -408,7 +409,10 @@ class DkgNodeRagasEvaluator {
 
     // Save reports to files
     const reportsDir = path.join(__dirname, "reports");
-    const evaluationDir = path.join(reportsDir, `evaluation-${timestampFormatted}`);
+    const evaluationDir = path.join(
+      reportsDir,
+      `evaluation-${timestampFormatted}`,
+    );
 
     // Create evaluation directory
     if (!fs.existsSync(evaluationDir)) {
@@ -420,12 +424,18 @@ class DkgNodeRagasEvaluator {
     fs.writeFileSync(jsonReportPath, JSON.stringify(report, null, 2));
 
     // Save additional formats
-    const csvPath = path.join(evaluationDir, `ragas-report-${timestampFormatted}.csv`);
+    const csvPath = path.join(
+      evaluationDir,
+      `ragas-report-${timestampFormatted}.csv`,
+    );
     fs.writeFileSync(csvPath, csvReport);
-    
-    const htmlPath = path.join(evaluationDir, `ragas-report-${timestampFormatted}.html`);
+
+    const htmlPath = path.join(
+      evaluationDir,
+      `ragas-report-${timestampFormatted}.html`,
+    );
     fs.writeFileSync(htmlPath, htmlReport);
-    
+
     const dbJsonPath = path.join(__dirname, "ragas-results.json");
     fs.writeFileSync(dbJsonPath, JSON.stringify(dbJson, null, 2));
 

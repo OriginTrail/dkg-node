@@ -8,10 +8,10 @@ To ensure the **security and proper functioning of our websites and applications
 
 ## Vulnerability categories and rewards
 
-* **Minor bug:** 50 TRAC
-* **Medium bug:** 250 TRAC
-* **Serious bug:** 500 TRAC
-* **Critical bug:** 1000 TRAC
+- **Minor bug:** 50 TRAC
+- **Medium bug:** 250 TRAC
+- **Serious bug:** 500 TRAC
+- **Critical bug:** 1000 TRAC
 
 ## Bug bounty rules
 
@@ -20,17 +20,17 @@ To ensure the **security and proper functioning of our websites and applications
 
 ## Security vulnerabilities
 
-* SQL injection.
-* Cross-site scripting (XSS).
-* Cross-site request forgery (CSRF).
-* Remote code execution (RCE).
-* Insecure configurations in web servers, databases, and application frameworks.
-* Session hijacking and clickjacking.
-* Sensitive data exposure.
-* Unauthorized access to user accounts.
-* Bypassing authentication mechanisms.
-* Credentials exposure.
-* Logic bypasses.
+- SQL injection.
+- Cross-site scripting (XSS).
+- Cross-site request forgery (CSRF).
+- Remote code execution (RCE).
+- Insecure configurations in web servers, databases, and application frameworks.
+- Session hijacking and clickjacking.
+- Sensitive data exposure.
+- Unauthorized access to user accounts.
+- Bypassing authentication mechanisms.
+- Credentials exposure.
+- Logic bypasses.
 
 ## Example submission template
 

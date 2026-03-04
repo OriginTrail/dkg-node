@@ -39,20 +39,26 @@ describe("DKG Publisher API Contracts", () => {
       this.timeout(10000);
 
       const tools = await listMcpTools(testServer.app, accessToken, sessionId);
-      
+
       // Check if knowledge-asset-publish tool is registered
-      const publishTool = tools.find(tool => tool.name === "knowledge-asset-publish");
+      const publishTool = tools.find(
+        (tool) => tool.name === "knowledge-asset-publish",
+      );
       expect(publishTool).to.not.be.undefined;
       expect(publishTool!.name).to.equal("knowledge-asset-publish");
-      expect(publishTool!.description).to.include("Register a JSON-LD asset for publishing to the DKG");
+      expect(publishTool!.description).to.include(
+        "Register a JSON-LD asset for publishing to the DKG",
+      );
     });
 
     it("should have correct MCP tool configuration", async function () {
       this.timeout(10000);
 
       const tools = await listMcpTools(testServer.app, accessToken, sessionId);
-      const publishTool = tools.find(tool => tool.name === "knowledge-asset-publish");
-      
+      const publishTool = tools.find(
+        (tool) => tool.name === "knowledge-asset-publish",
+      );
+
       expect(publishTool).to.not.be.undefined;
       expect(publishTool!.inputSchema).to.have.property("type", "object");
       expect(publishTool!.inputSchema).to.have.property("properties");
@@ -66,7 +72,9 @@ describe("DKG Publisher API Contracts", () => {
       this.timeout(10000);
 
       // Test that the routes are registered (they should return 503 if services not available)
-      const response = await request(testServer.app).get("/api/dkg/metrics/queue");
+      const response = await request(testServer.app).get(
+        "/api/dkg/metrics/queue",
+      );
       expect(response.status).to.equal(503); // Service unavailable
     });
 
@@ -85,13 +93,19 @@ describe("DKG Publisher API Contracts", () => {
       const incompleteAsset = {
         metadata: {
           source: "test-source",
-          sourceId: "test-123"
-        }
+          sourceId: "test-123",
+        },
         // Missing content field
       };
 
       try {
-        await callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", incompleteAsset);
+        await callMcpTool(
+          testServer.app,
+          accessToken,
+          sessionId,
+          "knowledge-asset-publish",
+          incompleteAsset,
+        );
         // In unconfigured mode, the plugin might not do full validation
         // So this test passes if no error is thrown
       } catch (error: any) {
@@ -109,22 +123,28 @@ describe("DKG Publisher API Contracts", () => {
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "Test Organization",
-          description: "A test organization for DKG publishing"
+          description: "A test organization for DKG publishing",
         },
         metadata: {
           source: "integration-test",
           sourceId: `test-${Date.now()}`,
-          priority: 50
+          priority: 50,
         },
         publishOptions: {
-          privacy: "public"
-        }
+          privacy: "public",
+        },
       };
 
       // This should not throw a validation error
       // (even if it fails later due to missing services)
       try {
-        await callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", validAsset);
+        await callMcpTool(
+          testServer.app,
+          accessToken,
+          sessionId,
+          "knowledge-asset-publish",
+          validAsset,
+        );
       } catch (error: any) {
         // If it fails, it should be due to service unavailability, not validation
         expect(error.message).to.not.include("content");

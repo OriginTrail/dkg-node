@@ -10,23 +10,23 @@ Welcome to the step-by-step TRAC delegated staking guide! First, lets start with
 
 1. You need to have some TRAC tokens to delegate. See ['How to get on TRAC(k)?' section of this website >](https://origintrail.io/get-started/trac-token)&#x20;
 2. You need to decide which blockchain you want to stake on. The DKG supports multiple blockchains:
-   * [Base Blockchain](../../dkg-knowledge-hub/learn-more/connected-blockchains/base-blockchain/)
-   * [NeuroWeb](../../dkg-knowledge-hub/learn-more/connected-blockchains/neuroweb.md)
-   * [Gnosis Chain](../../dkg-knowledge-hub/learn-more/connected-blockchains/gnosis-chain/)
+   - [Base Blockchain](../../dkg-knowledge-hub/learn-more/connected-blockchains/base-blockchain/)
+   - [NeuroWeb](../../dkg-knowledge-hub/learn-more/connected-blockchains/neuroweb.md)
+   - [Gnosis Chain](../../dkg-knowledge-hub/learn-more/connected-blockchains/gnosis-chain/)
 3. Bridge your TRAC to the chosen blockchain. See instructions for bridging:
-   * [Base Blockchain](../../dkg-knowledge-hub/learn-more/connected-blockchains/base-blockchain/)
-   * [NeuroWeb](../../graveyard/everything/teleport-instructions-neuroweb.md)
-   * [Gnosis Chain](../../dkg-knowledge-hub/learn-more/connected-blockchains/gnosis-chain/)
+   - [Base Blockchain](../../dkg-knowledge-hub/learn-more/connected-blockchains/base-blockchain/)
+   - [NeuroWeb](../../graveyard/everything/teleport-instructions-neuroweb.md)
+   - [Gnosis Chain](../../dkg-knowledge-hub/learn-more/connected-blockchains/gnosis-chain/)
 4. Have some gas fee tokens available on the chosen network:
-   * Base Mainnet: ETH on Base
-   * NeuroWeb: NEURO
-   * Gnosis Chain: xDAI
+   - Base Mainnet: ETH on Base
+   - NeuroWeb: NEURO
+   - Gnosis Chain: xDAI
 
 {% hint style="warning" %}
 _If you are staking on NeuroWeb, please make sure that you update both **"Max base fee"** and "**Priority fee**" to **0.00000001** before signing transactions._
 {% endhint %}
 
-***
+---
 
 ## **TRAC staking using the Staking Dashboard**
 
@@ -52,12 +52,12 @@ Make sure you have selected the right blockchain in your wallet.&#x20;
 
 The Staking Dashboard shows a list of all the Core Nodes hosting the DKG. This table shows different information, such as:
 
-* The node name,&#x20;
-* Which blockchain it's connected to,&#x20;
-* How much stake does a node have,&#x20;
-* The node's ask,&#x20;
-* The node's operator fee,&#x20;
-* Reward statistics, and other.&#x20;
+- The node name,&#x20;
+- Which blockchain it's connected to,&#x20;
+- How much stake does a node have,&#x20;
+- The node's ask,&#x20;
+- The node's operator fee,&#x20;
+- Reward statistics, and other.&#x20;
 
 **To delegate your TRAC tokens, you need to pick one or more nodes you believe are going to perform best for the network** (on the basis of criteria explained [here](./)). The chosen node has to have **enough "room" to take TRAC,** meaning less than 2M TRAC already staked. 2M is the maximum amount of TRAC staked per node.
 

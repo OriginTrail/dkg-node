@@ -27,7 +27,7 @@ Note that Core Node operators and node delegators are not distinct - you can be 
 Contrary to inflationary systems, TRAC staking is strictly utility-based, and rewards are generated through DKG usage via knowledge publishing fees.
 {% endhint %}
 
-***
+---
 
 ## How do delegators earn TRAC fees?
 
@@ -56,18 +56,16 @@ If you want to withdraw tokens in order to delegate to another node on the same 
 Delegated staking is a non-custodial system, so the Core Node operator has no access to the locked TRAC tokens at any time.
 {% endhint %}
 
-
-
 Each Core Node operator can also set an “**operator fee,**” which is a percentage of the TRAC rewards deducted each time a node claims rewards from a Knowledge Asset. The remaining TRAC fee is then split proportionally to the share of staked tokens across all delegators.
 
 {% hint style="info" %}
-**Example**: If a node accumulated **1,000 TRAC** tokens in the previous period, and the node has two delegators, both with a 50% share, and the operator\_fee is 10%:
+**Example**: If a node accumulated **1,000 TRAC** tokens in the previous period, and the node has two delegators, both with a 50% share, and the operator_fee is 10%:
 
-* The node operator will receive 100 TRAC (10%)
-* Each delegator receives 450 TRAC (50% of the remaining 900 TRAC)
-{% endhint %}
+- The node operator will receive 100 TRAC (10%)
+- Each delegator receives 450 TRAC (50% of the remaining 900 TRAC)
+  {% endhint %}
 
-***
+---
 
 ## What makes a good node? How should I pick a node to delegate to?
 
@@ -79,9 +77,9 @@ Nodes compete to provide the best service in the network — the better the node
 
 **Node Power** is a metric that gives delegators a simplified view of a node’s overall strength in the network. It combines:
 
-* The amount of TRAC staked on the node
-* How much new knowledge has the node published
-* The node's service ask (lower ask = higher competitiveness)
+- The amount of TRAC staked on the node
+- How much new knowledge has the node published
+- The node's service ask (lower ask = higher competitiveness)
 
 This score shows how competitive the node is in attracting publishing rewards, and how its influence compares to other nodes in the network.
 
@@ -91,12 +89,12 @@ This score shows how competitive the node is in attracting publishing rewards, a
 
 **Node Health** indicates how reliably a node has performed in the random sampling proof system. It reflects:
 
-* How many proof challenges did the node successfully respond to
-* Compared to the number of challenges it was expected to respond to in that epoch
+- How many proof challenges did the node successfully respond to
+- Compared to the number of challenges it was expected to respond to in that epoch
 
 High node health indicates the node has strong uptime and actively maintains the availability of Knowledge Assets—both critical for earning consistent rewards.
 
-***
+---
 
 ### Operator fee
 
@@ -104,7 +102,7 @@ Each node may **charge an operator fee** (e.g., 10%) on rewards earned. A lower 
 
 <figure><img src="../../.gitbook/assets/Operator fee ex2 (1).png" alt=""><figcaption></figcaption></figure>
 
-***
+---
 
 ## Delegating if you run a Core Node
 
@@ -114,7 +112,7 @@ To understand how to set up your operator fee, follow the [Core Node setup](../.
 
 <figure><img src="../../.gitbook/assets/image (3).png" alt=""><figcaption><p>Depiction of delegating and withdrawing of TRAC from DKG smart contracts</p></figcaption></figure>
 
-***
+---
 
 ## **Have questions?**
 

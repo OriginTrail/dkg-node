@@ -16,10 +16,10 @@ A _**Knowledge Asset**_ is an individual knowledge graph entity or a piece of da
 
 Below is the input you will need:
 
-* **Decide which blockchain to deploy your paranet on.** This is the blockchain on which knowledge mining will take place. All DKG-integrated blockchains can be used. However, initially, only the NeuroWeb and Base blockchains support [Initial Paranet Offerings (IPOs)](initial-paranet-offerings-ipos/).
-* Pick a _paranet name_ and create a short _description_ (which will be stored on-chain).
-* Decide what kind of permissions the _paranet_ will have.&#x20;
-* Prepare a _**paranet profile Knowledge Asset**_ to represent your paranet as its profile on the DKG. It can be as minimal or as rich in content as you'd like.
+- **Decide which blockchain to deploy your paranet on.** This is the blockchain on which knowledge mining will take place. All DKG-integrated blockchains can be used. However, initially, only the NeuroWeb and Base blockchains support [Initial Paranet Offerings (IPOs)](initial-paranet-offerings-ipos/).
+- Pick a _paranet name_ and create a short _description_ (which will be stored on-chain).
+- Decide what kind of permissions the _paranet_ will have.&#x20;
+- Prepare a _**paranet profile Knowledge Asset**_ to represent your paranet as its profile on the DKG. It can be as minimal or as rich in content as you'd like.
 
 ### 2. Create your paranet profile on the DKG&#x20;
 
@@ -34,7 +34,7 @@ An example paranet profile Knowledge Asset could look like this:
   "@type": "DataCatalog",
   "name": "Super Paranet",
   "description": "This is the description of the super paranet!",
-  "keywords": "keyword1, keyword2, keyword3 ...",
+  "keywords": "keyword1, keyword2, keyword3 ..."
 }
 ```
 
@@ -66,28 +66,33 @@ Here's a code snippet using dkg.js (from the above example)
 // first we create a paranet Knowledge Collection
 
 let content = {
-        public: {
-          "@context": "http://schema.org/",
-          "@id": "urn:some-data:info:catalog",
-          "@type": "DataCatalog",
-          "name": "Super Paranet",
-          "description": "This is the description of the super paranet!",
-          "keywords": "keyword1, keyword2, keyword3 ...",
-        },
-    }; 
+  public: {
+    "@context": "http://schema.org/",
+    "@id": "urn:some-data:info:catalog",
+    "@type": "DataCatalog",
+    name: "Super Paranet",
+    description: "This is the description of the super paranet!",
+    keywords: "keyword1, keyword2, keyword3 ...",
+  },
+};
 
-const paranetCollectionResult = await DkgClient.asset.create(content, { epochsNum: 2 });
-    // Paranet UAL is a Knowledge Asset UAL (combination of Knowledge Collection UAL and Knowledge Asset token id)
-    const paranetUAL = `${paranetCollectionResult.UAL}/1`;
-    const paranetOptions = {
-        paranetName: 'MyParanet',
-        paranetDescription: 'This is my paranet on the DKG!',
-        paranetNodesAccessPolicy: PARANET_NODES_ACCESS_POLICY.OPEN,
-        paranetMinersAccessPolicy: PARANET_MINERS_ACCESS_POLICY.OPEN,
-        paranetKcSubmissionPolicy: PARANET_KC_SUBMISSION_POLICY.OPEN,
-    };
+const paranetCollectionResult = await DkgClient.asset.create(content, {
+  epochsNum: 2,
+});
+// Paranet UAL is a Knowledge Asset UAL (combination of Knowledge Collection UAL and Knowledge Asset token id)
+const paranetUAL = `${paranetCollectionResult.UAL}/1`;
+const paranetOptions = {
+  paranetName: "MyParanet",
+  paranetDescription: "This is my paranet on the DKG!",
+  paranetNodesAccessPolicy: PARANET_NODES_ACCESS_POLICY.OPEN,
+  paranetMinersAccessPolicy: PARANET_MINERS_ACCESS_POLICY.OPEN,
+  paranetKcSubmissionPolicy: PARANET_KC_SUBMISSION_POLICY.OPEN,
+};
 // using the paranet knowledge asset, create your paranet
-    const paranetRegistered = await DkgClient.paranet.create(paranetUAL, paranetOptions);
+const paranetRegistered = await DkgClient.paranet.create(
+  paranetUAL,
+  paranetOptions,
+);
 ```
 
 **That's it, you have successfully performed a minimal paranet deployment,** and knowledge miners can now start mining knowledge via your paranet.&#x20;

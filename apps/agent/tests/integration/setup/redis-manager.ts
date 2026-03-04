@@ -22,7 +22,7 @@ export class RedisManager {
     } catch (error: any) {
       // Redis is not running, start it
       console.log("🚀 Starting Redis for integration tests...");
-      
+
       try {
         // Try to start Redis via brew services
         await execAsync("brew services start redis");
@@ -30,8 +30,10 @@ export class RedisManager {
         this.isStarted = true;
         return;
       } catch (brewError) {
-        console.log("⚠️  Could not start Redis via brew services, trying direct start...");
-        
+        console.log(
+          "⚠️  Could not start Redis via brew services, trying direct start...",
+        );
+
         // Fallback: start Redis directly
         this.redisProcess = spawn("redis-server", ["--port", "6379"], {
           stdio: "pipe",
@@ -49,7 +51,7 @@ export class RedisManager {
         });
 
         // Wait a moment for Redis to start
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        await new Promise((resolve) => setTimeout(resolve, 2000));
 
         // Verify Redis is running
         try {

@@ -10,10 +10,10 @@ Interested in helping us build the substrate of collective neuro-symbolic AI?&#x
 
 We encourage code contributions to the following repositories.&#x20;
 
-* ot-node
-* dkg-evm-module
-* dkg.js
-* dkg.py
+- ot-node
+- dkg-evm-module
+- dkg.js
+- dkg.py
 
 Please check the contribution guidelines in each repo.
 
@@ -25,9 +25,9 @@ To ensure the **security and proper functioning of the DKG V8**, Trace Labs has 
 
 ### Vulnerability categories and rewards
 
-* **Minor bug:** 50 TRAC
-* **Medium bug:** 200 TRAC
-* **Critical bug:** 5000 TRAC
+- **Minor bug:** 50 TRAC
+- **Medium bug:** 200 TRAC
+- **Critical bug:** 5000 TRAC
 
 ### Bug bounty rules
 
@@ -36,17 +36,17 @@ To ensure the **security and proper functioning of the DKG V8**, Trace Labs has 
 
 ### Security vulnerabilities
 
-* SQL injection.
-* Cross-site scripting (XSS).
-* Cross-site request forgery (CSRF).
-* Remote code execution (RCE).
-* Insecure configurations in web servers, databases, and application frameworks.
-* Session hijacking and clickjacking.
-* Sensitive data exposure.
-* Unauthorized access to user accounts.
-* Bypassing authentication mechanisms.
-* Credentials exposure.
-* Logic bypasses.
+- SQL injection.
+- Cross-site scripting (XSS).
+- Cross-site request forgery (CSRF).
+- Remote code execution (RCE).
+- Insecure configurations in web servers, databases, and application frameworks.
+- Session hijacking and clickjacking.
+- Sensitive data exposure.
+- Unauthorized access to user accounts.
+- Bypassing authentication mechanisms.
+- Credentials exposure.
+- Logic bypasses.
 
 ### Example submission template
 

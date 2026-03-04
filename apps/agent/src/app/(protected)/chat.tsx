@@ -118,7 +118,10 @@ export default function ChatPage() {
 
       const s = toToolExecutionSettings(mode);
       await settings.set("autoApproveMcpTools", s.autoApproveMcpTools);
-      await settings.set("showMcpToolExecutionPanels", s.showMcpToolExecutionPanels);
+      await settings.set(
+        "showMcpToolExecutionPanels",
+        s.showMcpToolExecutionPanels,
+      );
       await settings.reload();
     },
     [settings, tools],
@@ -180,8 +183,7 @@ export default function ChatPage() {
         continue;
       }
 
-      const existingId =
-        typeof tc.id === "string" ? tc.id.trim() : "";
+      const existingId = typeof tc.id === "string" ? tc.id.trim() : "";
       normalizedToolCalls.push({
         ...tc,
         id: existingId || `local-tool-call-${localToolCallIdCounter.current++}`,
@@ -507,8 +509,8 @@ export default function ChatPage() {
             parsedContent.metadata
               .at(0)
               ?.[
-              "https://ontology.origintrail.io/dkg/1.0#publishTime"
-            ]?.at(0)?.["@value"] ?? Date.now(),
+                "https://ontology.origintrail.io/dkg/1.0#publishTime"
+              ]?.at(0)?.["@value"] ?? Date.now(),
           ).getTime(),
           txHash: parsedContent.metadata
             .at(0)
@@ -540,7 +542,7 @@ export default function ChatPage() {
             parsedContent.metadata
               .at(0)
               ?.["https://ontology.origintrail.io/dkg/1.0#publishTx"]?.at(0)?.[
-            "@value"
+              "@value"
             ] ?? "unknown";
           resolved.publisher =
             parsedContent.metadata
@@ -638,7 +640,7 @@ export default function ChatPage() {
 
                 for (const c of toContents(m.content)) {
                   if (c.type === "image_url") {
-                    images.push({ uri: c.image_url });
+                    images.push({ uri: c.image_url as string });
                     continue;
                   }
 
@@ -658,7 +660,7 @@ export default function ChatPage() {
                       continue;
                     }
 
-                    text.push(c.text);
+                    text.push(c.text as string);
                   }
                 }
 
@@ -667,7 +669,8 @@ export default function ChatPage() {
                 const allToolCallsHidden =
                   hasToolCalls &&
                   m.tool_calls!.every((tc) => {
-                    const isAutoApproved = autoApproveTools || tools.isAllowedForSession(tc.name);
+                    const isAutoApproved =
+                      autoApproveTools || tools.isAllowedForSession(tc.name);
                     return isAutoApproved && !showToolExecutionPanels;
                   });
 
@@ -792,7 +795,10 @@ export default function ChatPage() {
                         lastUserMessageYRef.current = y;
                         if (scrollPendingRef.current) {
                           scrollPendingRef.current = false;
-                          scrollTargetRef.current = Math.max(0, y - SCROLL_TOP_GAP);
+                          scrollTargetRef.current = Math.max(
+                            0,
+                            y - SCROLL_TOP_GAP,
+                          );
                           setContentMinHeight(y + messagesViewHeight);
                         }
                       }}
@@ -804,11 +810,15 @@ export default function ChatPage() {
 
                 return <View key={i}>{messageContent}</View>;
               })}
-              {isThinkingVisible(isGenerating, streamingContent) && <Chat.Thinking />}
+              {isThinkingVisible(isGenerating, streamingContent) && (
+                <Chat.Thinking />
+              )}
               {streamingContent !== null && (
                 <Chat.Message icon="assistant">
                   <Markdown>
-                    {normalizeStreamingMarkdown(stripThinkTags(streamingContent))}
+                    {normalizeStreamingMarkdown(
+                      stripThinkTags(streamingContent),
+                    )}
                   </Markdown>
                 </Chat.Message>
               )}

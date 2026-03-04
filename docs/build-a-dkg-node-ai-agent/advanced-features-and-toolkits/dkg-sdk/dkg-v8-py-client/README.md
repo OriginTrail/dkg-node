@@ -10,8 +10,8 @@ The DKG SDK is used together with an **OriginTrail gateway node** to build appli
 
 ## Prerequisites
 
-* python ≥ 3.11
-* poetry ≥ 1.8.5
+- python ≥ 3.11
+- poetry ≥ 1.8.5
 
 ## Installation
 
@@ -89,13 +89,13 @@ async def main():
         blockchain_provider,
         config={"max_number_of_retries": 300, "frequency": 2},
     )
-    
+
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
 {% hint style="warning" %}
-Make sure to create an .env file and add the PRIVATE\_KEY variable to it so that the blockchain provider can pick it up.
+Make sure to create an .env file and add the PRIVATE_KEY variable to it so that the blockchain provider can pick it up.
 {% endhint %}
 
 ### Blockchain networks
@@ -104,26 +104,26 @@ The system supports multiple blockchain networks, which can be configured using 
 
 **DKG mainnet options:**
 
-* Base: base:8453
-* Gnosis: gnosis:100
-* Neuroweb: otp:2043
+- Base: base:8453
+- Gnosis: gnosis:100
+- Neuroweb: otp:2043
 
 **DKG testnet options:**
 
-* Base: base:84532
-* Gnosis: gnosis:10200
-* Neuroweb: otp:20430
+- Base: base:84532
+- Gnosis: gnosis:10200
+- Neuroweb: otp:20430
 
 **DKG devnet options:**
 
-* Base: base:84532
-* Gnosis: gnosis:10200
-* Neuroweb: otp:2160
+- Base: base:84532
+- Gnosis: gnosis:10200
+- Neuroweb: otp:2160
 
 **Local options:**
 
-* Hardhat1: hardhat1:31337
-* Hardhat2: hardhat2:31337
+- Hardhat1: hardhat1:31337
+- Hardhat2: hardhat2:31337
 
 ## Create a Knowledge Collection
 
@@ -354,9 +354,9 @@ To learn more about querying the DKG, go [here](../../querying-the-dkg.md).
 
 We can divide operations done by SDK into 3 types:
 
-* Node API request
-* Smart contract call (non-state-changing interaction)
-* Smart contract transaction (state-changing interaction)
+- Node API request
+- Smart contract call (non-state-changing interaction)
+- Smart contract transaction (state-changing interaction)
 
 Non-state-changing interactions with smart contracts are free and can be described as contract-getters. They don’t require transactions on the blockchain. This means they do not incur transaction fees.&#x20;
 

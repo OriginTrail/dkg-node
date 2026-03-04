@@ -12,10 +12,10 @@ If you are new to OriginTrail development, there are guides in this documentatio
 
 Please follow the below procedure to contribute new code or fixes:&#x20;
 
-* Create a separate branch by branching the relevant branch (we generally follow [Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow))
-* Create a pull request to **develop** (except for v6 contributions, then use the **v6/develop**) branch containing a description of what your code does and how it can be tested
-* Provide at least a minimum of unit tests
-* Please include descriptive commit messages
+- Create a separate branch by branching the relevant branch (we generally follow [Gitflow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow))
+- Create a pull request to **develop** (except for v6 contributions, then use the **v6/develop**) branch containing a description of what your code does and how it can be tested
+- Provide at least a minimum of unit tests
+- Please include descriptive commit messages
 
 ## Rules
 
@@ -29,21 +29,21 @@ There are a few basic ground rules for contributors:
 
 ### Merging pull requests once CI is successful
 
-* Each pull request **must be reviewed and approved by at least two OriginTrail core developers**
-* A pull request that does not significantly change logic and is urgently needed may be merged after a non-author OriginTrail core developer has reviewed it thoroughly.
-* All other PRs should sit for 48 hours in order to garner feedback.
-* No PR should be merged until all review comments are addressed.
+- Each pull request **must be reviewed and approved by at least two OriginTrail core developers**
+- A pull request that does not significantly change logic and is urgently needed may be merged after a non-author OriginTrail core developer has reviewed it thoroughly.
+- All other PRs should sit for 48 hours in order to garner feedback.
+- No PR should be merged until all review comments are addressed.
 
 ### Reviewing pull requests
 
 When reviewing a pull request, the end goal is to suggest useful changes to the author. Reviews should finish with approval unless there are issues that would result in:
 
-* Buggy behavior.
-* Undue maintenance burden.
-* Breaking with house coding style.
-* Pessimization (i.e., reduction of speed as measured in the project benchmarks).
-* Feature reduction (i.e., it removes some aspect of functionality that a significant minority of users rely on).
-* Uselessness (i.e., it does not strictly add a feature or fix a known issue).
+- Buggy behavior.
+- Undue maintenance burden.
+- Breaking with house coding style.
+- Pessimization (i.e., reduction of speed as measured in the project benchmarks).
+- Feature reduction (i.e., it removes some aspect of functionality that a significant minority of users rely on).
+- Uselessness (i.e., it does not strictly add a feature or fix a known issue).
 
 ### Releases
 

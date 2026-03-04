@@ -2,12 +2,12 @@
 
 This page assumes you have completed the previous steps:
 
-* You have deployed your paranet
-* You have specified your IPO (defined all the properties, including incentives, knowledge graph properties, etc.)
+- You have deployed your paranet
+- You have specified your IPO (defined all the properties, including incentives, knowledge graph properties, etc.)
 
 Once you have all these steps completed, you are able to initiate the IPO.
 
-### 1.  Deploy a paranet incentives contract
+### 1. Deploy a paranet incentives contract
 
 The paranet incentive contract is the only type of contract that can receive NEURO incentives, as it implements the incentivization logic. Other addresses, such as EOA addresses will not be accepted and are not eligible for incentives.&#x20;
 

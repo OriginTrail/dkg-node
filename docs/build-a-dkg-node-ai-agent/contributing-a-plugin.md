@@ -36,8 +36,8 @@ git checkout -b my-contribution
 
 #### 4. Make your changes
 
-* Implement your plugin, fix, or feature.
-* Run tests if applicable.
+- Implement your plugin, fix, or feature.
+- Run tests if applicable.
 
 #### 5. Push changes to your fork
 
@@ -50,15 +50,15 @@ git push origin my-contribution
 1. Go to your fork on GitHub.
 2. Click **Compare & pull request**.
 3. On the PR page, make sure the branches are correct:
-   * **base repository**: `OriginTrail/dkg-node`
-   * **base**: `main` (or other target branch)
-   * **compare**: `my-contribution`
+   - **base repository**: `OriginTrail/dkg-node`
+   - **base**: `main` (or other target branch)
+   - **compare**: `my-contribution`
 4. Fill in a clear PR description. A good template:
-   * **What**: brief summary of the change
-   * **Why**: the problem it solves / motivation
-   * **How**: key implementation details
-   * **Tests**: how you verified it (commands, screenshots)
-   * **Breaking changes/migration**: if any
+   - **What**: brief summary of the change
+   - **Why**: the problem it solves / motivation
+   - **How**: key implementation details
+   - **Tests**: how you verified it (commands, screenshots)
+   - **Breaking changes/migration**: if any
 5. Click **Create pull request**.
 
 The OriginTrail core developer team will review your PR. If everything looks good, it will be merged and published. 🎉
@@ -75,27 +75,27 @@ From the repo root, run:
 turbo gen plugin
 ```
 
-* Name it starting with `plugin-` (e.g. `plugin-custom`).
-*   A new package will be created at:
+- Name it starting with `plugin-` (e.g. `plugin-custom`).
+- A new package will be created at:
 
-    ```sh
-    packages/plugin-<your-name>/src/index.ts
-    ```
+  ```sh
+  packages/plugin-<your-name>/src/index.ts
+  ```
 
 #### 2. Develop your plugin
 
-* Add your logic inside `index.ts`.
-*   Your package name will be:
+- Add your logic inside `index.ts`.
+- Your package name will be:
 
-    ```sh
-    @dkg/plugin-<your-name>
-    ```
+  ```sh
+  @dkg/plugin-<your-name>
+  ```
 
 #### 3. Submit via PR
 
-* Commit your work.
-* Push it to your fork.
-* Open a pull request as described above.
+- Commit your work.
+- Push it to your fork.
+- Open a pull request as described above.
 
 Once reviewed and merged, your plugin will be published to **npm** under the `@dkg/` namespace for the community to use.
 
@@ -115,26 +115,26 @@ turbo ls
 
 You’ll see entries like:
 
-* `@dkg/agent` → Example of a DKG agent (Expo UI + MCP Server)
-* `@dkg/plugins` → Utility package for creating DKG plugins
-* `@dkg/eslint-config` → Shared ESLint configuration
-* `@dkg/typescript-config` → Shared TypeScript configs
-* `@dkg/plugin-oauth` → OAuth 2.1 module for the DKG Node
+- `@dkg/agent` → Example of a DKG agent (Expo UI + MCP Server)
+- `@dkg/plugins` → Utility package for creating DKG plugins
+- `@dkg/eslint-config` → Shared ESLint configuration
+- `@dkg/typescript-config` → Shared TypeScript configs
+- `@dkg/plugin-oauth` → OAuth 2.1 module for the DKG Node
 
 #### Add new packages
 
-* Use `turbo gen` to generate new packages.
-* New packages will be published under the `@dkg/` namespace once reviewed and merged.
+- Use `turbo gen` to generate new packages.
+- New packages will be published under the `@dkg/` namespace once reviewed and merged.
 
 ### Repo utilities
 
 The DKG Node monorepo comes with powerful tools preconfigured:
 
-* [**Turborepo**](https://turborepo.com/) → build system with caching
-* [**TypeScript**](https://www.typescriptlang.org/) → static type checking
-* [**ESLint**](https://eslint.org/) **+** [**Prettier**](https://prettier.io) → code linting & formatting
+- [**Turborepo**](https://turborepo.com/) → build system with caching
+- [**TypeScript**](https://www.typescriptlang.org/) → static type checking
+- [**ESLint**](https://eslint.org/) **+** [**Prettier**](https://prettier.io) → code linting & formatting
 
-#### Remote caching with [Vercel](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk\&utm_campaign=free_remote_cache)
+#### Remote caching with [Vercel](https://vercel.com/signup?/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache)
 
 By default, builds are cached locally.\
 Enable [**remote caching**](https://turborepo.com/docs/core-concepts/remote-caching) to share build caches across your team or CI/CD:
@@ -146,7 +146,7 @@ npx turbo link      # link this repo to remote cache
 
 Learn more in Turborepo docs.
 
-***
+---
 
 ### Further resources
 
@@ -154,15 +154,14 @@ Learn more in Turborepo docs.
 
 📖 **Expo framework:**
 
-* [Expo docs](https://docs.expo.dev/)
-* [Video tutorials](https://www.youtube.com/@ExpoDevelopers/videos)
+- [Expo docs](https://docs.expo.dev/)
+- [Video tutorials](https://www.youtube.com/@ExpoDevelopers/videos)
 
 ⚡**Turborepo:**
 
-* [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
-* [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
-* [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
-* [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
-* [Configuration Options](https://turborepo.com/docs/reference/configuration)
-* [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
-
+- [Tasks](https://turborepo.com/docs/crafting-your-repository/running-tasks)
+- [Caching](https://turborepo.com/docs/crafting-your-repository/caching)
+- [Remote Caching](https://turborepo.com/docs/core-concepts/remote-caching)
+- [Filtering](https://turborepo.com/docs/crafting-your-repository/running-tasks#using-filters)
+- [Configuration Options](https://turborepo.com/docs/reference/configuration)
+- [CLI Usage](https://turborepo.com/docs/reference/command-line-reference)
