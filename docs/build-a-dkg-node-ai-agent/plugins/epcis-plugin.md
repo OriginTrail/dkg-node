@@ -25,11 +25,11 @@ It provides both HTTP endpoints and MCP tools for:
 
 1. Enable EPCIS + publisher plugins in server plugin registration (this is not enabled by default in this repo):
    - `apps/agent/src/server/index.ts` should include `epcisPlugin` in the `plugins` array.
-   - `apps/agent/src/server/index.ts` should include `dkgPublisherPlugin` in the `plugins` array.
+   - `apps/agent/src/server/index.ts` loads `dkgPublisherPlugin` when `ASYNC_PUBLISHING_ENABLED=true`.
    - If you want route-level EPCIS scope enforcement, apply `applyEpcisHttpScopeGuards(api, authorized)` in the auth middleware plugin.
-2. Run publisher plugin setup:
-   - `cd packages/plugin-dkg-publisher && npm run setup`
-   - This initializes publisher configuration (including `.env.publisher`) for the publisher flow.
+2. Run the main Agent setup and enable async publishing when prompted:
+   - `cd apps/agent && npm run script:setup`
+   - This initializes the consolidated Agent + Publisher configuration in `apps/agent/.env`.
 3. Configure runtime environment:
    - `EXPO_PUBLIC_MCP_URL=http://localhost:9200` (local same-host setup)
 4. Create a token with EPCIS scopes:

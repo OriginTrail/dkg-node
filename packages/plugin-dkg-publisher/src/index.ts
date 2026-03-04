@@ -1,7 +1,6 @@
 import { defineDkgPlugin } from "@dkg/plugins";
 import { z } from "@dkg/plugin-swagger";
 import type { KnowledgeAssetManagerConfig, AssetInput } from "./types";
-import { config as dotenvConfig } from "dotenv";
 import path from "path";
 import {
   initializeServices,
@@ -10,11 +9,14 @@ import {
   AssetService,
   WalletService,
   QueueService,
-  DkgService,
 } from "./services";
 import { openAPIRoute } from "@dkg/plugin-swagger";
 import express from "express";
 import { registerMcpTools } from "./mcp/tools";
+import {
+  applyPublisherRuntimeDefaults,
+  resolvePublisherRuntimeConfig,
+} from "./config";
 
 /**
  * DKG Publisher Plugin
@@ -38,38 +40,16 @@ export default defineDkgPlugin((ctx, mcp, api) => {
   console.log(
     `🔍 DKG Publisher Plugin executing at ${new Date().toISOString()} (${pluginInitTime})`,
   );
-  // Load configuration from package root .env file
-  const envPath = path.resolve(__dirname, "..", ".env.publisher");
+  const resolution = resolvePublisherRuntimeConfig();
+  console.log(`📊 DKGP_DATABASE_URL found: ${Boolean(resolution)}`);
 
-  console.log(`🔧 Loading DKG Publisher config from: ${envPath}`);
-  dotenvConfig({ path: envPath });
-
-  console.log(`📊 DKGP_DATABASE_URL found: ${!!process.env.DKGP_DATABASE_URL}`);
-
-  // Initialize services if configuration is provided via environment
-  if (process.env.DKGP_DATABASE_URL) {
-    const config: KnowledgeAssetManagerConfig = {
-      database: {
-        connectionString: process.env.DKGP_DATABASE_URL,
-      },
-      redis: {
-        host: process.env.REDIS_HOST || "localhost",
-        port: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
-        password: process.env.REDIS_PASSWORD,
-      },
-      wallets: [], // Should be loaded from config or setup
-      dkg: {
-        endpoint: process.env.DKG_ENDPOINT,
-        blockchain: process.env.DKG_BLOCKCHAIN,
-      },
-      encryptionKey: process.env.ENCRYPTION_KEY,
-    };
+  if (resolution) {
+    const config: KnowledgeAssetManagerConfig = resolution.config;
+    applyPublisherRuntimeDefaults(resolution);
     console.log(`🚀 Initializing DKG Publisher services... (${Date.now()})`);
 
     // Mount storage directory immediately (before services initialize)
-    const storageType = process.env.STORAGE_TYPE || "filesystem";
-    const storagePath =
-      process.env.STORAGE_PATH || path.resolve(__dirname, "../storage");
+    const { storageType, storagePath } = resolution.runtime;
 
     if (storageType === "filesystem") {
       try {
@@ -97,6 +77,11 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         console.log(`   - DKG Endpoint: ${config.dkg?.endpoint}`);
         console.log(`   - Blockchain: ${config.dkg?.blockchain}`);
         console.log(`📁 Storage configured for: ${storageType}`);
+        if (resolution.loadedLegacyEnv) {
+          console.log(
+            `   - Legacy env imported from: ${resolution.legacyEnvPath}`,
+          );
+        }
       })
       .catch((error) => {
         console.error("❌ DKG Publisher Plugin initialization failed:", error);
@@ -105,7 +90,9 @@ export default defineDkgPlugin((ctx, mcp, api) => {
     console.log(
       "⚠️  DKG Publisher Plugin not configured - DKGP_DATABASE_URL not found",
     );
-    console.log(`   Looked for config in: ${envPath}`);
+    console.log(
+      `   Looked for config in: ${path.resolve(__dirname, "..", ".env.publisher")}`,
+    );
   }
 
   // Mount admin dashboard route immediately - handle service readiness internally
@@ -292,114 +279,6 @@ export default defineDkgPlugin((ctx, mcp, api) => {
     }
   });
 
-  // Add SPARQL query endpoint
-  api.post(
-    "/api/dkg/query",
-    openAPIRoute(
-      {
-        tag: "DKG Queries",
-        summary: "Execute SPARQL Query",
-        description: "Execute a SPARQL query on the DKG network",
-        body: z.object({
-          query: z.string().min(1, "Query cannot be empty"),
-          queryType: z
-            .enum(["SELECT", "CONSTRUCT", "ASK", "DESCRIBE"])
-            .optional()
-            .default("SELECT"),
-          validate: z.boolean().optional().default(true),
-        }),
-        response: {
-          schema: z.object({
-            success: z.boolean(),
-            data: z.any().optional(),
-            error: z.string().optional(),
-            validation: z
-              .object({
-                valid: z.boolean(),
-                error: z.string().optional(),
-              })
-              .optional(),
-          }),
-        },
-        finalizeRouteConfig: (config) => ({
-          ...config,
-          security: [],
-        }),
-      },
-      async (req, res) => {
-        if (!serviceContainer) {
-          return res.status(503).json({
-            success: false,
-            error: "DKG service is starting up",
-          });
-        }
-
-        try {
-          const { query, queryType = "SELECT" } = req.body;
-          const dkgService = serviceContainer.get<DkgService>("dkgService");
-
-          // Execute SPARQL query
-          const result = await dkgService.executeSparqlQuery(query, queryType);
-
-          res.json(result);
-        } catch (error: any) {
-          res.status(500).json({
-            success: false,
-            error: error.message,
-          });
-        }
-      },
-    ),
-  );
-
-  // Add DKG asset get endpoint
-  api.get(
-    "/api/dkg/assets",
-    openAPIRoute(
-      {
-        tag: "DKG Queries",
-        summary: "Get DKG Asset",
-        description: "Retrieve an asset from DKG by UAL",
-        query: z.object({
-          ual: z.string(),
-        }),
-        response: {
-          schema: z.object({
-            success: z.boolean(),
-            data: z.any().optional(),
-            error: z.string().optional(),
-          }),
-        },
-        finalizeRouteConfig: (config) => ({
-          ...config,
-          security: [],
-        }),
-      },
-      async (req, res) => {
-        if (!serviceContainer) {
-          return res.status(503).json({
-            success: false,
-            error: "DKG service is starting up",
-          });
-        }
-
-        try {
-          const { ual } = req.query;
-          const dkgService = serviceContainer.get<DkgService>("dkgService");
-
-          const result = await dkgService.getAsset(ual);
-
-          res.json(result);
-        } catch (error: any) {
-          res.status(500).json({
-            success: false,
-            error: error.message,
-          });
-        }
-      },
-    ),
-  );
-
   // Register all MCP tools for publisher plugin
   registerMcpTools(mcp, serviceContainer, ctx);
 });
@@ -430,3 +309,8 @@ export type {
   AssetStatus,
   KnowledgeAssetManagerConfig,
 } from "./types";
+export {
+  applyPublisherRuntimeDefaults,
+  resolvePublisherRuntimeConfig,
+} from "./config";
+export { provisionPublisherDatabase } from "./provision";

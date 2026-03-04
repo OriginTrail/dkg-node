@@ -6,11 +6,16 @@ const IORedis = require("ioredis");
 async function checkQueueStatus() {
   console.log("🔍 Checking BullMQ queue status...\n");
 
+  const redisUrl =
+    process.env.REDIS_URL ||
+    `redis://${process.env.REDIS_HOST || "localhost"}:${process.env.REDIS_PORT || "6379"}`;
+  const parsedRedisUrl = new URL(redisUrl);
+
   // Connect to Redis (same config as the service)
   const redis = new IORedis({
-    host: process.env.REDIS_HOST || "localhost",
-    port: process.env.REDIS_PORT || 6379,
-    password: process.env.REDIS_PASSWORD,
+    host: parsedRedisUrl.hostname || "localhost",
+    port: Number(parsedRedisUrl.port || 6379),
+    password: parsedRedisUrl.password || process.env.REDIS_PASSWORD,
     maxRetriesPerRequest: 3,
     retryStrategy: (times) => Math.min(times * 50, 2000),
   });

@@ -23,6 +23,11 @@
    npm run script:setup
    ```
 
+   The setup flow can also enable async publishing. When enabled, it reuses the
+   Engine MySQL password from `dkg-engine/current/.env`, writes the consolidated
+   Publisher settings into `apps/agent/.env`, and the Agent loads the Publisher
+   plugin only when `ASYNC_PUBLISHING_ENABLED=true`.
+
 Now you can run the app in development mode using:
 
 ```bash

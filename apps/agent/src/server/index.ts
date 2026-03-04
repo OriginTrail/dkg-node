@@ -5,105 +5,85 @@ import dkgEssentialsPlugin from "@dkg/plugin-dkg-essentials";
 import createFsBlobStorage from "@dkg/plugin-dkg-essentials/createFsBlobStorage";
 import examplePlugin from "@dkg/plugin-example";
 import swaggerPlugin from "@dkg/plugin-swagger";
-//@ts-expect-error No types for dkg.js ...
+// @ts-expect-error No types for dkg.js ...
 import DKG from "dkg.js";
 import { eq } from "drizzle-orm";
+import { getTestMessageUrl } from "nodemailer";
 
 import { userCredentialsSchema } from "@/shared/auth";
 import { processStreamingCompletion } from "@/shared/chat";
 import { verify } from "@node-rs/argon2";
 
-import { configDatabase, configEnv } from "./helpers";
-import webInterfacePlugin from "./webInterfacePlugin";
 import createAccountManagementPlugin from "./accountManagementPlugin";
 import {
-  users,
-  SqliteOAuthStorageProvider,
   SqliteAccountManagementProvider,
+  SqliteOAuthStorageProvider,
+  users,
 } from "./database/sqlite";
+import { configDatabase, configEnv } from "./helpers";
 import mailer from "./mailer";
-import { getTestMessageUrl } from "nodemailer";
+import webInterfacePlugin from "./webInterfacePlugin";
 
-configEnv();
-const db = configDatabase();
+async function main() {
+  configEnv();
+  const db = configDatabase();
+  const version = "1.0.0";
 
-const version = "1.0.0";
+  const { oauthPlugin, openapiSecurityScheme } = createOAuthPlugin({
+    storage: new SqliteOAuthStorageProvider(db),
+    issuerUrl: new URL(process.env.EXPO_PUBLIC_MCP_URL),
+    scopesSupported: [
+      "mcp",
+      "llm",
+      "scope123",
+      "blob",
+      "epcis.read",
+      "epcis.write",
+    ],
+    loginPageUrl: new URL(process.env.EXPO_PUBLIC_APP_URL + "/login"),
+    schema: userCredentialsSchema,
+    async login(credentials) {
+      const user = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, credentials.email))
+        .then((results) => results.at(0));
+      if (!user) throw new Error("Invalid credentials");
 
-const { oauthPlugin, openapiSecurityScheme } = createOAuthPlugin({
-  storage: new SqliteOAuthStorageProvider(db),
-  issuerUrl: new URL(process.env.EXPO_PUBLIC_MCP_URL),
-  scopesSupported: [
-    "mcp",
-    "llm",
-    "scope123",
-    "blob",
-    "epcis.read",
-    "epcis.write",
-  ],
-  loginPageUrl: new URL(process.env.EXPO_PUBLIC_APP_URL + "/login"),
-  schema: userCredentialsSchema,
-  async login(credentials) {
-    const user = await db
-      .select()
-      .from(users)
-      .where(eq(users.email, credentials.email))
-      .then((r) => r.at(0));
-    if (!user) throw new Error("Invalid credentials");
+      const isValid = await verify(user.password, credentials.password);
+      if (!isValid) throw new Error("Invalid credentials");
 
-    const isValid = await verify(user.password, credentials.password);
-    if (!isValid) throw new Error("Invalid credentials");
+      return { scopes: user.scope.split(" "), extra: { userId: user.id } };
+    },
+  });
 
-    return { scopes: user.scope.split(" "), extra: { userId: user.id } };
-  },
-});
+  const accountManagementPlugin = createAccountManagementPlugin({
+    provider: new SqliteAccountManagementProvider(db),
+    async sendMail(toEmail, code) {
+      const transport = await mailer();
+      if (!transport) throw new Error("No SMTP transport available");
 
-const accountManagementPlugin = createAccountManagementPlugin({
-  provider: new SqliteAccountManagementProvider(db),
-  async sendMail(toEmail, code) {
-    const m = await mailer();
-    if (!m) throw new Error("No SMTP transport available");
+      await transport
+        .sendMail({
+          to: toEmail,
+          subject: "Password reset request | DKG Node",
+          text:
+            `Your password reset code is ${code}.` +
+            `Link: ${process.env.EXPO_PUBLIC_APP_URL}/password-reset?code=${code}`,
+          html:
+            `<p>Your password reset code is <strong>${code}</strong>.</p>` +
+            `<p>Please click <a href="${process.env.EXPO_PUBLIC_APP_URL}/password-reset?code=${code}">here</a> to reset your password.</p>`,
+        })
+        .then((info) => {
+          console.debug(info);
+          console.debug(getTestMessageUrl(info));
+        });
+    },
+  });
 
-    await m
-      .sendMail({
-        to: toEmail,
-        subject: "Password reset request | DKG Node",
-        text:
-          `Your password reset code is ${code}.` +
-          `Link: ${process.env.EXPO_PUBLIC_APP_URL}/password-reset?code=${code}`,
-        html:
-          `<p>Your password reset code is <strong>${code}</strong>.</p>` +
-          `<p>Please click <a href="${process.env.EXPO_PUBLIC_APP_URL}/password-reset?code=${code}">here</a> to reset your password.</p>`,
-      })
-      .then((info) => {
-        console.debug(info);
-        console.debug(getTestMessageUrl(info));
-      });
-  },
-});
-
-const blobStorage = createFsBlobStorage(path.join(__dirname, "../data"));
-
-const otnodeUrl = new URL(process.env.DKG_OTNODE_URL);
-
-const app = createPluginServer({
-  name: "DKG API",
-  version,
-  context: {
-    blob: blobStorage,
-    dkg: new DKG({
-      endpoint: `${otnodeUrl.protocol}//${otnodeUrl.hostname}`,
-      port: otnodeUrl.port || "8900",
-      blockchain: {
-        name: process.env.DKG_BLOCKCHAIN,
-        privateKey: process.env.DKG_PUBLISH_WALLET,
-      },
-      maxNumberOfRetries: 300,
-      frequency: 2,
-      contentType: "all",
-      nodeApiVersion: "/v1",
-    }),
-  },
-  plugins: [
+  const blobStorage = createFsBlobStorage(path.join(__dirname, "../data"));
+  const otnodeUrl = new URL(process.env.DKG_OTNODE_URL);
+  const plugins = [
     defaultPlugin,
     oauthPlugin,
     (_, __, api) => {
@@ -119,7 +99,6 @@ const app = createPluginServer({
       api.use("/change-password", authorized([]));
       api.use("/profile", authorized([]));
     },
-    // Streaming LLM middleware — intercepts SSE requests before Expo Router
     (_, __, api) => {
       api.post("/llm", (req, res, next) => {
         if (!req.headers.accept?.includes("text/event-stream")) return next();
@@ -128,8 +107,18 @@ const app = createPluginServer({
     },
     accountManagementPlugin,
     dkgEssentialsPlugin,
+  ];
+
+  if (process.env.ASYNC_PUBLISHING_ENABLED === "true") {
+    const { default: dkgPublisherPlugin } = await import(
+      "@dkg/plugin-dkg-publisher"
+    );
+    plugins.push(dkgPublisherPlugin);
+  }
+
+  plugins.push(
     examplePlugin.withNamespace("protected", {
-      middlewares: [authorized(["scope123"])], // Allow only users with the "scope123" scope
+      middlewares: [authorized(["scope123"])],
     }),
     swaggerPlugin({
       version,
@@ -145,28 +134,54 @@ const app = createPluginServer({
       ],
     }),
     webInterfacePlugin(path.join(__dirname, "./app")),
-  ],
-});
+  );
 
-const port = process.env.PORT || 9200;
-const server = app.listen(port, (err) => {
-  if (err) {
-    console.error(err);
-    process.exit(1);
-  }
-  console.log(`Server running at http://localhost:${port}/`);
-
-  process.on("SIGINT", () => {
-    server.close();
-    process.exit(0);
+  const app = createPluginServer({
+    name: "DKG API",
+    version,
+    context: {
+      blob: blobStorage,
+      dkg: new DKG({
+        endpoint: `${otnodeUrl.protocol}//${otnodeUrl.hostname}`,
+        port: otnodeUrl.port || "8900",
+        blockchain: {
+          name: process.env.DKG_BLOCKCHAIN,
+          privateKey: process.env.DKG_PUBLISH_WALLET,
+        },
+        maxNumberOfRetries: 300,
+        frequency: 2,
+        contentType: "all",
+        nodeApiVersion: "/v1",
+      }),
+    },
+    plugins,
   });
-  process.on("SIGTERM", () => {
-    server.close((err) => {
-      if (err) {
-        console.error(err);
-        process.exit(1);
-      }
+
+  const port = process.env.PORT || 9200;
+  const server = app.listen(port, (error) => {
+    if (error) {
+      console.error(error);
+      process.exit(1);
+    }
+    console.log(`Server running at http://localhost:${port}/`);
+
+    process.on("SIGINT", () => {
+      server.close();
       process.exit(0);
     });
+    process.on("SIGTERM", () => {
+      server.close((closeError) => {
+        if (closeError) {
+          console.error(closeError);
+          process.exit(1);
+        }
+        process.exit(0);
+      });
+    });
   });
+}
+
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
 });

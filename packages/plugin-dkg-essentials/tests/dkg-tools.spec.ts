@@ -3,6 +3,7 @@
 import { describe, it, beforeEach, afterEach } from "mocha";
 import { expect } from "chai";
 import sinon from "sinon";
+import request from "supertest";
 import { dkgToolsPlugin } from "../dist/index.js";
 import {
   getExplorerUrl,
@@ -47,6 +48,12 @@ mockDkgContext.dkg.asset = {
       UAL: "did:dkg:otp:20430/0x123456/12345",
     }),
 };
+mockDkgContext.dkg.graph = {
+  query: (query: string, queryType: string) =>
+    Promise.resolve({
+      data: [{ query, queryType, result: "ok" }],
+    }),
+};
 
 describe("@dkg/plugin-dkg-essentials checks", () => {
   let mockMcpServer: McpServer;
@@ -84,10 +91,16 @@ describe("@dkg/plugin-dkg-essentials checks", () => {
       expect(tools.some((t) => t.name === "dkg-create")).to.equal(true);
     });
 
-    it("should register exactly 2 tools", async () => {
+    it("should register the dkg-sparql-query tool", async () => {
       const tools = await mockMcpClient.listTools().then((t) => t.tools);
 
-      expect(tools.length).to.equal(2);
+      expect(tools.some((t) => t.name === "dkg-sparql-query")).to.equal(true);
+    });
+
+    it("should register exactly 3 tools", async () => {
+      const tools = await mockMcpClient.listTools().then((t) => t.tools);
+
+      expect(tools.length).to.equal(3);
     });
 
     it("should have correct dkg-get tool configuration", async () => {
@@ -96,7 +109,7 @@ describe("@dkg/plugin-dkg-essentials checks", () => {
 
       expect(dkgGetTool).to.not.equal(undefined);
       expect(dkgGetTool!.title).to.equal("DKG Knowledge Asset get tool");
-      expect(dkgGetTool!.description).to.include("GET operation");
+      expect(dkgGetTool!.description).to.include("Retrieve a specific");
       expect(dkgGetTool!.description).to.include("UAL");
       expect(dkgGetTool!.inputSchema).to.not.equal(undefined);
     });
@@ -412,6 +425,79 @@ describe("@dkg/plugin-dkg-essentials checks", () => {
       // Restore original mock
       mockDkgContext.dkg.asset.get = originalGet;
     });
+
+    it("should handle DKG service errors in SPARQL tool", async () => {
+      const originalQuery = mockDkgContext.dkg.graph.query;
+      try {
+        mockDkgContext.dkg.graph.query = () => {
+          throw new Error("DKG query unavailable");
+        };
+
+        const result = await mockMcpClient.callTool({
+          name: "dkg-sparql-query",
+          arguments: { query: "SELECT * WHERE { ?s ?p ?o } LIMIT 1" },
+        });
+
+        expect((result.content as any[])[0].text).to.include(
+          "Error executing SPARQL query",
+        );
+        expect((result.content as any[])[0].text).to.include(
+          "DKG query unavailable",
+        );
+      } finally {
+        mockDkgContext.dkg.graph.query = originalQuery;
+      }
+    });
+  });
+
+  describe("HTTP API Routes", () => {
+    it("should expose POST /api/dkg/query from Essentials", async () => {
+      const response = await request(app)
+        .post("/api/dkg/query")
+        .send({
+          query: "SELECT * WHERE { ?s ?p ?o } LIMIT 1",
+          queryType: "SELECT",
+        })
+        .expect(200);
+
+      expect(response.body.success).to.equal(true);
+      expect(response.body.data.data[0].result).to.equal("ok");
+    });
+
+    it("should return 400 for invalid POST /api/dkg/query input", async () => {
+      const response = await request(app)
+        .post("/api/dkg/query")
+        .send({
+          query: "bad query",
+          queryType: "SELECT",
+        })
+        .expect(400);
+
+      expect(response.body.success).to.equal(false);
+      expect(response.body.error).to.be.a("string");
+    });
+
+    it("should return 400 for unsupported POST /api/dkg/query queryType", async () => {
+      await request(app)
+        .post("/api/dkg/query")
+        .send({
+          query: "SELECT * WHERE { ?s ?p ?o } LIMIT 1",
+          queryType: "ASK",
+        })
+        .expect(400);
+    });
+
+    it("should expose GET /api/dkg/get from Essentials", async () => {
+      const response = await request(app)
+        .get("/api/dkg/get")
+        .query({ ual: "did:dkg:otp:20430/0x123456/12345" })
+        .expect(200);
+
+      expect(response.body.success).to.equal(true);
+      expect(response.body.data.metadata.UAL).to.equal(
+        "did:dkg:otp:20430/0x123456/12345",
+      );
+    });
   });
 
   describe("Utility Functions", () => {
@@ -512,7 +598,7 @@ describe("@dkg/plugin-dkg-essentials checks", () => {
         expect(result.text).to.include(
           "https://dkg-testnet.origintrail.io/explore?ual=did:dkg:test/123",
         );
-        expect(result.description).to.be.a("string");
+        expect((result as any)._meta.description).to.be.a("string");
       });
     });
 

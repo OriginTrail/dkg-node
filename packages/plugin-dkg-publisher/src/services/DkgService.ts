@@ -20,7 +20,10 @@ export class DkgService {
   private walletService: WalletService;
 
   constructor(walletService: WalletService) {
-    this.dkgEndpoint = process.env.DKG_ENDPOINT || "http://localhost:8900";
+    this.dkgEndpoint =
+      process.env.DKG_OTNODE_URL ||
+      process.env.DKG_ENDPOINT ||
+      "http://localhost:8900";
     this.dkgBlockchain = process.env.DKG_BLOCKCHAIN || "hardhat1:31337";
     this.walletService = walletService;
     this.initializeQueryClient();
@@ -319,7 +322,14 @@ export class DkgService {
    */
   async getNodeInfo(): Promise<DkgGetResult> {
     try {
-      const dkgClient = this.createQueryDKGClient();
+      if (!this.queryClient) {
+        await this.initializeQueryClient();
+        if (!this.queryClient) {
+          throw new Error("Failed to initialize DKG query client");
+        }
+      }
+
+      const dkgClient = this.queryClient;
       const nodeInfo = await dkgClient.node.info();
 
       return {

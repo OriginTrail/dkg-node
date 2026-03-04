@@ -14,6 +14,15 @@ declare global {
       DKG_PUBLISH_WALLET: string;
       DKG_BLOCKCHAIN: string;
       DKG_OTNODE_URL: string;
+      ASYNC_PUBLISHING_ENABLED?: string;
+      MYSQL_PASSWORD?: string;
+      DKGP_DATABASE_URL?: string;
+      REDIS_URL?: string;
+      WORKER_COUNT?: string;
+      POLL_FREQUENCY?: string;
+      STORAGE_TYPE?: string;
+      STORAGE_PATH?: string;
+      STORAGE_BASE_URL?: string;
       SMTP_HOST: string;
       SMTP_PORT: string;
       SMTP_USER: string;

@@ -114,7 +114,7 @@ async function tableExists(db: Database, tableName: string): Promise<boolean> {
   const result = await db.execute(
     sql`SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ${tableName}`,
   );
-  const rows = result[0] as Array<{ cnt: number | bigint }>;
+  const rows = result[0] as unknown as Array<{ cnt: number | bigint }>;
   return Number(rows[0]?.cnt) > 0;
 }
 
@@ -126,6 +126,6 @@ async function columnExists(
   const result = await db.execute(
     sql`SELECT COUNT(*) as cnt FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ${tableName} AND column_name = ${columnName}`,
   );
-  const rows = result[0] as Array<{ cnt: number | bigint }>;
+  const rows = result[0] as unknown as Array<{ cnt: number | bigint }>;
   return Number(rows[0]?.cnt) > 0;
 }

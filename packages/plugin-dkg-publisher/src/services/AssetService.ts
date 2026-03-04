@@ -367,7 +367,10 @@ export class AssetService extends EventEmitter {
       workerId: process.pid.toString(),
       walletAddress: wallet.address,
       walletId: wallet.id,
-      otnodeUrl: process.env.DKG_ENDPOINT,
+      otnodeUrl:
+        process.env.DKG_OTNODE_URL ||
+        process.env.DKG_ENDPOINT ||
+        "http://localhost:8900",
       blockchain: wallet.blockchain,
       status: "started",
       startedAt: sql`NOW()`,

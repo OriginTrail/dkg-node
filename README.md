@@ -71,7 +71,17 @@ The setup script will:
 - Prompt for required environment variables
 - Create `.env` and `.env.development.local` files
 - Set up the SQLite database with migrations
+- Optionally enable async publishing and provision the Publisher database using the Engine-derived MySQL password
 - Create an admin user (username: `admin`, password: `admin123`)
+
+If you enable async publishing during setup, the Agent writes the consolidated Publisher settings into `apps/agent/.env`:
+
+- `ASYNC_PUBLISHING_ENABLED=true`
+- `MYSQL_PASSWORD`
+- `DKGP_DATABASE_URL`
+- `REDIS_URL`
+
+The Agent server only loads `@dkg/plugin-dkg-publisher` when `ASYNC_PUBLISHING_ENABLED=true`.
 
 ### 4. Start Development
 

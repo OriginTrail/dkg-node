@@ -8,10 +8,13 @@ export class StorageService {
 
   constructor() {
     this.storagePath =
-      process.env.STORAGE_PATH || path.resolve(__dirname, "../storage");
-    const serverPort = process.env.PORT || "9200";
+      process.env.STORAGE_PATH || path.resolve(process.cwd(), "data/publisher");
+    const baseUrl =
+      process.env.EXPO_PUBLIC_MCP_URL ||
+      `http://localhost:${process.env.PORT || "9200"}`;
     this.baseUrl =
-      process.env.STORAGE_BASE_URL || `http://localhost:${serverPort}/storage`;
+      process.env.STORAGE_BASE_URL ||
+      new URL("/storage", baseUrl).toString().replace(/\/$/, "");
     console.log(`📁 StorageService initialized:`);
     console.log(`   - storagePath: ${this.storagePath}`);
     console.log(`   - resolved path: ${path.resolve(this.storagePath)}`);

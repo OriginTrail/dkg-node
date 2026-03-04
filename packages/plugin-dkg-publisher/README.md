@@ -22,16 +22,16 @@ The DKG Publisher plugin provides a **production-ready, scalable system** for pu
 ### 1. Setup
 
 ```bash
-npm run setup
+cd apps/agent
+npm run script:setup
 ```
 
-The setup script will guide you through:
+The standard node setup now owns Publisher configuration too. Choose async
+publishing during the Agent setup flow to write the consolidated Publisher
+runtime env into `apps/agent/.env` and provision the Publisher MySQL database.
 
-- Database configuration (MySQL)
-- Redis configuration
-- DKG network settings
-- Wallet pool setup
-- Worker configuration
+`npm run setup` in this package remains as a legacy compatibility path for older
+workflows that still rely on `.env.publisher`.
 
 ### 2. Start the Application
 

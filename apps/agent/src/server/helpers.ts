@@ -34,6 +34,10 @@ export async function createFileWithContent(filePath: string, content: string) {
   }
 }
 
+export async function writeFileWithContent(filePath: string, content: string) {
+  await fs.writeFile(filePath, content, { encoding: "utf8" });
+}
+
 export function configEnv() {
   dotenv.config();
   if (process.argv.includes("--dev")) {
