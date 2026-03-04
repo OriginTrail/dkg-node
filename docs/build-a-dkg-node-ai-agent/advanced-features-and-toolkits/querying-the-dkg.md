@@ -8,18 +8,18 @@ Paranets are isolated environments within the DKG where participants can publish
 
 Relationships:
 
-* A paranet contains multiple Knowledge Collections (KCs).
-* Each KC contains multiple Knowledge Assets (KAs).
-* Each KA is stored in its own named graph.
+- A paranet contains multiple Knowledge Collections (KCs).
+- Each KC contains multiple Knowledge Assets (KAs).
+- Each KA is stored in its own named graph.
 
 ## Understanding DKG connections
 
 Before diving into queries, here’s a quick overview of the most important RDF connections you'll encounter in the DKG:
 
-* <kbd>\<current:graph> dkg:hasNamedGraph \<KaGraph></kbd> - This tells us which Knowledge Asset graphs are currently considered valid and active. You’ll use this to filter for the current version of a KA.
-* <kbd>\<metadata:graph> \<KcUal> dkg:hasNamedGraph \<KaGraph></kbd> - This connection links a Knowledge Collection (KC) to one or more Knowledge Assets (KAs). It’s used when looking up KAs via their KC metadata (e.g. publisher, timestamp).
-* <kbd>\<metadata:graph> \<KcUal> dkg:hasKnowledgeAsset \<KaUAL></kbd> - This links the KC to the KA’s Universal Asset Locator (UAL). While it doesn’t point to the named graph directly, it’s important for referencing and versioning KAs.
-* <kbd><</kbd>[<kbd>paranetUAL</kbd>](#user-content-fn-1)[^1]<kbd>> dkg:hasNamedGraph \<KaGraph></kbd> - This is used when querying inside a paranet. The paranet graph stores references to all associated KAs within that scope. You can use it to restrict queries to a specific environment.
+- <kbd>\<current:graph> dkg:hasNamedGraph \<KaGraph></kbd> - This tells us which Knowledge Asset graphs are currently considered valid and active. You’ll use this to filter for the current version of a KA.
+- <kbd>\<metadata:graph> \<KcUal> dkg:hasNamedGraph \<KaGraph></kbd> - This connection links a Knowledge Collection (KC) to one or more Knowledge Assets (KAs). It’s used when looking up KAs via their KC metadata (e.g. publisher, timestamp).
+- <kbd>\<metadata:graph> \<KcUal> dkg:hasKnowledgeAsset \<KaUAL></kbd> - This links the KC to the KA’s Universal Asset Locator (UAL). While it doesn’t point to the named graph directly, it’s important for referencing and versioning KAs.
+- <kbd><</kbd>[<kbd>paranetUAL</kbd>](#user-content-fn-1)[^1]<kbd>> dkg:hasNamedGraph \<KaGraph></kbd> - This is used when querying inside a paranet. The paranet graph stores references to all associated KAs within that scope. You can use it to restrict queries to a specific environment.
 
 {% hint style="info" %}
 KaGraph - did:dkg:hardhat1:31337/0xd5724171c2b7f0aa717a324626050bd05767e2c6/4/1/public
@@ -108,9 +108,9 @@ Want to dive deeper into SPARQL? Check out this awesome guide:[ SPARQL 1.1 Query
 
 Happy querying! You've got this. 🚀
 
-***
+---
 
 **Next step: DKG SDK**\
 Once you know how to query the graph, it’s time to go deeper and start **building with code**. The next section introduces the official **DKG SDKs (JavaScript and Python)**, which make it simple to publish, retrieve, and verify Knowledge Assets programmatically.
 
-[^1]: 
+[^1]:

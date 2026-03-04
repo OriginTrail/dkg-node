@@ -56,7 +56,13 @@ const renderRules: RenderRules = {
   },
 };
 
-function CopyCodeButton({ content, color }: { content: string; color: string }) {
+function CopyCodeButton({
+  content,
+  color,
+}: {
+  content: string;
+  color: string;
+}) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -262,10 +268,7 @@ export default function Markdown({
           <Text style={[fenceStyles.fence, { marginVertical: 0 }]}>
             {node.content}
           </Text>
-          <CopyCodeButton
-            content={node.content}
-            color={colors.secondary}
-          />
+          <CopyCodeButton content={node.content} color={colors.secondary} />
         </View>
       ),
     }),

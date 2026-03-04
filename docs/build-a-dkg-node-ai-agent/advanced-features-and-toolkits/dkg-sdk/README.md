@@ -14,14 +14,10 @@ From an architectural standpoint, the SDK libraries are application interfaces i
 
 <figure><img src="../../../.gitbook/assets/V8 DKG SDK.png" alt=""><figcaption><p>The interplay between your app, DKG and blockchains</p></figcaption></figure>
 
-
-
 The OriginTrail SDK currently comes in two forms:
 
-* Javascript SDK - [**dkg.js**](dkg-v8-js-client/)&#x20;
-* Python SDK - [**dkg.py**](dkg-v8-py-client/)**.**&#x20;
-
-
+- Javascript SDK - [**dkg.js**](dkg-v8-js-client/)&#x20;
+- Python SDK - [**dkg.py**](dkg-v8-py-client/)**.**&#x20;
 
 ### Try out the SDK
 
@@ -35,13 +31,11 @@ Try the SDK with public DKG nodes by following the [Quickstart: Test Drive the D
 
 Set up a development environment using one of the following options:
 
-* **Deploy your node on the DKG testnet (recommended):**\
+- **Deploy your node on the DKG testnet (recommended):**\
   This option allows you to quickly experiment with the SDK on a testnet of your choice.\
   Follow the [Installation guide](../../../getting-started/decentralized-knowle-dge-graph-dkg.md) for setup instructions.
-* **Deploy your node on a local DKG network:**\
+- **Deploy your node on a local DKG network:**\
   Use this option to set up a fully localized development environment by following the [Development environment setup guide](setting-up-your-development-environment.md).
-
-
 
 SDKs for other programming languages would be welcome contributions to the project. The core development team is also considering including them in the roadmap.
 

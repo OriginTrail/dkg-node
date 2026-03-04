@@ -2,8 +2,8 @@
 
 The DKG Node is built as a modular project with two core runtimes:
 
-* The **DKG Engine**, which powers network communication and implements the core protocol
-* The **DKG Node Runtime,** which hosts an AI Agent with MCP capabilities
+- The **DKG Engine**, which powers network communication and implements the core protocol
+- The **DKG Node Runtime,** which hosts an AI Agent with MCP capabilities
 
 Adding functionality is done through **Plugins,** which is where you'll likely spend the majority of your time coding. Conceptually, the architecture is illustrated below.
 
@@ -19,9 +19,9 @@ Plugins are like mini-apps for your DKG Node AI Agent — small add-ons that unl
 
 Some useful built-in plugins include:
 
-* **DKG Essential Plugin** — includes the basic tools for publishing and retrieving knowledge.
-* **OAuth 2.1 authentication** — controls who can access your node.
-* **Swagger** — automatically documents available APIs.
+- **DKG Essential Plugin** — includes the basic tools for publishing and retrieving knowledge.
+- **OAuth 2.1 authentication** — controls who can access your node.
+- **Swagger** — automatically documents available APIs.
 
 #### DKG Node Engine
 

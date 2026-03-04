@@ -104,11 +104,13 @@ export default function ChatInput({
   const [isUploading, setIsUploading] = useState(false);
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const [inputHeight, setInputHeight] = useState(CHAT_INPUT_MIN_HEIGHT);
-  const [isCustomScrollbarVisible, setIsCustomScrollbarVisible] = useState(false);
+  const [isCustomScrollbarVisible, setIsCustomScrollbarVisible] =
+    useState(false);
   const [customScrollbarThumbTop, setCustomScrollbarThumbTop] = useState(
     SCROLLBAR_TRACK_INSET,
   );
-  const [customScrollbarThumbHeight, setCustomScrollbarThumbHeight] = useState(0);
+  const [customScrollbarThumbHeight, setCustomScrollbarThumbHeight] =
+    useState(0);
   const hideScrollbarTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
@@ -192,10 +194,7 @@ export default function ChatInput({
       return;
     }
 
-    const trackHeight = Math.max(
-      0,
-      viewportHeight - SCROLLBAR_TRACK_INSET * 2,
-    );
+    const trackHeight = Math.max(0, viewportHeight - SCROLLBAR_TRACK_INSET * 2);
     if (trackHeight <= 0) return;
 
     const thumbHeight = Math.max(
@@ -216,7 +215,8 @@ export default function ChatInput({
   const getInputScrollableElement = (event?: unknown) => {
     const eventLike = event as ScrollbarEventLike | undefined;
     if (isHTMLElement(eventLike?.currentTarget)) return eventLike.currentTarget;
-    if (inputScrollableElementRef.current) return inputScrollableElementRef.current;
+    if (inputScrollableElementRef.current)
+      return inputScrollableElementRef.current;
 
     if (typeof document === "undefined") return null;
     const inputElement = document.querySelector(CHAT_INPUT_SELECTOR);
@@ -232,10 +232,7 @@ export default function ChatInput({
     const contentHeight = toInputDimension(scrollElement.scrollHeight);
     const viewportHeight = toInputDimension(scrollElement.clientHeight);
 
-    const trackHeight = Math.max(
-      1,
-      viewportHeight - SCROLLBAR_TRACK_INSET * 2,
-    );
+    const trackHeight = Math.max(1, viewportHeight - SCROLLBAR_TRACK_INSET * 2);
     const thumbHeight = Math.max(
       SCROLLBAR_MIN_THUMB_HEIGHT,
       Math.min(trackHeight, (viewportHeight / contentHeight) * trackHeight),
@@ -253,7 +250,8 @@ export default function ChatInput({
     scrollElement: HTMLElement;
     scrollTop?: number;
   }) => {
-    const { contentHeight, viewportHeight } = getInputScrollMetrics(scrollElement);
+    const { contentHeight, viewportHeight } =
+      getInputScrollMetrics(scrollElement);
     const normalizedScrollTop = Math.max(0, scrollTop);
 
     inputScrollTopRef.current = normalizedScrollTop;
@@ -265,7 +263,10 @@ export default function ChatInput({
   };
 
   const restoreDocumentUserSelect = () => {
-    if (typeof document === "undefined" || restoreUserSelectRef.current === null) {
+    if (
+      typeof document === "undefined" ||
+      restoreUserSelectRef.current === null
+    ) {
       return;
     }
     document.body.style.userSelect = restoreUserSelectRef.current;
@@ -316,12 +317,16 @@ export default function ChatInput({
 
     cancelEventSelection(event);
 
-    const { maxThumbOffset, maxScrollTop } =
-      getInputScrollMetrics(inputScrollableElement);
+    const { maxThumbOffset, maxScrollTop } = getInputScrollMetrics(
+      inputScrollableElement,
+    );
     const deltaY = pageY - dragState.startPageY;
     const nextScrollTop = Math.min(
       maxScrollTop,
-      Math.max(0, dragState.startScrollTop + (deltaY / maxThumbOffset) * maxScrollTop),
+      Math.max(
+        0,
+        dragState.startScrollTop + (deltaY / maxThumbOffset) * maxScrollTop,
+      ),
     );
 
     inputScrollableElement.scrollTop = nextScrollTop;
@@ -528,7 +533,10 @@ export default function ChatInput({
               </Text>
             </Pressable>
 
-            <View ref={modeDropdownContainerRef} style={styles.modeSelectorContainer}>
+            <View
+              ref={modeDropdownContainerRef}
+              style={styles.modeSelectorContainer}
+            >
               <Pressable
                 style={[
                   styles.modeSelectorTrigger,
@@ -544,7 +552,10 @@ export default function ChatInput({
               >
                 <Text
                   numberOfLines={1}
-                  style={[styles.modeSelectorTriggerText, { color: colors.text }]}
+                  style={[
+                    styles.modeSelectorTriggerText,
+                    { color: colors.text },
+                  ]}
                 >
                   {activeMode.title}
                 </Text>
@@ -615,12 +626,18 @@ export default function ChatInput({
                   style={[
                     styles.iconChip,
                     {
-                      backgroundColor: isOpen ? colors.backgroundFlat : colors.card,
+                      backgroundColor: isOpen
+                        ? colors.backgroundFlat
+                        : colors.card,
                     },
                   ]}
                   onPress={() => setIsOpen((o) => !o)}
                 >
-                  <ToolsIcon stroke={colors.placeholder} width={16} height={16} />
+                  <ToolsIcon
+                    stroke={colors.placeholder}
+                    width={16}
+                    height={16}
+                  />
                 </Pressable>
               )}
             >

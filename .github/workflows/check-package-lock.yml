@@ -12,16 +12,16 @@ on:
     branches:
       - main
     paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - '**/package.json'
+      - "package.json"
+      - "package-lock.json"
+      - "**/package.json"
   pull_request:
     branches:
       - "**"
     paths:
-      - 'package.json'
-      - 'package-lock.json'
-      - '**/package.json'
+      - "package.json"
+      - "package-lock.json"
+      - "**/package.json"
 
 jobs:
   verify-package-lock:
@@ -55,7 +55,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
 
       - name: Validate package-lock.json is valid and in sync
         run: npm ci --dry-run --ignore-scripts

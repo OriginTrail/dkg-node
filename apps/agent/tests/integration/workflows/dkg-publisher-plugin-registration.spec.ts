@@ -43,20 +43,26 @@ describe("DKG Publisher Plugin Registration", () => {
       this.timeout(10000);
 
       const tools = await listMcpTools(testServer.app, accessToken, sessionId);
-      
+
       // Check if knowledge-asset-publish tool is registered
-      const publishTool = tools.find(tool => tool.name === "knowledge-asset-publish");
+      const publishTool = tools.find(
+        (tool) => tool.name === "knowledge-asset-publish",
+      );
       expect(publishTool).to.not.be.undefined;
       expect(publishTool!.name).to.equal("knowledge-asset-publish");
-      expect(publishTool!.description).to.include("Register a JSON-LD asset for publishing to the DKG");
+      expect(publishTool!.description).to.include(
+        "Register a JSON-LD asset for publishing to the DKG",
+      );
     });
 
     it("should have correct MCP tool configuration", async function () {
       this.timeout(10000);
 
       const tools = await listMcpTools(testServer.app, accessToken, sessionId);
-      const publishTool = tools.find(tool => tool.name === "knowledge-asset-publish");
-      
+      const publishTool = tools.find(
+        (tool) => tool.name === "knowledge-asset-publish",
+      );
+
       expect(publishTool).to.not.be.undefined;
       expect(publishTool!.inputSchema).to.have.property("type", "object");
       expect(publishTool!.inputSchema).to.have.property("properties");
@@ -75,26 +81,31 @@ describe("DKG Publisher Plugin Registration", () => {
           "@type": "Organization",
           name: "Test Organization",
           description: "A test organization for DKG publishing",
-          url: "https://example.com"
+          url: "https://example.com",
         },
         metadata: {
           source: "integration-test",
           sourceId: `test-${Date.now()}`,
-          priority: 50
+          priority: 50,
         },
         publishOptions: {
-          privacy: "public"
-        }
+          privacy: "public",
+        },
       };
 
-      const result = await callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", testAsset);
+      const result = await callMcpTool(
+        testServer.app,
+        accessToken,
+        sessionId,
+        "knowledge-asset-publish",
+        testAsset,
+      );
 
-      
       expect(result).to.have.property("result");
       expect(result.result).to.have.property("content");
       expect(result.result.content).to.be.an("array");
       expect(result.result.content).to.have.length.greaterThan(0);
-      
+
       // In unconfigured mode, the plugin returns an error message
       // This is expected behavior when MySQL is not available
       const responseText = result.result.content[0].text;
@@ -117,37 +128,43 @@ describe("DKG Publisher Plugin Registration", () => {
             addressLocality: "Test City",
             addressRegion: "Test State",
             postalCode: "12345",
-            addressCountry: "US"
+            addressCountry: "US",
           },
           contactPoint: {
             "@type": "ContactPoint",
             telephone: "+1-555-123-4567",
-            contactType: "customer service"
+            contactType: "customer service",
           },
           sameAs: [
             "https://twitter.com/testorg",
-            "https://linkedin.com/company/testorg"
-          ]
+            "https://linkedin.com/company/testorg",
+          ],
         },
         metadata: {
           source: "integration-test-complex",
           sourceId: `complex-test-${Date.now()}`,
           priority: 75,
-          tags: ["test", "complex", "organization"]
+          tags: ["test", "complex", "organization"],
         },
         publishOptions: {
           privacy: "public",
-          priority: 75
-        }
+          priority: 75,
+        },
       };
 
-      const result = await callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", complexAsset);
+      const result = await callMcpTool(
+        testServer.app,
+        accessToken,
+        sessionId,
+        "knowledge-asset-publish",
+        complexAsset,
+      );
 
       expect(result).to.have.property("result");
       expect(result.result).to.have.property("content");
       expect(result.result.content).to.be.an("array");
       expect(result.result.content).to.have.length.greaterThan(0);
-      
+
       // In unconfigured mode, the plugin returns an error message
       const responseText = result.result.content[0].text;
       expect(responseText).to.be.a("string");
@@ -160,13 +177,19 @@ describe("DKG Publisher Plugin Registration", () => {
       const incompleteAsset = {
         metadata: {
           source: "test-source",
-          sourceId: "test-123"
-        }
+          sourceId: "test-123",
+        },
         // Missing content field
       };
 
       try {
-        await callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", incompleteAsset);
+        await callMcpTool(
+          testServer.app,
+          accessToken,
+          sessionId,
+          "knowledge-asset-publish",
+          incompleteAsset,
+        );
         // In unconfigured mode, the plugin might not do full validation
         // So this test passes if no error is thrown
       } catch (error: any) {
@@ -187,7 +210,7 @@ describe("DKG Publisher Plugin Registration", () => {
         accessToken,
         "Test PDF content for DKG publishing",
         "test-document.pdf",
-        "application/pdf"
+        "application/pdf",
       );
 
       expect(blobId).to.be.a("string");
@@ -201,25 +224,31 @@ describe("DKG Publisher Plugin Registration", () => {
           name: "Test Document",
           description: "A test document uploaded to DKG",
           url: `blob://${blobId}`,
-          encodingFormat: "application/pdf"
+          encodingFormat: "application/pdf",
         },
         metadata: {
           source: "integration-test-blob",
           sourceId: `blob-test-${Date.now()}`,
-          priority: 60
+          priority: 60,
         },
         publishOptions: {
-          privacy: "public"
-        }
+          privacy: "public",
+        },
       };
 
-      const result = await callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", assetWithBlob);
+      const result = await callMcpTool(
+        testServer.app,
+        accessToken,
+        sessionId,
+        "knowledge-asset-publish",
+        assetWithBlob,
+      );
 
       expect(result).to.have.property("result");
       expect(result.result).to.have.property("content");
       expect(result.result.content).to.be.an("array");
       expect(result.result.content).to.have.length.greaterThan(0);
-      
+
       // In unconfigured mode, the plugin returns an error message
       const responseText = result.result.content[0].text;
       expect(responseText).to.be.a("string");
@@ -237,30 +266,36 @@ describe("DKG Publisher Plugin Registration", () => {
             "@context": "https://schema.org",
             "@type": "Organization",
             name: `Concurrent Test Org ${i}`,
-            description: `Test organization ${i} for concurrent publishing`
+            description: `Test organization ${i} for concurrent publishing`,
           },
           metadata: {
             source: "integration-test-concurrent",
             sourceId: `concurrent-test-${i}-${Date.now()}`,
-            priority: 50
+            priority: 50,
           },
           publishOptions: {
-            privacy: "public"
-          }
+            privacy: "public",
+          },
         };
 
-        return callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", asset);
+        return callMcpTool(
+          testServer.app,
+          accessToken,
+          sessionId,
+          "knowledge-asset-publish",
+          asset,
+        );
       });
 
       const results = await Promise.all(assetPromises);
-      
+
       expect(results).to.have.length(5);
       results.forEach((result, index) => {
         expect(result).to.have.property("result");
         expect(result.result).to.have.property("content");
         expect(result.result.content).to.be.an("array");
         expect(result.result.content).to.have.length.greaterThan(0);
-        
+
         // In unconfigured mode, the plugin returns an error message
         const responseText = result.result.content[0].text;
         expect(responseText).to.be.a("string");
@@ -275,35 +310,41 @@ describe("DKG Publisher Plugin Registration", () => {
         content: {
           "@context": "https://schema.org",
           "@type": "Text",
-          text: "Performance test content for DKG publishing"
+          text: "Performance test content for DKG publishing",
         },
         metadata: {
           source: "integration-test-performance",
           sourceId: `perf-test-${Date.now()}`,
-          priority: 50
+          priority: 50,
         },
         publishOptions: {
-          privacy: "public"
-        }
+          privacy: "public",
+        },
       };
 
       const { result, duration } = await measureExecutionTime(async () => {
-        return callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", testAsset);
+        return callMcpTool(
+          testServer.app,
+          accessToken,
+          sessionId,
+          "knowledge-asset-publish",
+          testAsset,
+        );
       });
 
       expect(result).to.have.property("result");
       expect(result.result).to.have.property("content");
       expect(result.result.content).to.be.an("array");
       expect(result.result.content).to.have.length.greaterThan(0);
-      
+
       // In unconfigured mode, the plugin returns an error message
       const responseText = result.result.content[0].text;
       expect(responseText).to.be.a("string");
       expect(responseText.length).to.be.greaterThan(0);
-      
+
       expect(duration).to.be.a("number");
       expect(duration).to.be.lessThan(10000); // Should complete within 10 seconds
-      
+
       console.log(`Asset publishing took ${duration}ms`);
     });
   });
@@ -320,12 +361,18 @@ describe("DKG Publisher Plugin Registration", () => {
         },
         metadata: {
           source: "integration-test-malformed",
-          sourceId: `malformed-test-${Date.now()}`
-        }
+          sourceId: `malformed-test-${Date.now()}`,
+        },
       };
 
       try {
-        await callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", malformedAsset);
+        await callMcpTool(
+          testServer.app,
+          accessToken,
+          sessionId,
+          "knowledge-asset-publish",
+          malformedAsset,
+        );
         // Should either succeed with validation or fail gracefully
       } catch (error: any) {
         expect(error).to.be.an("error");
@@ -340,7 +387,7 @@ describe("DKG Publisher Plugin Registration", () => {
       const largeContent = {
         "@context": "https://schema.org",
         "@type": "Text",
-        text: "x".repeat(50000) // 50KB string
+        text: "x".repeat(50000), // 50KB string
       };
 
       const largeAsset = {
@@ -348,14 +395,20 @@ describe("DKG Publisher Plugin Registration", () => {
         metadata: {
           source: "integration-test-large",
           sourceId: `large-test-${Date.now()}`,
-          priority: 50
+          priority: 50,
         },
         publishOptions: {
-          privacy: "public"
-        }
+          privacy: "public",
+        },
       };
 
-      const result = await callMcpTool(testServer.app, accessToken, sessionId, "knowledge-asset-publish", largeAsset);
+      const result = await callMcpTool(
+        testServer.app,
+        accessToken,
+        sessionId,
+        "knowledge-asset-publish",
+        largeAsset,
+      );
 
       expect(result).to.have.property("result");
       expect(result.result).to.have.property("content");

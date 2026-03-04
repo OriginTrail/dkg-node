@@ -29,4 +29,3 @@ Tests need to cover errors listed on the [GitHub discussions](https://github.com
 6. When you're satisfied with the scenarios and their step definitions, you may now mark your PR draft as "Ready for review".
 7. There will likely be feedback on your PR before it's approved, so make sure to follow the status of your PR contribution. After PR approval, your changes will be merged.&#x20;
 8. Congratulations! You've just made ot-node more robust :tada:
-

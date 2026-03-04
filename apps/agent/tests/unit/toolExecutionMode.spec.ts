@@ -74,7 +74,9 @@ describe("toolExecutionMode mappings", () => {
   });
 
   it("keeps mode options complete and unique for the dropdown list", () => {
-    const optionValues = TOOL_EXECUTION_MODE_OPTIONS.map((option) => option.value);
+    const optionValues = TOOL_EXECUTION_MODE_OPTIONS.map(
+      (option) => option.value,
+    );
     const uniqueValues = new Set(optionValues);
 
     // QA guard: each mode appears exactly once in the selector.

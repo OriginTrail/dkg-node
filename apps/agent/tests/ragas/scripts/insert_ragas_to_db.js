@@ -70,9 +70,17 @@ for (const file of files) {
 
     // Use current timestamp if not provided in the results
     // Convert to MySQL datetime format (YYYY-MM-DD HH:MM:SS)
-    const timestamp = ragasResults.timestamp 
-      ? new Date(ragasResults.timestamp).toISOString().replace('T', ' ').replace('Z', '').split('.')[0]
-      : new Date().toISOString().replace('T', ' ').replace('Z', '').split('.')[0];
+    const timestamp = ragasResults.timestamp
+      ? new Date(ragasResults.timestamp)
+          .toISOString()
+          .replace("T", " ")
+          .replace("Z", "")
+          .split(".")[0]
+      : new Date()
+          .toISOString()
+          .replace("T", " ")
+          .replace("Z", "")
+          .split(".")[0];
 
     // Convert all scores to percentages (multiply by 100)
     // Handle null/undefined values by defaulting to 0

@@ -43,11 +43,11 @@ Asynchronous version setup guide can be found here: [async guide](./)
 
 In this example:
 
-* `ka_ual` is the unique identifier of the Knowledge Asset created on the DKG.
-* `name` is the name you want to give to your paranet. It should be descriptive enough to indicate the paranet's purpose or focus.
-* `description` provides additional context about the paranet, explaining its purpose and the types of Knowledge Assets or services it will involve.
-* `paranet_nodes_access_policy` defines a paranet's policy towards including nodes. If OPEN, any node can be a part of the paranet. If CURATED, only the paranet owner can approve nodes to be a part of the paranet.
-* `paranet_miners_access_policy` defines a paranet's policy towards including knowledge miners. If OPEN, anyone can publish to a paranet. If CURATED, only the paranet owner can approve knowledge miners who can publish to the paranet.
+- `ka_ual` is the unique identifier of the Knowledge Asset created on the DKG.
+- `name` is the name you want to give to your paranet. It should be descriptive enough to indicate the paranet's purpose or focus.
+- `description` provides additional context about the paranet, explaining its purpose and the types of Knowledge Assets or services it will involve.
+- `paranet_nodes_access_policy` defines a paranet's policy towards including nodes. If OPEN, any node can be a part of the paranet. If CURATED, only the paranet owner can approve nodes to be a part of the paranet.
+- `paranet_miners_access_policy` defines a paranet's policy towards including knowledge miners. If OPEN, anyone can publish to a paranet. If CURATED, only the paranet owner can approve knowledge miners who can publish to the paranet.
 
 After the paranet is successfully created, the paranet UAL can be used to interact with the specific paranet. This includes deploying services within the paranet, managing incentives, and claiming rewards associated with the paranet's operations.
 
@@ -74,11 +74,11 @@ await dkg.paranet.add_services(ual=paranet_ual, services_uals=[paranet_service_u
 
 In this example:
 
-* `ual` specifies the UAL of the Paranet Service Knowledge Asset
-* `paranet_service_name` specifies the name of the service.
-* `paranet_service_description` provides a brief description of what the service does.
-* `paranet_service_addresses` lists blockchain addresses associated with the service. For off-chain services, this field can be left empty.
-* `services_uals` is an array of Universal Asset Locators for the services you want to add to your paranet.
+- `ual` specifies the UAL of the Paranet Service Knowledge Asset
+- `paranet_service_name` specifies the name of the service.
+- `paranet_service_description` provides a brief description of what the service does.
+- `paranet_service_addresses` lists blockchain addresses associated with the service. For off-chain services, this field can be left empty.
+- `services_uals` is an array of Universal Asset Locators for the services you want to add to your paranet.
 
 By integrating and managing services, paranet operators can expand the capabilities of their paranet, providing a robust infrastructure for decentralized applications and AI-driven services.
 
@@ -108,9 +108,9 @@ Participants in a paranet can earn rewards for their various roles and contribut
 
 **Roles in a paranet:**
 
-* **Knowledge miners:** Contribute to the paranet by mining Knowledge Collections/Assets.
-* **Paranet operators:** Manage the paranet, including overseeing services and facilitating operations.
-* **Proposal voters:** Participate in decision-making by voting on the Initial Paranet Offering (IPO).
+- **Knowledge miners:** Contribute to the paranet by mining Knowledge Collections/Assets.
+- **Paranet operators:** Manage the paranet, including overseeing services and facilitating operations.
+- **Proposal voters:** Participate in decision-making by voting on the Initial Paranet Offering (IPO).
 
 Participants can verify their roles and claim rewards through the following steps and examples:
 
@@ -235,8 +235,8 @@ print(query_result)
 
 **Explanation:**
 
-* **`SERVICE` keyword:** The `SERVICE` keyword is used to include data from Paranet 3 (`paranet_ual3`) in the query, while the primary paranet is set to Paranet 1 (`paranet_ual1`).
-* **Query structure:** The query retrieves distinct subjects (`?s`), cities, users, and companies from Paranet 1, and performs a sub-query within Paranet 3 to get data where the city is `Belgrade`.
-* **Filter clause:** The `filter` clause is used to ensure that the city data from Paranet 3 contains the string "Belgrade".
+- **`SERVICE` keyword:** The `SERVICE` keyword is used to include data from Paranet 3 (`paranet_ual3`) in the query, while the primary paranet is set to Paranet 1 (`paranet_ual1`).
+- **Query structure:** The query retrieves distinct subjects (`?s`), cities, users, and companies from Paranet 1, and performs a sub-query within Paranet 3 to get data where the city is `Belgrade`.
+- **Filter clause:** The `filter` clause is used to ensure that the city data from Paranet 3 contains the string "Belgrade".
 
 Federated SPARQL queries provide a powerful way to aggregate and analyze data across multiple paranets, this enables more complex data retrieval and cross-paranet data integration, making it easier to gather comprehensive insights from diverse data sources.

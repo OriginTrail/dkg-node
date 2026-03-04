@@ -30,41 +30,42 @@ export const mockDkgPublisherPlugin: DkgPlugin = (ctx, mcp, api) => {
       // Mock the publishing process
       const assetId = `mock-asset-${Date.now()}`;
       const mockUal = `did:dkg:otp:20430/0x${Math.random().toString(16).substr(2, 8)}/${assetId}`;
-      
+
       return {
         content: [
           {
             type: "text",
-            text: `✅ Mock Knowledge Asset published successfully!\n\n` +
-                  `📊 Asset ID: ${assetId}\n` +
-                  `🔗 UAL: ${mockUal}\n` +
-                  `📝 Source: ${input.metadata?.source || 'test-source'}\n` +
-                  `🏷️  Source ID: ${input.metadata?.sourceId || 'test-id'}\n` +
-                  `🔒 Privacy: ${input.privacy || 'public'}\n\n` +
-                  `This is a mock response for integration testing. In a real scenario, ` +
-                  `the asset would be queued for processing and published to the DKG network.`
-          }
-        ]
+            text:
+              `✅ Mock Knowledge Asset published successfully!\n\n` +
+              `📊 Asset ID: ${assetId}\n` +
+              `🔗 UAL: ${mockUal}\n` +
+              `📝 Source: ${input.metadata?.source || "test-source"}\n` +
+              `🏷️  Source ID: ${input.metadata?.sourceId || "test-id"}\n` +
+              `🔒 Privacy: ${input.privacy || "public"}\n\n` +
+              `This is a mock response for integration testing. In a real scenario, ` +
+              `the asset would be queued for processing and published to the DKG network.`,
+          },
+        ],
       };
-    }
+    },
   );
 
   // Register API routes (mock versions)
   api.get("/api/dkg/metrics/queue", (req, res) => {
     res.status(503).json({
-      error: "Services not initialized"
+      error: "Services not initialized",
     });
   });
 
   api.get("/api/dkg/metrics/wallets", (req, res) => {
     res.status(503).json({
-      error: "Services not initialized"
+      error: "Services not initialized",
     });
   });
 
   api.get("/admin/queues", (req, res) => {
     res.status(503).json({
-      error: "DKG Publisher Plugin is starting up"
+      error: "DKG Publisher Plugin is starting up",
     });
   });
 };

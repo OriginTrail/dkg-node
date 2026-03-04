@@ -26,25 +26,26 @@ Once the knowledge collection is created, you can choose which KA from that KC w
 Here is an example of how to create a new paranet using the `create` function from the paranet module. This function requires the UAL of the previously created Knowledge Asset, along with other details such as the paranet's name and description:
 
 ```javascript
-const kcUAL = 'did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/1'
+const kcUAL =
+  "did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/1";
 const kaUAL = `${kcUAL}/1`;
 await dkg.paranet.create(kaUAL, {
-        paranetName: 'AiParanet',
-        paranetDescription: 'AI agents paranet for demonstration purposes.',
-        paranetNodesAccessPolicy: PARANET_NODES_ACCESS_POLICY.OPEN,
-        paranetMinersAccessPolicy: PARANET_MINERS_ACCESS_POLICY.OPEN,
-        paranetKcSubmissionPolicy: PARANET_KC_SUBMISSION_POLICY.PERMISSIONED,
+  paranetName: "AiParanet",
+  paranetDescription: "AI agents paranet for demonstration purposes.",
+  paranetNodesAccessPolicy: PARANET_NODES_ACCESS_POLICY.OPEN,
+  paranetMinersAccessPolicy: PARANET_MINERS_ACCESS_POLICY.OPEN,
+  paranetKcSubmissionPolicy: PARANET_KC_SUBMISSION_POLICY.PERMISSIONED,
 });
 ```
 
 In this example:
 
-* `kaUAL` is the unique identifier of the Knowledge Asset created on the DKG.
-* `paranetName` is the name you want to give to your paranet. It should be descriptive enough to indicate the paranet's purpose or focus.
-* `paranetDescription` provides additional context about the paranet, explaining its purpose and the types of knowledge collections or services it will involve.
-* `paranetNodesAccessPolicy` defines a paranet's policy towards including nodes. If OPEN, any node can be a part of the paranet.
-* `paranetMinersAccessPolicy` defines a paranet's policy towards including knowledge miners. If OPEN, anyone can publish to a paranet.&#x20;
-* `paranetKcSubmissionPolicy` defines a paranet's policy regarding which KCs can be added and who can add new collections of Knowledge Assets. To learn more about curation, [read here](knowledge-submission-and-curation.md). If OPEN, anyone can access a paranet.&#x20;
+- `kaUAL` is the unique identifier of the Knowledge Asset created on the DKG.
+- `paranetName` is the name you want to give to your paranet. It should be descriptive enough to indicate the paranet's purpose or focus.
+- `paranetDescription` provides additional context about the paranet, explaining its purpose and the types of knowledge collections or services it will involve.
+- `paranetNodesAccessPolicy` defines a paranet's policy towards including nodes. If OPEN, any node can be a part of the paranet.
+- `paranetMinersAccessPolicy` defines a paranet's policy towards including knowledge miners. If OPEN, anyone can publish to a paranet.&#x20;
+- `paranetKcSubmissionPolicy` defines a paranet's policy regarding which KCs can be added and who can add new collections of Knowledge Assets. To learn more about curation, [read here](knowledge-submission-and-curation.md). If OPEN, anyone can access a paranet.&#x20;
 
 After the paranet is successfully created, the paranet UAL can be used to interact with the paranet. This includes deploying services within the paranet, managing incentives, and claiming rewards associated with the paranet's operations.
 
@@ -57,24 +58,29 @@ Before adding services, you first need to create them using the `createService` 
 Each service can be identified by all paranet users via its registry Knowledge Asset and can include multiple on-chain accounts under its control. This enables services to participate in economic activities within the DKG.
 
 ```javascript
-const paranetUAL = 'did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/1/1';
-const serviceUAL = 'did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/2/1';
+const paranetUAL =
+  "did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/1/1";
+const serviceUAL =
+  "did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/2/1";
 await dkg.paranet.createService(serviceUAL, {
-    paranetServiceName: 'MyAiService',
-    paranetServiceDescription: 'Autonomous AI service for AI paranet',
-    paranetServiceAddresses: ['0xb3155543738b997b7a1a5bc849005bc2afd35578', '0x2375e543738b997b7a125bc849005b62afd35571'],
+  paranetServiceName: "MyAiService",
+  paranetServiceDescription: "Autonomous AI service for AI paranet",
+  paranetServiceAddresses: [
+    "0xb3155543738b997b7a1a5bc849005bc2afd35578",
+    "0x2375e543738b997b7a125bc849005b62afd35571",
+  ],
 });
 
-const serviceUALs = [serviceUAL]; 
+const serviceUALs = [serviceUAL];
 await dkg.paranet.addServices(paranetUAL, serviceUALs);
 ```
 
 In this example:
 
-* `paranetServiceName` specifies the name of the service.
-* `paranetServiceDescription` provides a brief description of what the service does.
-* `paranetServiceAddresses` lists blockchain addresses associated with the service. For off-chain services, this field can be left empty.
-* `serviceUALs` is an array of UALs that are used to register services you want to add to your Paranet.&#x20;
+- `paranetServiceName` specifies the name of the service.
+- `paranetServiceDescription` provides a brief description of what the service does.
+- `paranetServiceAddresses` lists blockchain addresses associated with the service. For off-chain services, this field can be left empty.
+- `serviceUALs` is an array of UALs that are used to register services you want to add to your Paranet.&#x20;
 
 By integrating and managing services, paranet operators can expand the capabilities of their paranet, providing a robust infrastructure for decentralized applications and AI-driven services.
 
@@ -89,8 +95,10 @@ Once you create a knowledge collection, you can submit it to a paranet using the
 Here’s an example:
 
 ```javascript
-const paranetUAL = 'did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/1/1';
-const kcUAL = 'did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/55';
+const paranetUAL =
+  "did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/1/1";
+const kcUAL =
+  "did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/55";
 
 // Submit a Knowledge Collection to a paranet
 await DkgClient.asset.submitToParanet(kcUAL, paranetUAL);
@@ -104,9 +112,9 @@ If you're interested in deploying a **paranet's incentive pool**, you can find m
 
 **Roles in a paranet:**
 
-* **Knowledge miners:** Contribute to the paranet by mining knowledge collections.
-* **Paranet operators:** Manage the paranet, including overseeing services and facilitating operations.
-* **Proposal voters:** Participate in decision-making by voting on the Initial Paranet Offering (IPO).
+- **Knowledge miners:** Contribute to the paranet by mining knowledge collections.
+- **Paranet operators:** Manage the paranet, including overseeing services and facilitating operations.
+- **Proposal voters:** Participate in decision-making by voting on the Initial Paranet Offering (IPO).
 
 Participants can verify their roles and claim rewards through the following steps and examples:
 
@@ -196,8 +204,9 @@ To query a specific paranet, you have to specify the paranet UAL using the `para
 Here’s how you can perform a query on a specific paranet using the `paranetUAL` parameter:
 
 ```javascript
- const paranetUAL = 'did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/1/1';
- const queryWhereMadrid = `PREFIX schema: <http://schema.org/>
+const paranetUAL =
+  "did:dkg:hardhat1:31337/0x791ee543738b997b7a125bc849005b62afd35578/1/1";
+const queryWhereMadrid = `PREFIX schema: <http://schema.org/>
         SELECT DISTINCT ?graphName
         WHERE {
           GRAPH ?graphName {
@@ -205,11 +214,9 @@ Here’s how you can perform a query on a specific paranet using the `paranetUAL
         }
 }`;
 
-let queryResult = await dkg.graph.query(
-        queryWhereMadrid,
-        'SELECT',
-        { paranetUAL: paranetUAL },
-);
+let queryResult = await dkg.graph.query(queryWhereMadrid, "SELECT", {
+  paranetUAL: paranetUAL,
+});
 
 console.log(queryResult.data);
 ```
@@ -247,19 +254,17 @@ const federatedQuery = `
         }
     `;
 
-    queryResult = await dkg.graph.query(
-        federatedQuery,
-        'SELECT',
-        { paranetUAL: paranetUAL1 },
-    );
-  
-    console.log(queryResult.data);
+queryResult = await dkg.graph.query(federatedQuery, "SELECT", {
+  paranetUAL: paranetUAL1,
+});
+
+console.log(queryResult.data);
 ```
 
 **Explanation:**
 
-* **`SERVICE` keyword:** The `SERVICE` keyword is used to include data from Paranet 3 (`paranetUAL3`) in the query, while the primary paranet is set to Paranet 1 (`paranetUAL1`).
-* **Query structure:** The query retrieves distinct subjects (`?s`), cities, users, and companies from Paranet 1, and performs a sub-query within Paranet 3 to get data on where the city is `Belgrade`.
-* **Filter clause:** The `filter` clause is used to ensure that the city data from Paranet 3 contains the string "Belgrade".
+- **`SERVICE` keyword:** The `SERVICE` keyword is used to include data from Paranet 3 (`paranetUAL3`) in the query, while the primary paranet is set to Paranet 1 (`paranetUAL1`).
+- **Query structure:** The query retrieves distinct subjects (`?s`), cities, users, and companies from Paranet 1, and performs a sub-query within Paranet 3 to get data on where the city is `Belgrade`.
+- **Filter clause:** The `filter` clause is used to ensure that the city data from Paranet 3 contains the string "Belgrade".
 
 Federated SPARQL queries provide a powerful way to aggregate and analyze data across multiple paranets. This enables more complex data retrieval and cross-paranet data integration, making it easier to gather comprehensive insights from diverse data sources.

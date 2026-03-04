@@ -365,8 +365,7 @@ export const processStreamingCompletion = async (
         writeSSE(res, {
           event: "error",
           data: {
-            message:
-              "Stream interrupted - please retry your message",
+            message: "Stream interrupted - please retry your message",
           },
         });
       } else {
@@ -455,7 +454,8 @@ export const makeStreamingCompletionRequest = async (
 
   if (response.status === 401) throw new Error("Unauthorized");
   if (response.status === 403) throw new Error("Forbidden");
-  if (!response.ok) throw new Error(`Unexpected status code: ${response.status}`);
+  if (!response.ok)
+    throw new Error(`Unexpected status code: ${response.status}`);
 
   const reader = response.body?.getReader();
   if (!reader) throw new Error("No readable stream in response");

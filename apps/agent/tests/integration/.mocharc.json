@@ -1,11 +1,7 @@
 {
-  "require": [
-    "tsx/esm"
-  ],
+  "require": ["tsx/esm"],
   "timeout": 30000,
   "recursive": true,
   "spec": "**/*.spec.ts",
-  "file": [
-    "./setup/global-setup.ts"
-  ]
+  "file": ["./setup/global-setup.ts"]
 }

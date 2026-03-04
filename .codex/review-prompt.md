@@ -61,7 +61,6 @@ Every comment must be traceable to changed behavior in this PR and anchored to a
 
 #### Security
 
-
 - Injection risks (SQL, command, XSS) when handling user input.
 - Hardcoded secrets — API keys, passwords, tokens in code.
 - Missing input validation at system boundaries (user input, external APIs). Not for internal function calls.

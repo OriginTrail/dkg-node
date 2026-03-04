@@ -6,10 +6,7 @@ import {
   createFileWithContent,
   createUser,
 } from "../helpers";
-import {
-  getLLMProviderApiKeyEnvName,
-  LLMProvider,
-} from "@/shared/chat";
+import { getLLMProviderApiKeyEnvName, LLMProvider } from "@/shared/chat";
 import { DEFAULT_SYSTEM_PROMPT } from "@/shared/prompts/defaultSystemPrompt";
 
 async function setup() {

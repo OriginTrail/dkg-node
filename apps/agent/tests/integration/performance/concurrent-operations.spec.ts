@@ -82,16 +82,18 @@ describe("Concurrent Operations Performance", () => {
 
       // Use smaller files to avoid EPIPE errors
       const fileSizeKB = 512; // 512KB instead of 1MB
-      console.log(`Testing with ${fileSizeKB}KB files to avoid EPIPE errors...`);
-      
+      console.log(
+        `Testing with ${fileSizeKB}KB files to avoid EPIPE errors...`,
+      );
+
       const startTime = Date.now();
       const responses = [];
-      
+
       for (let i = 0; i < 3; i++) {
         try {
           // Create smaller file data to avoid memory/network issues
           const fileData = generateLargeTestData(fileSizeKB);
-          
+
           const response = await request(testServer.app)
             .post("/blob")
             .set("Authorization", `Bearer ${accessToken}`)
@@ -104,11 +106,11 @@ describe("Concurrent Operations Performance", () => {
           // Create a mock response for failed uploads
           responses.push({
             status: 201,
-            body: { id: `mock-sequential-${i}` }
+            body: { id: `mock-sequential-${i}` },
           });
         }
       }
-      
+
       const endTime = Date.now();
 
       responses.forEach((response, i) => {
@@ -117,8 +119,7 @@ describe("Concurrent Operations Performance", () => {
       });
 
       const totalTime = endTime - startTime;
-      const avgTimePerMB =
-        totalTime / (3 * (fileSizeKB / 1024)); // Use actual file size
+      const avgTimePerMB = totalTime / (3 * (fileSizeKB / 1024)); // Use actual file size
 
       console.log(
         `3 sequential ${fileSizeKB}KB uploads completed in ${totalTime}ms (${avgTimePerMB.toFixed(2)}ms per MB)`,

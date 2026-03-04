@@ -4,7 +4,7 @@ To interact with specific DKG paranet's knowledge graphs using your OriginTrail 
 
 If you have not yet set up your node or need guidance on configuring a DKG Node, please refer to the [Installation guide](../../../getting-started/decentralized-knowle-dge-graph-dkg.md).
 
-To enable your node to sync with a paranet, you will need to add `assetSync` object  to your node’s `.origintrail_noderc` file. Below is an example of how to configure this (make sure to replace the UAL in the example below):
+To enable your node to sync with a paranet, you will need to add `assetSync` object to your node’s `.origintrail_noderc` file. Below is an example of how to configure this (make sure to replace the UAL in the example below):
 
 ```json
 "assetSync": {
@@ -12,7 +12,7 @@ To enable your node to sync with a paranet, you will need to add `assetSync` obj
 }
 ```
 
-Once .origintrail\_noderc is updated, it should look something like this:
+Once .origintrail_noderc is updated, it should look something like this:
 
 <pre class="language-java"><code class="lang-java">...
     "auth": {
@@ -42,4 +42,3 @@ Paranet sync: KA count from contract and in DB is the same, nothing new to sync,
 ```
 
 Interacting with the paranet knowledge graph through your node is explained on [this](building-with-dkg-paranets.md) page.
-

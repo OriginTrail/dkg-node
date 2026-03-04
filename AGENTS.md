@@ -48,13 +48,16 @@ Before you consider a task "done", you must:
 # Task: [<task number (last + 1)>] <feature>
 
 ## Goal
+
 - <short goal>
 
 ## Subtasks
+
 - [ ] <subtask 1>
 - [ ] <subtask 2>
 
 ## Notes
+
 - <risks, decisions, links>
 ```
 

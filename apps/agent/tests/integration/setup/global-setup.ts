@@ -4,7 +4,7 @@
  */
 export async function globalSetup(): Promise<void> {
   console.log("🔧 Setting up integration test environment...");
-  
+
   try {
     // Redis not needed for API contract tests
     // await redisManager.startRedis();
@@ -21,7 +21,7 @@ export async function globalSetup(): Promise<void> {
  */
 export async function globalTeardown(): Promise<void> {
   console.log("🧹 Cleaning up integration test environment...");
-  
+
   try {
     // Redis not needed for API contract tests
     // await redisManager.stopRedis();

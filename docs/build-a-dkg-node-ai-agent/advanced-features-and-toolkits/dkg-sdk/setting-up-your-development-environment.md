@@ -14,11 +14,11 @@ These instructions are made for macOS and Linux.
 
 ### Prerequisites
 
-* An installed and running **Blazegraph**
-  * To download and run Blazegraph, please visit their [official website](https://blazegraph.com/).
-* An installed and running **MySQL**
-  * You need to create an empty table named **operationaldb** inside MySQL.
-* You should have **npm** and **Node.js (v16)** installed.
+- An installed and running **Blazegraph**
+  - To download and run Blazegraph, please visit their [official website](https://blazegraph.com/).
+- An installed and running **MySQL**
+  - You need to create an empty table named **operationaldb** inside MySQL.
+- You should have **npm** and **Node.js (v16)** installed.
 
 {% hint style="success" %}
 Need any assistance with node setup? Join the [Discord ](https://discord.com/invite/xCaY7hvNwD)chat and find help within the OriginTrail tech community!
@@ -50,7 +50,7 @@ Then, install the required dependencies by running:
 npm install
 ```
 
-Next, create a file called  `.env` and add the following lines:
+Next, create a file called `.env` and add the following lines:
 
 ```sh
 NODE_ENV=development
@@ -79,9 +79,8 @@ To start the local DKG network on **Linux**, run the following command:
 ./tools/local-network-setup/setup-linux-environment.sh --nodes=5
 ```
 
-
-
 {% hint style="info" %}
+
 ### Contributing
 
 These setup instructions are a work in progress and are subject to change. The core development team expects to introduce improvements in setting up the DKG node engine in the local environment in the future.

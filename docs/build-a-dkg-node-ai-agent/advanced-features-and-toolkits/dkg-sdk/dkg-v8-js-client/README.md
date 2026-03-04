@@ -6,12 +6,12 @@ description: Javascript library for the Decentralized Knowledge Graph.
 
 If you are looking to build applications leveraging [Knowledge Assets](./#create-a-knowledge-asset) on the OriginTrail Decentralized Knowledge Graph (DKG), the dkg.js SDK library is the best place to start!
 
-The DKG SDK is used together with an **OriginTrail gateway node** to build applications that interface with the OriginTrail DKG  (the node is a dependency). Therefore, to use the SDK, you either need to run a gateway node on [your local environment](../setting-up-your-development-environment.md) or a [hosted DKG Node](../../../../getting-started/decentralized-knowle-dge-graph-dkg.md).
+The DKG SDK is used together with an **OriginTrail gateway node** to build applications that interface with the OriginTrail DKG (the node is a dependency). Therefore, to use the SDK, you either need to run a gateway node on [your local environment](../setting-up-your-development-environment.md) or a [hosted DKG Node](../../../../getting-started/decentralized-knowle-dge-graph-dkg.md).
 
 ## Prerequisites
 
-* node ≥ 20.0.0
-* npm ≥ 8.0.0
+- node ≥ 20.0.0
+- npm ≥ 8.0.0
 
 ## Installation
 
@@ -52,7 +52,7 @@ npm install dkg.js@latest
 Then, include `dkg.js` in your project files. This will expose the `DKG` object:
 
 ```javascript
-const DKG = require('dkg.js');
+const DKG = require("dkg.js");
 ```
 
 ## :snowboarder: Quickstart
@@ -65,45 +65,45 @@ To use the DKG library, you need to connect to a running local or remote OT-node
 
 ```javascript
 const dkg = new DKG({
-    environment: ENVIRONMENTS.DEVELOPMENT, // or devnet, testnet, mainnet
-    endpoint: 'http://localhost',  // gateway node URI
-    port: 8900,
-    blockchain: {
-        name: BLOCKCHAIN_IDS.HARDHAT_1, // or any other blockchain id
-        publicKey: PUBLIC_KEY, // not required in browser, metamask used instead
-        privateKey: PRIVATE_KEY, // not required in browser, metamask used instead
-    },
+  environment: ENVIRONMENTS.DEVELOPMENT, // or devnet, testnet, mainnet
+  endpoint: "http://localhost", // gateway node URI
+  port: 8900,
+  blockchain: {
+    name: BLOCKCHAIN_IDS.HARDHAT_1, // or any other blockchain id
+    publicKey: PUBLIC_KEY, // not required in browser, metamask used instead
+    privateKey: PRIVATE_KEY, // not required in browser, metamask used instead
+  },
 });
 
-const nodeInfo = await dkg.node.info(); 
+const nodeInfo = await dkg.node.info();
 // if successfully connected, the will return an object indicating the node version
 // { 'version': '8.X.X' }
 ```
 
-The system supports multiple blockchain networks, which can be configured using the BLOCKCHAIN\_IDS constants. You can select the desired blockchain by specifying the corresponding constant. The available options are:
+The system supports multiple blockchain networks, which can be configured using the BLOCKCHAIN_IDS constants. You can select the desired blockchain by specifying the corresponding constant. The available options are:
 
 **DKG mainnet options:**
 
-* Base: base:8453
-* Gnosis: gnosis:100
-* Neuroweb: otp:2043
+- Base: base:8453
+- Gnosis: gnosis:100
+- Neuroweb: otp:2043
 
 **DKG testnet options:**
 
-* Base: base:84532
-* Gnosis: gnosis:10200
-* Neuroweb: otp:20430
+- Base: base:84532
+- Gnosis: gnosis:10200
+- Neuroweb: otp:20430
 
 **DKG devnet options:**
 
-* Base: base:84532
-* Gnosis: gnosis:10200
-* Neuroweb: otp:2160
+- Base: base:84532
+- Gnosis: gnosis:10200
+- Neuroweb: otp:2160
 
 **Local options:**
 
-* Hardhat1: hardhat1:31337
-* Hardhat2: hardhat2:31337
+- Hardhat1: hardhat1:31337
+- Hardhat2: hardhat2:31337
 
 The system uses default publicly available RPCs for each chain. However, because these RPCs are shared by many users, they can become overloaded, leading to errors — such as failures when creating a KA. To avoid this, we recommend using your own RPC if possible. You can set a custom RPC by passing `rpc: RPC_URL` in the blockchain options.
 
@@ -115,36 +115,35 @@ If you have access to the particular node that has the data, when you search for
 
 ```javascript
 const content = {
-     public: {
-            '@context': 'http://schema.org',
-            '@id': 'https://en.wikipedia.org/wiki/New_York_City',
-            '@type': 'City',
-            name: 'New York',
-            state: 'New York',
-            population: '8,336,817',
-            area: '468.9 sq mi',
-     },
-     private: {
-        '@context': 'http://schema.org',
-        '@id': 'https://en.wikipedia.org/wiki/New_York_City',
-        '@type': 'CityPrivateData',
-        crimeRate: 'Low',
-        averageIncome: '$63,998',
-        infrastructureScore: '8.5',
-        relatedCities: [
-            { '@id': 'urn:us-cities:info:los-angeles', name: 'Los Angeles' },
-            { '@id': 'urn:us-cities:info:chicago', name: 'Chicago' },
-        ],
-     },
-}
-
+  public: {
+    "@context": "http://schema.org",
+    "@id": "https://en.wikipedia.org/wiki/New_York_City",
+    "@type": "City",
+    name: "New York",
+    state: "New York",
+    population: "8,336,817",
+    area: "468.9 sq mi",
+  },
+  private: {
+    "@context": "http://schema.org",
+    "@id": "https://en.wikipedia.org/wiki/New_York_City",
+    "@type": "CityPrivateData",
+    crimeRate: "Low",
+    averageIncome: "$63,998",
+    infrastructureScore: "8.5",
+    relatedCities: [
+      { "@id": "urn:us-cities:info:los-angeles", name: "Los Angeles" },
+      { "@id": "urn:us-cities:info:chicago", name: "Chicago" },
+    ],
+  },
+};
 ```
 
 When you create the Knowledge Asset, the above JSON-LD object will be converted into an **assertion**. When an assertion with public data is prepared, we can create a Knowledge Asset on the DKG. `epochsNum` specifies how many epochs the asset should be kept for (an epoch is equal to one month).
 
 ```javascript
 const result = await DkgClient.asset.create(content, {
-        epochsNum: 6
+  epochsNum: 6,
 });
 
 console.log(result);
@@ -198,17 +197,17 @@ The complete response of the method will look like:
 If you want to create multiple different assets, you can increase your allowance. Then, each time you initiate a publish, the step of calling the blockchain to increase your allowance will be skipped, resulting in a faster publishing time.
 
 ```javascript
-await dkg.asset.increaseAllowance('1569429592284014000');
+await dkg.asset.increaseAllowance("1569429592284014000");
 
 const result = await DkgClient.asset.create(content, {
-        epochsNum: 6
+  epochsNum: 6,
 });
 ```
 
 After you've finished publishing data to the blockchain, you can decrease your allowance to revoke the authorization given to the contract to spend your tokens. If you want to revoke all remaining authorization, it's a good practice to pass the same value that you used for increasing your allowance.
 
 ```javascript
-await dkg.asset.decreaseAllowance('1569429592284014000');
+await dkg.asset.decreaseAllowance("1569429592284014000");
 ```
 
 ## Read Knowledge Asset data from the DKG
@@ -354,12 +353,12 @@ Let’s write a simple query to select all subjects and objects in the graph tha
 
 ```javascript
 const result = await dkg.graph.query(
-    `prefix schema: <http://schema.org/>
+  `prefix schema: <http://schema.org/>
         select ?s ?stateName
         where {
             ?s schema:state ?stateName
         }`,
-    'SELECT',
+  "SELECT",
 );
 
 console.log(JSON.stringify(result, null, 2));
@@ -386,9 +385,9 @@ To learn more about querying the DKG, go [here](../../querying-the-dkg.md).
 
 We can divide operations done by SDK into 3 types:
 
-* Node API request
-* Smart contract call (non-state-changing interaction)
-* Smart contract transaction (state-changing interaction)
+- Node API request
+- Smart contract call (non-state-changing interaction)
+- Smart contract transaction (state-changing interaction)
 
 Non-state-changing interactions with smart contracts are free and can be described as contract-getters. They don’t require transactions on the blockchain. This means they do not incur transaction fees.&#x20;
 
@@ -399,8 +398,9 @@ To perform state-changing operations, you need to use a wallet funded with gas t
 You can use the default keys from the example below for the Hardhat blockchain:
 
 ```javascript
-const PRIVATE_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
-const PUBLIC_KEY="0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"
+const PRIVATE_KEY =
+  "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80";
+const PUBLIC_KEY = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
 ```
 
 {% hint style="warning" %}

@@ -17,16 +17,13 @@ To launch your Initial Paranet Offering, you are expected to:
 1. **Share your initial AI paranet idea publicly** with the knowledge miner community (e.g., in the [Discord](https://discord.gg/3BrQDvHpdc) paranets channel)
 2. **Specify your paranet** using the provided [IPO template](https://docs.google.com/document/d/1QzKpH_ex-U8mxh-IgwTjijEe3n6vwRVAhG599siapQQ/edit#heading=h.61lymw4v18qp) to prepare it for the NeuroWeb governance proposal. Request a custom Discord channel creation for your paranet via the [#paranets](https://discord.gg/wtC73bqj3c) channel.&#x20;
 3. Introduce your paranet topic, knowledge assets, and AI services to the community. To ensure the required community support, we recommend sharing your proposal widely:
-   * Sharing it on X
-   * Posting on [Discord](https://discord.gg/aNpBjf97)&#x20;
-   * Sending to [Telegram](https://t.me/origintrail)&#x20;
+   - Sharing it on X
+   - Posting on [Discord](https://discord.gg/aNpBjf97)&#x20;
+   - Sending to [Telegram](https://t.me/origintrail)&#x20;
 4. Before launching the governance vote, [**register your paranet**](../building-with-dkg-paranets.md) and instantiate the _ParanetIncentivesPool_ and _ParanetIncentivesPoolStorage_ smart contracts via the _ParanetIncentivesPoolFactory_ contract.&#x20;
 5. **Launch the NeuroWeb Governance Proposal for your paranet**. General instructions for submitting governance proposals are available [here](https://docs.neuroweb.ai/on-chain-governance/submit-a-governance-proposal).
 6. Once your paranet idea is supported (voted Aye by a majority vote of the NeuroWeb community), proceed with activating your paranet and knowledge mining
 
-
-
 {% hint style="success" %}
 Have any questions or feedback for this page? Hop into our [Discord channel](https://discord.com/invite/qRc4xHpFnN) and get in touch
 {% endhint %}
-
