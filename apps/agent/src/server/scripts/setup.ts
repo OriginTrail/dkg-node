@@ -65,6 +65,15 @@ function getRecommendedWorkerCount(walletCount: number) {
   return Math.max(1, Math.min(Math.ceil(walletCount / 10), 5));
 }
 
+function isValidUrl(value: string) {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function collectAdditionalPublisherWallets() {
   const additionalWallets: string[] = [];
   const addWalletsResponse = await prompts(
@@ -356,6 +365,16 @@ async function setup() {
     },
     {
       type: "text",
+      name: "dkgCustomRpc",
+      message: "Custom blockchain RPC (leave blank to use default RPC)",
+      format: (value) => value.trim(),
+      validate: (value) =>
+        !value.trim() ||
+        isValidUrl(value.trim()) ||
+        "Provide a valid URL or leave blank to use the default RPC",
+    },
+    {
+      type: "text",
       name: "dkgPublishWallet",
       message: "Publish wallet private key",
       initial: (_, answers) =>
@@ -462,6 +481,7 @@ async function setup() {
 
   const requestedAsyncPublishing = response.asyncPublishingMode !== "disabled";
   const appUrl = "http://localhost:9200";
+  const customRpc = response.dkgCustomRpc?.trim() || "";
   const envPublishWallet = stripPrivateKeyPrefix(response.dkgPublishWallet);
   const mysqlPassword =
     response.mysqlPassword?.trim() || enginePassword.mysqlPassword || "";
@@ -541,6 +561,10 @@ async function setup() {
     `SMTP_FROM=${formatEnvValue(response.smtpFrom || "")}`,
     `DOCUMENT_CONVERSION_PROVIDER=${formatEnvValue(response.docConversionProvider)}`,
   ];
+
+  if (customRpc) {
+    envLines.push(`DKG_NODE_CUSTOM_RPC=${formatEnvValue(customRpc)}`);
+  }
 
   if (
     response.docConversionProvider === "mistral" &&

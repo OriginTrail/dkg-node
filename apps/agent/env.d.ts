@@ -14,6 +14,7 @@ declare global {
       DKG_PUBLISH_WALLET: string;
       DKG_BLOCKCHAIN: string;
       DKG_OTNODE_URL: string;
+      DKG_NODE_CUSTOM_RPC?: string;
       ASYNC_PUBLISHING_ENABLED?: string;
       DKGP_DATABASE_URL?: string;
       REDIS_URL?: string;

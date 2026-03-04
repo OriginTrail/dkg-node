@@ -87,6 +87,7 @@ async function main() {
 
   const blobStorage = createFsBlobStorage(path.join(__dirname, "../data"));
   const otnodeUrl = new URL(process.env.DKG_OTNODE_URL);
+  const dkgCustomRpc = process.env.DKG_NODE_CUSTOM_RPC?.trim();
   const plugins: DkgPlugin[] = [
     defaultPlugin,
     oauthPlugin,
@@ -151,6 +152,7 @@ async function main() {
         blockchain: {
           name: process.env.DKG_BLOCKCHAIN,
           privateKey: process.env.DKG_PUBLISH_WALLET,
+          ...(dkgCustomRpc && { rpc: dkgCustomRpc }),
         },
         maxNumberOfRetries: 300,
         frequency: 2,

@@ -54,6 +54,7 @@ Before running the project setup, you'll need to configure the following environ
   - **Testnet** (safe testing with mock tokens): `https://v6-pegasus-node-02.origin-trail.network:8900`
   - **Mainnet** (production DKG interactions): `https://positron.origin-trail.network`
   - **Local development**: `http://localhost:8900` (default)
+- **`DKG_NODE_CUSTOM_RPC`**: Optional custom blockchain RPC URL. Leave unset to use the default RPC behavior.
 - **`PORT`**: Server port (default: `9200`)
 - **`EXPO_PUBLIC_APP_URL`**: Public app URL (default: `http://localhost:9200`)
 - **`EXPO_PUBLIC_MCP_URL`**: MCP server URL (default: `http://localhost:9200`)
