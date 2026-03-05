@@ -451,6 +451,35 @@ describe("@dkg/plugin-dkg-essentials checks", () => {
   });
 
   describe("HTTP API Routes", () => {
+    it("should expose POST /api/dkg/create from Essentials", async () => {
+      const response = await request(app)
+        .post("/api/dkg/create")
+        .send({
+          jsonld: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "HTTP Create Test Organization",
+          }),
+          privacy: "private",
+        })
+        .expect(200);
+
+      expect(response.body.success).to.equal(true);
+      expect(response.body.data.ual).to.equal("did:dkg:otp:20430/0x123456/12345");
+      expect(response.body.data.explorerLink).to.include(
+        "https://dkg-testnet.origintrail.io/explore?ual=",
+      );
+    });
+
+    it("should return 400 for invalid POST /api/dkg/create input", async () => {
+      await request(app)
+        .post("/api/dkg/create")
+        .send({
+          privacy: "private",
+        })
+        .expect(400);
+    });
+
     it("should expose POST /api/dkg/query from Essentials", async () => {
       const response = await request(app)
         .post("/api/dkg/query")

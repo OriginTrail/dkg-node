@@ -35,6 +35,25 @@ export default defineDkgPlugin((ctx, mcp, api) => {
     }
   }
 
+  async function resolveJsonLdInput(jsonld: string): Promise<string> {
+    if (!jsonld) {
+      console.error("No JSON-LD content provided after file read.");
+      throw new Error("No JSON-LD content provided.");
+    }
+
+    if (jsonld.startsWith("{") || jsonld.startsWith("[")) {
+      return jsonld;
+    }
+
+    const blob = await ctx.blob.get(jsonld);
+    if (!blob) {
+      console.error(`File with id "${jsonld}" not found`);
+      throw new Error(`File with id "${jsonld}" not found`);
+    }
+
+    return consumers.text(blob.data);
+  }
+
   function validateSparqlInput(query: string): SparqlValidationResult {
     const validation = validateSparqlQuery(query);
     if (!validation.valid) {
@@ -191,21 +210,8 @@ export default defineDkgPlugin((ctx, mcp, api) => {
       },
     },
     async (input) => {
-      if (!input.jsonld) {
-        console.error("No JSON-LD content provided after file read.");
-        throw new Error("No JSON-LD content provided.");
-      }
       const privacy = input.privacy || "private";
-      const content =
-        input.jsonld.startsWith("{") || input.jsonld.startsWith("[")
-          ? input.jsonld
-          : await ctx.blob.get(input.jsonld).then((r) => {
-              if (!r) {
-                console.error(`File with id "${input.jsonld}" not found`);
-                throw new Error(`File with id "${input.jsonld}" not found`);
-              }
-              return consumers.text(r.data);
-            });
+      const content = await resolveJsonLdInput(input.jsonld);
 
       const { ual, error } = await publishJsonLdAsset(content, privacy);
       if (error) {
@@ -304,6 +310,82 @@ export default defineDkgPlugin((ctx, mcp, api) => {
         ],
       };
     },
+  );
+
+  api.post(
+    "/api/dkg/create",
+    openAPIRoute(
+      {
+        tag: "DKG Publishing",
+        summary: "Create and Publish DKG Asset",
+        description:
+          "Synchronously create and publish a Knowledge Asset on DKG from JSON-LD content or uploaded blob id.",
+        body: z.object({
+          jsonld: z
+            .string()
+            .describe("JSON-LD content or ID of an uploaded file"),
+          privacy: z.enum(["private", "public"]).optional().default("private"),
+        }),
+        response: {
+          schema: z.object({
+            success: z.boolean(),
+            data: z
+              .object({
+                ual: z.string(),
+                explorerLink: z.string(),
+                message: z.string(),
+              })
+              .optional(),
+            error: z.string().optional(),
+          }),
+        },
+        finalizeRouteConfig: (config) => ({
+          ...config,
+          security: [],
+        }),
+      },
+      async (req, res) => {
+        try {
+          const privacy = req.body.privacy || "private";
+          const content = await resolveJsonLdInput(req.body.jsonld);
+
+          const { ual, error } = await publishJsonLdAsset(content, privacy);
+          if (error) {
+            console.error("Error creating asset:", error);
+            return res.status(500).json({
+              success: false,
+              error: "Failed to create asset: " + error,
+            });
+          }
+
+          if (!ual) {
+            return res.status(500).json({
+              success: false,
+              error: "Failed to create asset: missing UAL in response",
+            });
+          }
+
+          const explorerLink = getExplorerUrl(ual);
+          const message = `Knowledge Asset collection successfully created.\n\nUAL: ${ual}\nDKG Explorer link: ${explorerLink}`;
+
+          return res.json({
+            success: true,
+            data: {
+              ual,
+              explorerLink,
+              message,
+            },
+          });
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          return res.status(500).json({
+            success: false,
+            error: errorMessage,
+          });
+        }
+      },
+    ),
   );
 
   api.post(
