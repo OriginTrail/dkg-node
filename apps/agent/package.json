@@ -17,6 +17,7 @@
     "dev:server": "tsup src/server/*.ts --format esm,cjs --watch --onSuccess=\"node dist/index.js --dev\"",
     "drizzle:studio": "drizzle-kit studio",
     "script:setup": "node dist/scripts/setup.js",
+    "script:publisher": "node dist/scripts/publisher.js",
     "script:createUser": "node dist/scripts/createUser.js",
     "script:createToken": "node dist/scripts/createToken.js",
     "test": "PLAYWRIGHT_JUNIT_OUTPUT_NAME=DKG_Node_UI_Tests.xml npx playwright test spec/testUI.spec.js --grep '@gh_actions' --reporter=list,html,junit",

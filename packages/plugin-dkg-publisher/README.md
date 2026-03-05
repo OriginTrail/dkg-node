@@ -32,8 +32,16 @@ runtime env into `apps/agent/.env` and provision the Publisher MySQL database.
 In advanced mode, setup can also seed additional publishing wallets into the
 Publisher wallet pool.
 
-`npm run setup` in this package remains as a legacy compatibility path for older
-workflows that still rely on `.env.publisher`.
+For post-setup operations (update Publisher config, manage wallets, or reset
+Publisher data), use:
+
+```bash
+cd apps/agent
+npm run script:publisher
+```
+
+`npm run setup` in this package is legacy compatibility for older workflows that
+still rely on `.env.publisher`.
 
 ### 2. Start the Application
 
@@ -105,6 +113,14 @@ cd apps/agent
 npm run script:setup
 # Choose "Yes, with advanced configuration" for async publishing
 # The primary wallet is seeded automatically and setup can add more wallets
+```
+
+**After setup:**
+
+```bash
+cd apps/agent
+npm run script:publisher
+# Choose "Manage wallets"
 ```
 
 **After 5 minutes**, workers automatically restart with new concurrency. No application restart needed!

@@ -325,11 +325,11 @@ async function setup() {
   );
   if (enginePassword.status === "missing-file") {
     console.log(
-      `Publisher MySQL defaults were not found at ${enginePassword.envPath}. Use advanced async setup if you want to provide them manually.`,
+      `DKG Publisher plugin MySQL defaults were not found at ${enginePassword.envPath}. Use advanced async setup if you want to provide them manually.`,
     );
   } else if (enginePassword.status === "missing-key") {
     console.log(
-      `Publisher MySQL defaults are incomplete in ${enginePassword.envPath} because REPOSITORY_PASSWORD is missing. Use advanced async setup if you want to provide the password manually.`,
+      `DKG Publisher plugin MySQL defaults are incomplete in ${enginePassword.envPath} because REPOSITORY_PASSWORD is missing. Use advanced async setup if you want to provide the password manually.`,
     );
   }
 
@@ -393,7 +393,7 @@ async function setup() {
       type: "select",
       name: "asyncPublishingMode",
       message:
-        "Enable async publishing on the DKG for smoother publishing, easier status tracking, and queue management?",
+        "Enable async publishing (DKG Publisher plugin) on the DKG for smoother publishing, easier status tracking, and queue management?",
       choices: asyncPublishingChoices,
       initial: 0,
     },
@@ -403,7 +403,7 @@ async function setup() {
     publishingResponse.asyncPublishingMode === "advanced"
       ? (printSection(
           "Advanced Async Publishing",
-          "Provide MySQL, Redis, wallet, worker, and storage overrides for the DKG Publisher Plugin.",
+          "Provide MySQL, Redis, wallet, worker, and storage overrides for the DKG Publisher plugin (async publishing).",
         ),
         await collectAdvancedPublisherOptions(enginePassword.status === "found"))
       : null;
@@ -531,7 +531,7 @@ async function setup() {
     } catch (error: any) {
       publisherProvisionError = error.message;
       console.warn(
-        `Publisher provisioning warning: ${publisherProvisionError}`,
+        `DKG Publisher plugin provisioning warning: ${publisherProvisionError}`,
       );
     }
   }
@@ -644,12 +644,12 @@ To create new users, run 'npm run script:createUser' inside of the agent directo
   if (publisherDefaults) {
     if (publisherProvisionResult) {
       console.log(
-        `Publisher DB ready: created=${publisherProvisionResult.databaseCreated}, walletsInserted=${publisherProvisionResult.walletsInserted}`,
+        `DKG Publisher plugin DB ready: created=${publisherProvisionResult.databaseCreated}, walletsInserted=${publisherProvisionResult.walletsInserted}`,
       );
     }
     if (publisherProvisionError) {
       console.log(
-        `Publisher provisioning warning: ${publisherProvisionError}. Async publishing was left disabled in apps/agent/.env.`,
+        `DKG Publisher plugin provisioning warning: ${publisherProvisionError}. Async publishing was left disabled in apps/agent/.env.`,
       );
     }
   }
