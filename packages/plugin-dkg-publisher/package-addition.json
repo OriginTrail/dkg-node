@@ -1,6 +1,5 @@
 {
   "scripts": {
-    "km:setup": "node setup.js",
     "km:migrate": "npm run db:migrate",
     "km:worker": "npm run worker",
     "km:dashboard": "npm run dashboard",

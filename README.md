@@ -54,6 +54,7 @@ Before running the project setup, you'll need to configure the following environ
   - **Testnet** (safe testing with mock tokens): `https://v6-pegasus-node-02.origin-trail.network:8900`
   - **Mainnet** (production DKG interactions): `https://positron.origin-trail.network`
   - **Local development**: `http://localhost:8900` (default)
+- **`DKG_NODE_CUSTOM_RPC`**: Optional custom blockchain RPC URL. Leave unset to use the default RPC behavior.
 - **`PORT`**: Server port (default: `9200`)
 - **`EXPO_PUBLIC_APP_URL`**: Public app URL (default: `http://localhost:9200`)
 - **`EXPO_PUBLIC_MCP_URL`**: MCP server URL (default: `http://localhost:9200`)
@@ -71,7 +72,20 @@ The setup script will:
 - Prompt for required environment variables
 - Create `.env` and `.env.development.local` files
 - Set up the SQLite database with migrations
+- Optionally enable async publishing and provision the Publisher database using the Engine-derived MySQL password
 - Create an admin user (username: `admin`, password: `admin123`)
+
+If you enable async publishing during setup, the Agent writes the consolidated Publisher settings into `apps/agent/.env`:
+
+- `ASYNC_PUBLISHING_ENABLED=true`
+- `DKGP_DATABASE_URL`
+- `REDIS_URL`
+
+The setup stores `DKG_PUBLISH_WALLET` in `apps/agent/.env` without a `0x`
+prefix for compatibility with existing node env files, and Publisher wallet
+records are seeded into MySQL using the same bare 64-hex format.
+
+The Agent server only loads `@dkg/plugin-dkg-publisher` when `ASYNC_PUBLISHING_ENABLED=true`.
 
 ### 4. Start Development
 

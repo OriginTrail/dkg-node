@@ -22,16 +22,23 @@ The DKG Publisher plugin provides a **production-ready, scalable system** for pu
 ### 1. Setup
 
 ```bash
-npm run setup
+cd apps/agent
+npm run script:setup
 ```
 
-The setup script will guide you through:
+The standard node setup now owns Publisher configuration too. Choose async
+publishing during the Agent setup flow to write the consolidated Publisher
+runtime env into `apps/agent/.env` and provision the Publisher MySQL database.
+In advanced mode, setup can also seed additional publishing wallets into the
+Publisher wallet pool.
 
-- Database configuration (MySQL)
-- Redis configuration
-- DKG network settings
-- Wallet pool setup
-- Worker configuration
+For post-setup operations (update Publisher config, manage wallets, or reset
+Publisher data), use:
+
+```bash
+cd apps/agent
+npm run script:publisher
+```
 
 ### 2. Start the Application
 
@@ -99,8 +106,18 @@ pending → queued → assigned → publishing → published ✅
 **During setup:**
 
 ```bash
-npm run setup
-# Choose option 3: "Add wallets only"
+cd apps/agent
+npm run script:setup
+# Choose "Yes, with advanced configuration" for async publishing
+# The primary wallet is seeded automatically and setup can add more wallets
+```
+
+**After setup:**
+
+```bash
+cd apps/agent
+npm run script:publisher
+# Choose "Manage wallets"
 ```
 
 **After 5 minutes**, workers automatically restart with new concurrency. No application restart needed!

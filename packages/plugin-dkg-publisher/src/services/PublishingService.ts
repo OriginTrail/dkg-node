@@ -17,11 +17,8 @@ export interface PublishResult {
 export class PublishingService {
   private dkgService: DkgService;
 
-  constructor(
-    private db: Database,
-    dkgService?: DkgService,
-  ) {
-    this.dkgService = dkgService || new DkgService();
+  constructor(private db: Database, dkgService: DkgService) {
+    this.dkgService = dkgService;
   }
 
   /**
@@ -89,7 +86,7 @@ export class PublishingService {
           // Try direct filesystem access
           const storagePath =
             process.env.STORAGE_PATH ||
-            path.resolve(__dirname, "../../storage");
+            path.resolve(process.cwd(), "data/publisher");
           const filePath = require("path").resolve(storagePath, filename);
           console.log(`🔄 Trying direct file access: ${filePath}`);
 

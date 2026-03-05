@@ -133,7 +133,7 @@ export async function createTestServer(config: TestServerConfig = {}): Promise<{
       port: "8900",
       blockchain: {
         name: process.env.DKG_BLOCKCHAIN || "hardhat1:31337",
-        privateKey: process.env.DKG_PUBLISH_WALLET || "0x" + "a".repeat(64),
+        privateKey: process.env.DKG_PUBLISH_WALLET || "a".repeat(64),
       },
       maxNumberOfRetries: 300,
       frequency: 2,

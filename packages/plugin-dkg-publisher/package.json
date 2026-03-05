@@ -5,13 +5,29 @@
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./provision": {
+      "types": "./dist/provision.d.ts",
+      "import": "./dist/provision.mjs",
+      "require": "./dist/provision.js"
+    },
+    "./privateKey": {
+      "types": "./dist/privateKey.d.ts",
+      "import": "./dist/privateKey.mjs",
+      "require": "./dist/privateKey.js"
+    }
+  },
   "scripts": {
-    "dev": "tsup src/*.ts --format cjs,esm --dts --watch",
-    "build": "tsup src/*.ts --format cjs,esm --dts",
+    "dev": "tsup src/*.ts --format cjs,esm --dts --watch --shims",
+    "build": "tsup src/*.ts --format cjs,esm --dts --shims",
     "check-types": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "mocha --loader ../../node_modules/tsx/dist/loader.mjs 'tests/**/*.spec.ts'",
-    "setup": "node setup.js",
     "db:generate": "drizzle-kit generate:mysql",
     "db:migrate": "node migrate.js",
     "db:push": "drizzle-kit push:mysql",

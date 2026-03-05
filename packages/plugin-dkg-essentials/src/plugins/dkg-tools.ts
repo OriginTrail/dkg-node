@@ -1,6 +1,6 @@
 import consumers from "stream/consumers";
 import { defineDkgPlugin } from "@dkg/plugins";
-import { z } from "@dkg/plugins/helpers";
+import { openAPIRoute, z } from "@dkg/plugin-swagger";
 import {
   CompleteResourceTemplateCallback,
   ResourceTemplate,
@@ -9,8 +9,12 @@ import {
 import { BLOCKCHAIN_IDS } from "dkg.js/constants";
 import { getExplorerUrl, validateSparqlQuery } from "../utils";
 
-export default defineDkgPlugin((ctx, mcp) => {
-  
+type SupportedQueryType = "SELECT" | "CONSTRUCT";
+type SparqlValidationResult =
+  | { valid: true; queryType: SupportedQueryType }
+  | { valid: false; error: string };
+
+export default defineDkgPlugin((ctx, mcp, api) => {
   async function publishJsonLdAsset(
     jsonldRaw: string,
     privacy: "private" | "public",
@@ -29,6 +33,81 @@ export default defineDkgPlugin((ctx, mcp) => {
       const error = err instanceof Error ? err.message : String(err);
       return { ual: null, error };
     }
+  }
+
+  async function resolveJsonLdInput(jsonld: string): Promise<string> {
+    if (!jsonld) {
+      console.error("No JSON-LD content provided after file read.");
+      throw new Error("No JSON-LD content provided.");
+    }
+
+    if (jsonld.startsWith("{") || jsonld.startsWith("[")) {
+      return jsonld;
+    }
+
+    const blob = await ctx.blob.get(jsonld);
+    if (!blob) {
+      console.error(`File with id "${jsonld}" not found`);
+      throw new Error(`File with id "${jsonld}" not found`);
+    }
+
+    return consumers.text(blob.data);
+  }
+
+  function validateSparqlInput(query: string): SparqlValidationResult {
+    const validation = validateSparqlQuery(query);
+    if (!validation.valid) {
+      return {
+        valid: false,
+        error: validation.error || "Invalid SPARQL query",
+      };
+    }
+
+    if (!validation.queryType) {
+      throw new Error(
+        "Internal error: queryType missing after successful validation",
+      );
+    }
+
+    return {
+      valid: true,
+      queryType: validation.queryType as SupportedQueryType,
+    };
+  }
+
+  async function runSparqlQuery(
+    query: string,
+    queryType: SupportedQueryType,
+  ) {
+    return ctx.dkg.graph.query(query, queryType);
+  }
+
+  function formatSparqlResult(queryResult: unknown, queryType: SupportedQueryType) {
+    const isConstructQuery = queryType === "CONSTRUCT";
+    const hasDataProperty =
+      typeof queryResult === "object" &&
+      queryResult !== null &&
+      "data" in queryResult;
+
+    if (
+      isConstructQuery &&
+      hasDataProperty &&
+      typeof queryResult.data === "string"
+    ) {
+      return {
+        codeBlockLang: "ntriples",
+        resultText: queryResult.data,
+      };
+    }
+
+    return {
+      codeBlockLang: "json",
+      resultText: JSON.stringify(queryResult, null, 2),
+    };
+  }
+
+  async function getAssetByUal(ual: string) {
+    return ctx.dkg.asset.get(ual);
   }
 
   const ualCompleteOptions: Record<string, CompleteResourceTemplateCallback> = {
@@ -119,8 +198,9 @@ export default defineDkgPlugin((ctx, mcp) => {
     {
       title: "DKG Knowledge Asset create tool",
       description:
-        "A tool for creating and publishing Knowledge Assets on OriginTrail Decentralized Knowledge Graph (DKG), " +
-        "taking either a single JSON-LD string or a single file id as input. " +
+        "A synchronous direct-publish tool for creating and publishing Knowledge Assets on OriginTrail Decentralized Knowledge Graph (DKG). " +
+        "Use this when you want immediate publish execution and direct UAL output. " +
+        "Takes either a single JSON-LD string or a single file id as input. " +
         "Optionally, you can specify privacy as 'private' or 'public' (default: 'private').",
       inputSchema: {
         jsonld: z
@@ -130,21 +210,8 @@ export default defineDkgPlugin((ctx, mcp) => {
       },
     },
     async (input) => {
-      if (!input.jsonld) {
-        console.error("No JSON-LD content provided after file read.");
-        throw new Error("No JSON-LD content provided.");
-      }
       const privacy = input.privacy || "private";
-      const content =
-        input.jsonld.startsWith("{") || input.jsonld.startsWith("[")
-          ? input.jsonld
-          : await ctx.blob.get(input.jsonld).then((r) => {
-              if (!r) {
-                console.error(`File with id "${input.jsonld}" not found`);
-                throw new Error(`File with id "${input.jsonld}" not found`);
-              }
-              return consumers.text(r.data);
-            });
+      const content = await resolveJsonLdInput(input.jsonld);
 
       const { ual, error } = await publishJsonLdAsset(content, privacy);
       if (error) {
@@ -176,9 +243,7 @@ export default defineDkgPlugin((ctx, mcp) => {
       },
     },
     async ({ query }) => {
-      // Validate query syntax
-      const validation = validateSparqlQuery(query);
-
+      const validation = validateSparqlInput(query);
       if (!validation.valid) {
         console.error("Invalid SPARQL query:", validation.error);
         return {
@@ -191,34 +256,13 @@ export default defineDkgPlugin((ctx, mcp) => {
         };
       }
 
-      // Use validated query type (must be defined after successful validation)
-      if (!validation.queryType) {
-        throw new Error("Internal error: queryType missing after successful validation");
-      }
-      const queryType = validation.queryType;
-
       try {
-        console.log(`Executing SPARQL ${queryType} query...`);
-        const queryResult = await ctx.dkg.graph.query(query, queryType);
-
-        // Format result based on query type:
-        // - SELECT returns { data: [...bindings] }
-        // - CONSTRUCT returns { data: "<ntriples string>" }
-        const isConstructQuery = queryType === "CONSTRUCT";
-        const hasDataProperty = typeof queryResult === "object" && queryResult !== null && "data" in queryResult;
-        
-        let resultText: string;
-        let codeBlockLang: string;
-        
-        if (isConstructQuery && hasDataProperty && typeof queryResult.data === "string") {
-          // CONSTRUCT: extract N-triples string directly
-          resultText = queryResult.data;
-          codeBlockLang = "ntriples";
-        } else {
-          // SELECT or fallback: JSON format
-          resultText = JSON.stringify(queryResult, null, 2);
-          codeBlockLang = "json";
-        }
+        console.log(`Executing SPARQL ${validation.queryType} query...`);
+        const queryResult = await runSparqlQuery(query, validation.queryType);
+        const { codeBlockLang, resultText } = formatSparqlResult(
+          queryResult,
+          validation.queryType,
+        );
 
         return {
           content: [
@@ -250,10 +294,16 @@ export default defineDkgPlugin((ctx, mcp) => {
       title: "DKG Knowledge Asset get tool",
       description:
         "Retrieve a specific Knowledge Asset from the DKG by its UAL (Unique Asset Locator). ",
-      inputSchema: { ual: z.string().describe("The UAL (Unique Asset Locator) in format: did:dkg:{blockchainName}:{blockchainId}/{blockchainAddress}/{collectionId}/{assetId} or did:dkg:{blockchainName}:{blockchainId}/{blockchainAddress}/{collectionId}") },
+      inputSchema: {
+        ual: z
+          .string()
+          .describe(
+            "The UAL (Unique Asset Locator) in format: did:dkg:{blockchainName}:{blockchainId}/{blockchainAddress}/{collectionId}/{assetId} or did:dkg:{blockchainName}:{blockchainId}/{blockchainAddress}/{collectionId}",
+          ),
+      },
     },
     async ({ ual }) => {
-      const getAssetResult = await ctx.dkg.asset.get(ual);
+      const getAssetResult = await getAssetByUal(ual);
       return {
         content: [
           { type: "text", text: JSON.stringify(getAssetResult, null, 2) },
@@ -262,4 +312,186 @@ export default defineDkgPlugin((ctx, mcp) => {
     },
   );
 
+  api.post(
+    "/api/dkg/create",
+    openAPIRoute(
+      {
+        tag: "DKG Publishing",
+        summary: "Create and Publish DKG Asset",
+        description:
+          "Synchronously create and publish a Knowledge Asset on DKG from JSON-LD content or uploaded blob id.",
+        body: z.object({
+          jsonld: z
+            .string()
+            .describe("JSON-LD content or ID of an uploaded file"),
+          privacy: z.enum(["private", "public"]).optional().default("private"),
+        }),
+        response: {
+          schema: z.object({
+            success: z.boolean(),
+            data: z
+              .object({
+                ual: z.string(),
+                explorerLink: z.string(),
+                message: z.string(),
+              })
+              .optional(),
+            error: z.string().optional(),
+          }),
+        },
+        finalizeRouteConfig: (config) => ({
+          ...config,
+          security: [],
+        }),
+      },
+      async (req, res) => {
+        try {
+          const privacy = req.body.privacy || "private";
+          const content = await resolveJsonLdInput(req.body.jsonld);
+
+          const { ual, error } = await publishJsonLdAsset(content, privacy);
+          if (error) {
+            console.error("Error creating asset:", error);
+            return res.status(500).json({
+              success: false,
+              error: "Failed to create asset: " + error,
+            });
+          }
+
+          if (!ual) {
+            return res.status(500).json({
+              success: false,
+              error: "Failed to create asset: missing UAL in response",
+            });
+          }
+
+          const explorerLink = getExplorerUrl(ual);
+          const message = `Knowledge Asset collection successfully created.\n\nUAL: ${ual}\nDKG Explorer link: ${explorerLink}`;
+
+          return res.json({
+            success: true,
+            data: {
+              ual,
+              explorerLink,
+              message,
+            },
+          });
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : String(error);
+          return res.status(500).json({
+            success: false,
+            error: errorMessage,
+          });
+        }
+      },
+    ),
+  );
+
+  api.post(
+    "/api/dkg/query",
+    openAPIRoute(
+      {
+        tag: "DKG Retrieval",
+        summary: "Execute SPARQL Query",
+        description: "Execute a SPARQL query on the DKG network",
+        body: z.object({
+          query: z.string().min(1, "Query cannot be empty"),
+          queryType: z
+            .enum(["SELECT", "CONSTRUCT"])
+            .optional()
+            .default("SELECT"),
+          validate: z.boolean().optional().default(true),
+        }),
+        response: {
+          schema: z.object({
+            success: z.boolean(),
+            data: z.any().optional(),
+            error: z.string().optional(),
+            validation: z
+              .object({
+                valid: z.boolean(),
+                error: z.string().optional(),
+              })
+              .optional(),
+          }),
+        },
+        finalizeRouteConfig: (config) => ({
+          ...config,
+          security: [],
+        }),
+      },
+      async (req, res) => {
+        try {
+          let queryType: SupportedQueryType;
+          if (req.body.validate !== false) {
+            const validation = validateSparqlInput(req.body.query);
+            if (!validation.valid) {
+              return res.status(400).json({
+                success: false,
+                error: validation.error,
+                validation: {
+                  valid: false,
+                  error: validation.error,
+                },
+              });
+            }
+            queryType = validation.queryType;
+          } else {
+            queryType = req.body.queryType || "SELECT";
+          }
+
+          const queryResult = await runSparqlQuery(req.body.query, queryType);
+          return res.json({
+            success: true,
+            data: queryResult,
+          });
+        } catch (error: any) {
+          return res.status(500).json({
+            success: false,
+            error: error.message,
+          });
+        }
+      },
+    ),
+  );
+
+  api.get(
+    "/api/dkg/get",
+    openAPIRoute(
+      {
+        tag: "DKG Retrieval",
+        summary: "Get DKG Asset",
+        description: "Retrieve an asset from DKG by UAL",
+        query: z.object({
+          ual: z.string(),
+        }),
+        response: {
+          schema: z.object({
+            success: z.boolean(),
+            data: z.any().optional(),
+            error: z.string().optional(),
+          }),
+        },
+        finalizeRouteConfig: (config) => ({
+          ...config,
+          security: [],
+        }),
+      },
+      async (req, res) => {
+        try {
+          const asset = await getAssetByUal(req.query.ual);
+          return res.json({
+            success: true,
+            data: asset,
+          });
+        } catch (error: any) {
+          return res.status(500).json({
+            success: false,
+            error: error.message,
+          });
+        }
+      },
+    ),
+  );
 });

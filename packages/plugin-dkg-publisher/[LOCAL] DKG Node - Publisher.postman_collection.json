@@ -150,9 +150,9 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "{{endpoint}}/api/dkg/assets?ual=did:dkg:otp:20430/0xcdb28e93ed340ec10a71bba00a31dbfcf1bd5d37/347048",
+          "raw": "{{endpoint}}/api/dkg/get?ual=did:dkg:otp:20430/0xcdb28e93ed340ec10a71bba00a31dbfcf1bd5d37/347048",
           "host": ["{{endpoint}}"],
-          "path": ["api", "dkg", "assets"],
+          "path": ["api", "dkg", "get"],
           "query": [
             {
               "key": "ual",
@@ -160,7 +160,7 @@
             }
           ]
         },
-        "description": "Generated from cURL: curl -X GET \"http://localhost:9200/api/dkg/assets/did:dkg:otp:20430/0x1234567890abcdef/123456?contentType=all&includeMetadata=true\""
+        "description": "Generated from cURL: curl -X GET \"http://localhost:9200/api/dkg/get?ual=did:dkg:otp:20430/0x1234567890abcdef/123456\""
       },
       "response": []
     }

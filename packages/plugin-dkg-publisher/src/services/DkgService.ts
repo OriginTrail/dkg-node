@@ -1,5 +1,6 @@
 import DKG from "dkg.js";
 import { WalletService } from "./WalletService";
+import { buildDkgBlockchainConfig } from "../blockchainConfig";
 
 export interface SparqlQueryResult {
   success: boolean;
@@ -16,12 +17,17 @@ export interface DkgGetResult {
 export class DkgService {
   private dkgEndpoint: string;
   private dkgBlockchain: string;
+  private dkgCustomRpc?: string;
   private queryClient: any | null = null;
   private walletService: WalletService;
 
   constructor(walletService: WalletService) {
-    this.dkgEndpoint = process.env.DKG_ENDPOINT || "http://localhost:8900";
+    this.dkgEndpoint =
+      process.env.DKG_OTNODE_URL ||
+      process.env.DKG_ENDPOINT ||
+      "http://localhost:8900";
     this.dkgBlockchain = process.env.DKG_BLOCKCHAIN || "hardhat1:31337";
+    this.dkgCustomRpc = process.env.DKG_NODE_CUSTOM_RPC?.trim() || undefined;
     this.walletService = walletService;
     this.initializeQueryClient();
   }
@@ -50,11 +56,11 @@ export class DkgService {
       this.queryClient = new DKG({
         endpoint: `${endpointUrl.protocol}//${endpointUrl.hostname}`,
         port: endpointUrl.port,
-        blockchain: {
+        blockchain: buildDkgBlockchainConfig({
           name: this.dkgBlockchain,
           publicKey: wallet.address,
           privateKey: wallet.privateKey,
-        },
+        }, this.dkgCustomRpc),
         maxNumberOfRetries: 100,
         frequency: 2,
         contentType: "all",
@@ -182,11 +188,11 @@ export class DkgService {
     const walletDkgClient = new DKG({
       endpoint: `${endpointUrl.protocol}//${endpointUrl.hostname}`,
       port: endpointUrl.port,
-      blockchain: {
+      blockchain: buildDkgBlockchainConfig({
         name: this.dkgBlockchain,
         publicKey: wallet.address,
         privateKey: privateKey,
-      },
+      }, this.dkgCustomRpc),
       maxNumberOfRetries: 600,
       frequency: 2,
       contentType: "all",
@@ -319,7 +325,14 @@ export class DkgService {
    */
   async getNodeInfo(): Promise<DkgGetResult> {
     try {
-      const dkgClient = this.createQueryDKGClient();
+      if (!this.queryClient) {
+        await this.initializeQueryClient();
+        if (!this.queryClient) {
+          throw new Error("Failed to initialize DKG query client");
+        }
+      }
+
+      const dkgClient = this.queryClient;
       const nodeInfo = await dkgClient.node.info();
 
       return {

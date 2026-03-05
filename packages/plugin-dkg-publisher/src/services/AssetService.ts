@@ -31,7 +31,7 @@ export class AssetService extends EventEmitter {
       status: "queued",
       queuedAt: sql`NOW()`,
       privacy: input.publishOptions?.privacy || "private",
-      epochs: input.publishOptions?.epochs || 2,
+      epochs: input.publishOptions?.epochs || 12,
       maxAttempts: input.publishOptions?.maxAttempts || 3,
       retryCount: 0,
     });
@@ -367,7 +367,10 @@ export class AssetService extends EventEmitter {
       workerId: process.pid.toString(),
       walletAddress: wallet.address,
       walletId: wallet.id,
-      otnodeUrl: process.env.DKG_ENDPOINT,
+      otnodeUrl:
+        process.env.DKG_OTNODE_URL ||
+        process.env.DKG_ENDPOINT ||
+        "http://localhost:8900",
       blockchain: wallet.blockchain,
       status: "started",
       startedAt: sql`NOW()`,

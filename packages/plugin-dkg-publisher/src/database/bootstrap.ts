@@ -5,9 +5,9 @@ import fs from "fs";
 import path from "path";
 
 /**
- * Bootstrap migration journal for databases created by setup.js (raw DDL).
+ * Bootstrap migration journal for databases created by the legacy publisher setup script (raw DDL).
  *
- * setup.js creates tables directly without Drizzle migration tracking.
+ * The legacy setup script creates tables directly without Drizzle migration tracking.
  * Without this guard, runMigrations() would try to run 0000 (CREATE TABLE)
  * on existing tables and fail.
  *
@@ -23,7 +23,7 @@ export async function bootstrapMigrationJournal(db: Database): Promise<void> {
     return; // Already managed by Drizzle
   }
 
-  // Check if core tables exist (setup.js creates these)
+  // Check if core tables exist (legacy setup script creates these)
   const coreTables = ["assets", "wallets", "publishing_attempts", "batches"];
   const existingTables = await Promise.all(
     coreTables.map((t) => tableExists(db, t)),
@@ -38,14 +38,14 @@ export async function bootstrapMigrationJournal(db: Database): Promise<void> {
     const missing = coreTables.filter((_, i) => !existingTables[i]);
     throw new Error(
       `Database is in a partial state: tables ${missing.join(", ")} are missing. ` +
-        `This usually means setup.js crashed mid-creation. ` +
+        `This usually means the legacy setup script crashed mid-creation. ` +
         `Please drop all tables and run setup again.`,
     );
   }
 
-  // Tables exist but no journal — setup.js-created database
+  // Tables exist but no journal - legacy setup script-created database
   console.log(
-    "📋 Detected setup.js-created database without migration journal. Bootstrapping...",
+    "Detected legacy setup script-created database without migration journal. Bootstrapping...",
   );
 
   // Create the __drizzle_migrations table (same schema Drizzle uses)
@@ -65,7 +65,7 @@ export async function bootstrapMigrationJournal(db: Database): Promise<void> {
   const journalPath = path.join(migrationsDir, "meta/_journal.json");
   const journal = JSON.parse(fs.readFileSync(journalPath, "utf-8"));
 
-  // Always seed 0000 and 0001 (setup.js schema = post-0001 state)
+  // Always seed 0000 and 0001 (legacy setup script schema = post-0001 state)
   for (const entry of journal.entries) {
     if (entry.idx > 1) break; // Only seed 0000 and 0001 unconditionally
 
@@ -114,7 +114,7 @@ async function tableExists(db: Database, tableName: string): Promise<boolean> {
   const result = await db.execute(
     sql`SELECT COUNT(*) as cnt FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ${tableName}`,
   );
-  const rows = result[0] as Array<{ cnt: number | bigint }>;
+  const rows = result[0] as unknown as Array<{ cnt: number | bigint }>;
   return Number(rows[0]?.cnt) > 0;
 }
 
@@ -126,6 +126,6 @@ async function columnExists(
   const result = await db.execute(
     sql`SELECT COUNT(*) as cnt FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = ${tableName} AND column_name = ${columnName}`,
   );
-  const rows = result[0] as Array<{ cnt: number | bigint }>;
+  const rows = result[0] as unknown as Array<{ cnt: number | bigint }>;
   return Number(rows[0]?.cnt) > 0;
 }
