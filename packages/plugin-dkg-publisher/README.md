@@ -40,9 +40,6 @@ cd apps/agent
 npm run script:publisher
 ```
 
-`npm run setup` in this package is legacy compatibility for older workflows that
-still rely on `.env.publisher`.
-
 ### 2. Start the Application
 
 The plugin runs automatically when you start your DKG Agent:
