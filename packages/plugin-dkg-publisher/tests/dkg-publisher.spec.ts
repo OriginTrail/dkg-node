@@ -83,8 +83,18 @@ describe("@dkg/plugin-dkg-publisher checks", () => {
       const publishTool = tools.find((tool) => tool.name === "knowledge-asset-publish");
       expect(publishTool).to.not.equal(undefined);
       expect(publishTool!.title).to.equal("Publish Knowledge Asset");
-      expect(publishTool!.description).to.equal("Register a JSON-LD asset for publishing to the DKG");
+      expect(publishTool!.description).to.include(
+        "Register a JSON-LD asset for publishing to the DKG",
+      );
+      expect(publishTool!.description).to.include("async queue");
       expect(publishTool!.inputSchema).to.not.equal(undefined);
+      expect((publishTool!.inputSchema as any).publishOptions).to.not.equal(
+        undefined,
+      );
+      expect((publishTool!.inputSchema as any).privacy).to.equal(undefined);
+      expect((publishTool!.inputSchema as any).priority).to.equal(undefined);
+      expect((publishTool!.inputSchema as any).epochs).to.equal(undefined);
+      expect((publishTool!.inputSchema as any).maxAttempts).to.equal(undefined);
     });
 
     it("should register API routes correctly", async () => {
@@ -159,6 +169,25 @@ describe("@dkg/plugin-dkg-publisher checks", () => {
   });
 
   describe("Data Structure Processing", () => {
+    it("should accept optional async publish controls", async () => {
+      const withPublishControls = createTestAsset({
+        publishOptions: {
+          privacy: "public",
+          priority: 25,
+          epochs: 4,
+          maxAttempts: 5,
+        },
+      });
+
+      const result = await mockMcpClient.callTool({
+        name: "knowledge-asset-publish",
+        arguments: withPublishControls,
+      });
+
+      expect(result.content).to.be.an("array");
+      expect(result.content).to.have.length.greaterThan(0);
+    });
+
     it("should process different content types correctly", async () => {
       const stringContent = createTestAsset({ 
         content: { 

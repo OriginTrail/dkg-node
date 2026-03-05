@@ -21,9 +21,10 @@ export function registerMcpTools(
     {
       title: "Publish Knowledge Asset",
       description:
-        "Register a JSON-LD asset for publishing to the DKG. " +
-        "You can provide the content directly as a JSON object, or provide a blobId to load content from a previously uploaded file. " +
-        "Use blobId for large files. Use the MCP query tools to check status and view recent published assets.",
+        "Register a JSON-LD asset for publishing to the DKG through the DKG Publisher plugin async queue. " +
+        "This tool queues publishing and returns a tracking record, not an immediate final UAL result. " +
+        "For direct synchronous publishing with immediate UAL output, use the Essentials `dkg-create` tool. " +
+        "You can provide content directly as a JSON object, or provide a blobId to load content from a previously uploaded file.",
       inputSchema: {
         content: z
           .object({})
@@ -44,7 +45,15 @@ export function registerMcpTools(
             sourceId: z.string().optional(),
           })
           .optional(),
-        privacy: z.enum(["private", "public"]).optional(),
+        publishOptions: z
+          .object({
+            privacy: z.enum(["private", "public"]).optional(),
+            priority: z.number().min(1).max(100).optional(),
+            epochs: z.number().optional(),
+            maxAttempts: z.number().optional(),
+          })
+          .optional()
+          .describe("Optional async publishing controls."),
       },
     },
     async (input: any, req: any) => {
@@ -91,12 +100,25 @@ export function registerMcpTools(
       }
 
       const assetService = serviceContainer.get<AssetService>("assetService");
+      const resolvedPrivacy = input.publishOptions?.privacy ?? "private";
+      const resolvedPriority = input.publishOptions?.priority;
+      const resolvedEpochs = input.publishOptions?.epochs;
+      const resolvedMaxAttempts = input.publishOptions?.maxAttempts;
 
       const assetInput = {
         content,
         metadata: input.metadata,
         publishOptions: {
-          privacy: input.privacy || "private",
+          privacy: resolvedPrivacy,
+          ...(typeof resolvedPriority === "number"
+            ? { priority: resolvedPriority }
+            : {}),
+          ...(typeof resolvedEpochs === "number"
+            ? { epochs: resolvedEpochs }
+            : {}),
+          ...(typeof resolvedMaxAttempts === "number"
+            ? { maxAttempts: resolvedMaxAttempts }
+            : {}),
         },
       };
 
@@ -141,9 +163,15 @@ export function registerMcpTools(
     "knowledge-asset-status-by-content-id",
     {
       title: "Get Knowledge Asset Information by Content ID",
-      description: "Check, lookup, show, or query a knowledge asset by its JSON-LD @id (URN). Use this when the user provides a URN like 'urn:test:asset:...' or asks about a specific asset ID. Returns status, UAL, transaction hash, and publishing details.",
+      description:
+        "Check async publishing status for a specific JSON-LD @id (URN) that was submitted through the DKG Publisher plugin queue. " +
+        "Returns tracked Publisher status details (status, UAL if published, transaction hash, attempts, and errors).",
       inputSchema: {
-        contentId: z.string().describe("The @id from the JSON-LD content (e.g., 'urn:test:asset:manual-test-1')"),
+        contentId: z
+          .string()
+          .describe(
+            "The @id from the JSON-LD content (e.g., 'urn:test:asset:manual-test-1')",
+          ),
       },
     },
     async (input: any, req: any) => {
@@ -189,11 +217,26 @@ export function registerMcpTools(
     "knowledge-asset-list-recent",
     {
       title: "List Recent Knowledge Assets",
-      description: "Show, list, or display recent knowledge assets. Use when user asks 'show me recent assets', 'what was published', 'last X assets', 'publishes 200-500', etc. Can filter by status (published, failed, publishing, queued). Supports pagination with offset for large queries.",
+      description:
+        "List recent async publishing records tracked by the DKG Publisher plugin. " +
+        "Use this for queue/history views (optionally filtered by status) with pagination support.",
       inputSchema: {
-        limit: z.number().min(1).default(20).optional().describe("Number of assets to return (default: 20)"),
-        offset: z.number().min(0).default(0).optional().describe("Number of assets to skip (for pagination, default: 0)"),
-        status: z.enum(["published", "failed", "publishing", "queued"]).optional().describe("Filter by status (optional)"),
+        limit: z
+          .number()
+          .min(1)
+          .default(20)
+          .optional()
+          .describe("Number of assets to return (default: 20)"),
+        offset: z
+          .number()
+          .min(0)
+          .default(0)
+          .optional()
+          .describe("Number of assets to skip (for pagination, default: 0)"),
+        status: z
+          .enum(["published", "failed", "publishing", "queued"])
+          .optional()
+          .describe("Filter by status (optional)"),
       },
     },
     async (input: any, req: any) => {
@@ -282,11 +325,25 @@ export function registerMcpTools(
     "knowledge-asset-query-by-status",
     {
       title: "Find Knowledge Assets by Status",
-      description: "Find, show, list, or query knowledge assets by publishing status. Use when user asks 'show me all published', 'failed assets', 'what's publishing', 'publishes 100-200', etc. Supports statuses: published (successfully published), failed (publishing failed), publishing (currently being published), queued (waiting to publish). Supports pagination with offset for large queries.",
+      description:
+        "Query async publishing records in the DKG Publisher plugin by a required status. " +
+        "Use this for focused queue/operations views (published, failed, publishing, queued) with pagination.",
       inputSchema: {
-        status: z.enum(["published", "failed", "publishing", "queued"]).describe("The status to filter by"),
-        limit: z.number().min(1).default(20).optional().describe("Maximum number of results (default: 20)"),
-        offset: z.number().min(0).default(0).optional().describe("Number of assets to skip (for pagination, default: 0)"),
+        status: z
+          .enum(["published", "failed", "publishing", "queued"])
+          .describe("The status to filter by"),
+        limit: z
+          .number()
+          .min(1)
+          .default(20)
+          .optional()
+          .describe("Maximum number of results (default: 20)"),
+        offset: z
+          .number()
+          .min(0)
+          .default(0)
+          .optional()
+          .describe("Number of assets to skip (for pagination, default: 0)"),
       },
     },
     async (input: any, req: any) => {

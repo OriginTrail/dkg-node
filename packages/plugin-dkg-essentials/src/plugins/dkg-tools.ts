@@ -179,8 +179,9 @@ export default defineDkgPlugin((ctx, mcp, api) => {
     {
       title: "DKG Knowledge Asset create tool",
       description:
-        "A tool for creating and publishing Knowledge Assets on OriginTrail Decentralized Knowledge Graph (DKG), " +
-        "taking either a single JSON-LD string or a single file id as input. " +
+        "A synchronous direct-publish tool for creating and publishing Knowledge Assets on OriginTrail Decentralized Knowledge Graph (DKG). " +
+        "Use this when you want immediate publish execution and direct UAL output. " +
+        "Takes either a single JSON-LD string or a single file id as input. " +
         "Optionally, you can specify privacy as 'private' or 'public' (default: 'private').",
       inputSchema: {
         jsonld: z
