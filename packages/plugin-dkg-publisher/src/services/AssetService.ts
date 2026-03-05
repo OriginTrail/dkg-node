@@ -31,7 +31,7 @@ export class AssetService extends EventEmitter {
       status: "queued",
       queuedAt: sql`NOW()`,
       privacy: input.publishOptions?.privacy || "private",
-      epochs: input.publishOptions?.epochs || 2,
+      epochs: input.publishOptions?.epochs || 12,
       maxAttempts: input.publishOptions?.maxAttempts || 3,
       retryCount: 0,
     });

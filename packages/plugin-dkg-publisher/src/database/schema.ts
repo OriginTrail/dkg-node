@@ -34,7 +34,7 @@ export const assets = mysqlTable(
     // Publishing configuration
     priority: int("priority").default(50),
     privacy: mysqlEnum("privacy", ["private", "public"]).default("private"),
-    epochs: int("epochs").default(2),
+    epochs: int("epochs").default(12),
     replications: int("replications").default(1),
     maxAttempts: int("max_attempts").default(3),
 
