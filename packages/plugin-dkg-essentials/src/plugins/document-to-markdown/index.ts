@@ -134,7 +134,7 @@ export function createDocumentToMarkdownPlugin(
 
     // REST endpoint for document-to-markdown conversion
     api.post(
-      "/document-to-markdown",
+      "/api/document-to-markdown",
       openAPIRoute(
         {
           summary: "Convert document to Markdown",
