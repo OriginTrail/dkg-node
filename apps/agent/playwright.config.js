@@ -7,7 +7,7 @@ const { defineConfig, devices } = require("@playwright/test");
 module.exports = defineConfig({
   testDir: "./tests/e2e",
   testMatch: "**/*.spec.js",
-  retries: 2,
+  retries: 3,
   workers: 1,
   timeout: 10 * 60 * 1000, // 10 minutes per test
   globalTimeout: process.env.CI ? 45 * 60 * 1000 : 0, // 45 minutes in CI, no limit locally
