@@ -1,6 +1,7 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { createBlobStorage, express } from "./helpers";
 import { BlobData, BlobMetadata } from "./types";
 
@@ -36,12 +37,26 @@ export const createExpressApp = () => {
 export const createMcpServerClientPair = async () => {
   const server = new McpServer({ name: "Test DKG Server", version: "1.0.0" });
   const client = new Client({ name: "Test DKG Client", version: "1.0.0" });
-  const [serverTransport, clientTransport] =
+  const [clientTransport, serverTransport] =
     InMemoryTransport.createLinkedPair();
+  let authInfoForClientMessages: AuthInfo | undefined;
+
+  const originalClientSend = clientTransport.send.bind(clientTransport);
+  clientTransport.send = (message, options) => {
+    return originalClientSend(message, {
+      ...options,
+      authInfo: options?.authInfo ?? authInfoForClientMessages,
+    });
+  };
 
   return {
     server,
     client,
+    clientTransport,
+    serverTransport,
+    setClientAuthInfo: (authInfo?: AuthInfo) => {
+      authInfoForClientMessages = authInfo;
+    },
     connect: () =>
       Promise.all([
         server.connect(serverTransport),

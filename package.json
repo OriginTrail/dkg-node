@@ -55,13 +55,14 @@
     "apps/agent/tests/integration"
   ],
   "dependencies": {
+    "dkg.js": "^8.2.4",
     "mysql2": "^3.15.3"
   },
   "overrides": {
     "@types/express": "^5.0.3"
   },
   "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.52.5",
-    "@node-rs/argon2-linux-x64-gnu": "^1.7.0"
+    "@node-rs/argon2-linux-x64-gnu": "^1.7.0",
+    "@rollup/rollup-linux-x64-gnu": "^4.52.5"
   }
 }
