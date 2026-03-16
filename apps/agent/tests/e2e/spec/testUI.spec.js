@@ -26,21 +26,21 @@ test.beforeEach(async ({ page }) => {
 });
 
 test("Test wrong username", async ({ page }) => {
-  await loginPage.login("invalid", "admin123");
+  await loginPage.attemptLogin("invalid", "admin123");
   await expect(
     page.getByText("Invalid username or password", { exact: true }),
   ).toBeVisible();
 });
 
 test("Test wrong password", async ({ page }) => {
-  await loginPage.login("admin", "invalid");
+  await loginPage.attemptLogin("admin@gmail.com", "invalid");
   await expect(
     page.getByText("Invalid username or password", { exact: true }),
   ).toBeVisible();
 });
 
 test("Test wrong username and password", async ({ page }) => {
-  await loginPage.login("invalid", "invalid");
+  await loginPage.attemptLogin("invalid", "invalid");
   await expect(
     page.getByText("Invalid username or password", { exact: true }),
   ).toBeVisible();

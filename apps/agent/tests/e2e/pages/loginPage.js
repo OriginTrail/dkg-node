@@ -51,6 +51,14 @@ class LoginPage {
     throw new Error(`Element did not become stable within ${timeout}ms`);
   }
 
+  async attemptLogin(email, password) {
+    await this.waitForStableElement(this.input_email);
+    await this.input_email.fill(email);
+    await this.input_password.fill(password);
+    await this.btn_login.click();
+    await this.page.waitForTimeout(2000);
+  }
+
   async login(email, password, maxRetries = 5) {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       await this.waitForStableElement(this.input_email);
