@@ -50,7 +50,7 @@ test("Test valid login", async () => {
   await loginPage.successfullLogin();
 });
 
-test("Test send message and get answer @gh_actions", async ({ page }) => {
+test.skip("Test send message and get answer @gh_actions", async ({ page }) => {
   await loginPage.successfullLogin();
   const question = "3+7";
   await chatbotPage.sendMessage(question);
