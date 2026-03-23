@@ -3,6 +3,10 @@
 * [Introduction](README.md)
 * [DKG — Key concepts](dkg-key-concepts.md)
 
+## ORIGINTRAIL V9/V10&#x20;
+
+* [Roadmap](origintrail-v9-v10/roadmap.md)
+
 ## Getting Started
 
 * [Installation — Edge Node](getting-started/decentralized-knowledge-graph-dkg.md)
