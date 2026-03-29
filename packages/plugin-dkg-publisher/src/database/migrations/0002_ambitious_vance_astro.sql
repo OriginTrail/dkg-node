@@ -1,0 +1,1 @@
+ALTER TABLE `assets` MODIFY COLUMN `status` enum('pending','queued','assigned','publishing','mint_submitted','published','failed') NOT NULL DEFAULT 'pending';

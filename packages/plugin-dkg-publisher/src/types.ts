@@ -55,6 +55,7 @@ export interface AssetStatus {
     | "queued"
     | "assigned"
     | "publishing"
+    | "mint_submitted"
     | "published"
     | "failed";
   ual?: string | null;

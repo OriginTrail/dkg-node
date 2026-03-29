@@ -2,7 +2,7 @@
 
 import { describe, it, beforeEach, afterEach } from "mocha";
 import { expect } from "chai";
-import dkgPublisherPlugin from "../dist/index.mjs";
+import dkgPublisherPlugin from "../../../../../packages/plugin-dkg-publisher/src/index";
 import express from "express";
 import request from "supertest";
 import {

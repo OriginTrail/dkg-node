@@ -143,7 +143,7 @@ export class QueuePoller extends EventEmitter {
       let addedCount = 0;
       for (const asset of queuedAssets) {
         try {
-          await this.queueService.addToQueue(asset.id, asset.priority);
+          await this.queueService.addToQueue(asset.id, asset.priority, "publish-asset");
           addedCount++;
           logger.logAssetEvent(asset.id, "Added to processing queue", {
             priority: asset.priority,

@@ -1,6 +1,10 @@
 import { EventEmitter } from "events";
 import { Database } from "../database";
-import { assets, publishingAttempts } from "../database/schema";
+import {
+  assets,
+  publishingAttempts,
+  finalityAttempts,
+} from "../database/schema";
 import { eq, and, sql, desc, or } from "drizzle-orm";
 import { AssetInput, AssetStatus } from "../types";
 import { StorageService } from "./StorageService";
@@ -91,6 +95,7 @@ export class AssetService extends EventEmitter {
       | "queued"
       | "assigned"
       | "publishing"
+      | "mint_submitted"
       | "published"
       | "failed",
     additionalFields?: Partial<{
@@ -116,6 +121,9 @@ export class AssetService extends EventEmitter {
         break;
       case "publishing":
         updates.publishingStartedAt = sql`NOW()`;
+        break;
+      case "mint_submitted":
+        updates.publishingStartedAt = updates.publishingStartedAt || sql`NOW()`;
         break;
       case "published":
         updates.publishedAt = sql`NOW()`;
@@ -409,6 +417,57 @@ export class AssetService extends EventEmitter {
   }
 
   /**
+   * Create a finality attempt record
+   */
+  async createFinalityAttempt(
+    assetId: number,
+    ual: string,
+    transactionHash?: string | null,
+  ): Promise<number> {
+    // Determine next attempt number
+    const existingAttempts = await this.db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(finalityAttempts)
+      .where(eq(finalityAttempts.assetId, assetId));
+    const currentAttemptNumber = (existingAttempts[0]?.count || 0) + 1;
+
+    const attemptResult = await this.db.insert(finalityAttempts).values({
+      assetId,
+      attemptNumber: currentAttemptNumber,
+      workerId: process.pid.toString(),
+      ual,
+      transactionHash: transactionHash || null,
+      status: "started",
+      startedAt: sql`NOW()`,
+    });
+
+    return attemptResult[0].insertId;
+  }
+
+  /**
+   * Update finality attempt record
+   */
+  async updateFinalityAttempt(
+    attemptId: number,
+    updates: {
+      status: "started" | "success" | "failed" | "timeout";
+      confirmations?: number;
+      requiredConfirmations?: number;
+      errorType?: string;
+      errorMessage?: string;
+      durationSeconds?: number;
+    },
+  ): Promise<void> {
+    await this.db
+      .update(finalityAttempts)
+      .set({
+        ...updates,
+        completedAt: sql`NOW()`,
+      })
+      .where(eq(finalityAttempts.id, attemptId));
+  }
+
+  /**
    * Retry failed assets
    */
   async retryFailedAssets(criteria?: {
@@ -453,6 +512,7 @@ export class AssetService extends EventEmitter {
       | "queued"
       | "assigned"
       | "publishing"
+      | "mint_submitted"
       | "published"
       | "failed",
   ): Promise<any[]> {
