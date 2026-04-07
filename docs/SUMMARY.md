@@ -6,6 +6,7 @@
 ## ORIGINTRAIL V9/V10&#x20;
 
 * [Roadmap](origintrail-v9-v10/roadmap.md)
+* [V10 Mainnet Release Timeline](origintrail-v9-v10/v10-mainnet-release-timeline.md)
 
 ## Getting Started
 
