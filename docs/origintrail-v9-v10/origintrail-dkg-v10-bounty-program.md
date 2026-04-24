@@ -4,7 +4,7 @@
 
 ## Round 1 — Call for Integrations
 
-<table data-header-hidden><thead><tr><th width="199"></th><th></th></tr></thead><tbody><tr><td>Theme</td><td><a href="https://github.com/OriginTrail/dkg-v9/tree/v10-rc">DKG v10</a> Working Memory &#x26; Shared Memory × <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">LLM-Wiki</a> / <a href="https://github.com/karpathy/autoresearch">Autoresearch</a> agents</td></tr><tr><td>Total bounty pool</td><td>Total of 150,000 $TRAC for 3 rounds, up to 10,000 $TRAC per accepted contribution capped at 50,000 $TRAC in round 1</td></tr><tr><td>Status</td><td>Open</td></tr><tr><td>Issued by</td><td><a href="https://origintrail.io">OriginTrail</a> </td></tr></tbody></table>
+<table data-header-hidden><thead><tr><th width="199"></th><th></th></tr></thead><tbody><tr><td>Theme</td><td><a href="https://github.com/OriginTrail/dkg">DKG v10</a> Working Memory &#x26; Shared Memory × <a href="https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f">LLM-Wiki</a> / <a href="https://github.com/karpathy/autoresearch">Autoresearch</a> agents</td></tr><tr><td>Total bounty pool</td><td>Total of 150,000 $TRAC for 3 rounds, up to 10,000 $TRAC per accepted contribution capped at 50,000 $TRAC in round 1</td></tr><tr><td>Status</td><td>Open</td></tr><tr><td>Issued by</td><td><a href="https://origintrail.io">OriginTrail</a> </td></tr></tbody></table>
 
 ### 1. Summary
 
@@ -12,7 +12,7 @@
 
 We are especially interested in integrations with **OpenClaw, Hermes**, and agents of comparable shape — autonomous or semi-autonomous research agents operating over long-horizon tasks and producing knowledge artifacts that benefit from provenance, collaboration, and eventual on-chain verification.
 
-The best contributions will be listed in the official DKG v10 integrations registry, featured across OriginTrail's documentation and ecosystem surfaces, and **rewarded with up to 10,000 TRAC per accepted submission**, tiered by impact — see sections 10 and 11. Integrations live in contributor-owned repositories and are consumed by users through the registry; this round does not merge contributor code into the dkg-v9 monorepo.
+The best contributions will be listed in the official DKG v10 integrations registry, featured across OriginTrail's documentation and ecosystem surfaces, and **rewarded with up to 10,000 TRAC per accepted submission**, tiered by impact — see sections 10 and 11. Integrations live in contributor-owned repositories and are consumed by users through the registry; this round does not merge contributor code into the dkg monorepo.
 
 This call is the first of **three planned rounds**. Round 1 focuses on Working and Shared Memory. Round 2 will target Verified Memory and context oracles. Round 3 will target agent-ready analytics and user support. See section 12 for the full roadmap.
 
