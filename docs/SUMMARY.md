@@ -7,6 +7,8 @@
 
 * [Roadmap](origintrail-v9-v10/roadmap.md)
 * [V10 Mainnet Release Timeline](origintrail-v9-v10/v10-mainnet-release-timeline.md)
+* [OriginTrail DKG v10 Bounty Program](origintrail-v9-v10/origintrail-dkg-v10-bounty-program.md)
+* [OriginTrail Decentralized Knowledge Graph DKG V10 - Terms and Conditions](origintrail-v9-v10/origintrail-decentralized-knowledge-graph-dkg-v10-terms-and-conditions.md)
 
 ## Getting Started
 
