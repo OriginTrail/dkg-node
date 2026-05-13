@@ -194,7 +194,7 @@ Exact review cut-off dates are announced on the official OriginTrail channel on 
 ### 14. How to submit
 
 1. Open the pull request against [**OriginTrail/dkg-integrations**](https://github.com/OriginTrail/dkg-integrations)**,** adding a single integration entry for your project pinned to a specific commit and published package version of your own repository.
-2. Post the PR link, design brief, and demo link in the designated OriginTrail submission thread (link on the official channel).
+2. Include all the required resources, including the design brief and demo link, in your repository.
 3. Tag the submission cfi-dkgv10-r1.
 
 Questions and early-stage design conversations are encouraged before opening a PR. The OriginTrail community channels are the right place for those.
