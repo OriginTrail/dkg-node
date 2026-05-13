@@ -20,8 +20,6 @@ More precisely, a Knowledge Asset is a web resource identified by a unique Unifo
 * **Uniform Asset Locator**: Globally unique URI with assigned ownership using blockchain accounts, implemented as a non-fungible token (NFT) on the blockchain.
 * **Derivable vector embeddings**: These facilitate the neuro-symbolic features - such as link prediction, entity prediction, similarity search, and others.
 
-
-
 <figure><img src="../../../.gitbook/assets/Screenshot 2024-06-13 at 22.59.48.png" alt=""><figcaption></figcaption></figure>
 
 Knowledge content can be observed as a time series of knowledge content states or **assertions**. Each assertion can be independently verified for integrity, by recomputing the cryptographic fingerprint by the verifier and comparing if the computed result matches with the corresponding blockchain fingerprint record.
@@ -49,22 +47,22 @@ The Trace token (TRAC) is the utility token that powers the OriginTrail Decentra
 
 ## Decentralized Retrieval Augmented Generation
 
-Patrick Lewis coined the term Retrieval-Augmented Generation (RAG) in a [2020 paper](https://arxiv.org/pdf/2005.11401.pdf). It is a technique for enhancing the accuracy and reliability of GenAI models with facts fetched from external sources. This allows artificial intelligence (AI) solutions to dynamically fetch relevant information before the generation process, enhancing the accuracy of responses by limiting the generation to re-working the retrieved inputs. \
+Patrick Lewis coined the term Retrieval-Augmented Generation (RAG) in a [2020 paper](https://arxiv.org/pdf/2005.11401.pdf). It is a technique for enhancing the accuracy and reliability of GenAI models with facts fetched from external sources. This allows artificial intelligence (AI) solutions to dynamically fetch relevant information before the generation process, enhancing the accuracy of responses by limiting the generation to re-working the retrieved inputs.\
 \
 **Decentralized Retrieval Augmented Generation (dRAG) advances the model by organizing external sources in a DKG with verifiable sources made available for AI models to use.** The framework enables a hybrid AI system that brings together neural (e.g., LLMs) and symbolic (e.g., Knowledge Graph) methodologies. Contrary to using a solely neural AI approach based on vector embedding representations, a symbolic AI approach enhances it with the strength of Knowledge Graphs by introducing a basis in symbolic representations.
 
-dRAG is, therefore, a framework that allows AI solutions to tap into the strengths of both paradigms:&#x20;
+dRAG is, therefore, a framework that allows AI solutions to tap into the strengths of both paradigms:
 
-* The powerful learning and generalization capabilities of neural networks, and&#x20;
-* The precise, rule-based processing of symbolic AI.&#x20;
+* The powerful learning and generalization capabilities of neural networks, and
+* The precise, rule-based processing of symbolic AI.
 
 It operates on two core components:
 
-(1) the DKG paranets and&#x20;
+(1) the DKG paranets and
 
-(2) AI models.&#x20;
+(2) AI models.
 
-The dRAG applications framework is entirely compatible with the existing techniques, tools, and RAG frameworks and supports all major data formats.&#x20;
+The dRAG applications framework is entirely compatible with the existing techniques, tools, and RAG frameworks and supports all major data formats.
 
 ## Knowledge mining
 
@@ -90,7 +88,7 @@ If you are interested in learning more about NFTs, you can find out more [here](
 
 ## What is a UAL?
 
-Uniform Asset Locators (UALs) are ownable identifiers of the DKG, similar to URLs in the traditional web. The UALs follow the DID URL specification and are used to identify and locate a specific Knowledge Asset within the OriginTrail DKG.&#x20;
+Uniform Asset Locators (UALs) are ownable identifiers of the DKG, similar to URLs in the traditional web. The UALs follow the DID URL specification and are used to identify and locate a specific Knowledge Asset within the OriginTrail DKG.
 
 UAL consists of 5 parts:
 
@@ -115,6 +113,6 @@ More information on DID URLs can be found [here](https://www.w3.org/TR/did-core/
 
 The next building block of the DKG is **AI para-networks** or **paranets**.
 
-**AI para-networks** or **paranets** are autonomously operated structures in the DKG, owned by their community as a paranet operator. In paranets, we find **assemblies of Knowledge Assets** driving use cases with associated **paranet-specific AI services** and an **incentivization model** to reward knowledge miners fueling its growth.&#x20;
+**AI para-networks** or **paranets** are autonomously operated structures in the DKG, owned by their community as a paranet operator. In paranets, we find **assemblies of Knowledge Assets** driving use cases with associated **paranet-specific AI services** and an **incentivization model** to reward knowledge miners fueling its growth.
 
-**To see the DKG in action, continue to the** [**Installation guide**](../../../getting-started/decentralized-knowle-dge-graph-dkg.md)**.**
+**To see the DKG in action, continue to the** [**Installation guide**](../../../getting-started/decentralized-knowledge-graph-dkg.md)**.**

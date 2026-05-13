@@ -2,6 +2,7 @@
 description: >-
   🧠 Code trust & verifiability into AI. Join the global hackathon to build a
   collective digital immune system for the AI era. 🚀
+hidden: true
 ---
 
 # Hackathon: Scaling Trust in the Age of AI

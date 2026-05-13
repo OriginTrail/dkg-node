@@ -16,12 +16,12 @@ Modern AI applications increasingly demand:
 
 The DKG meets these needs by uniting the **trust layer of blockchains**, the **semantic expressiveness of knowledge graphs (symbolic AI),** and **state-of-the-art generative AI models (neural AI).**
 
-### Why use Blockchain?
+### Why use blockchain?
 
 Blockchains enable:
 
 * **Trustless verification:** Every claim is anchored to a consensus-verified state
-* **Decentralized Computation**: Blockchains enable consensus-based execution of code (e.g., via smart contracts) across decentralized networks, with no single point of control, making them ideal for building decentralized protocols like OriginTrail.
+* **Decentralized computation**: Blockchains enable consensus-based execution of code (e.g., via smart contracts) across decentralized networks, with no single point of control, making them ideal for building decentralized protocols like OriginTrail.
 * **Data integrity and auditability:** Through cryptographic hashing and timestamping of data records on a blockchain, making it possible to verifiably track the origin of records and their update trail
 * **Tokenization:** Enabling decentralized participation and support of the system through the TRAC token, as well as the ability to tokenize data through Knowledge Assets
 
@@ -69,7 +69,7 @@ In short, the DKG is an essential infrastructure layer for building trusted, int
 
 ## System architecture
 
-OriginTrail synergizes blockchains, knowledge graphs (symbolic AI), and LLMs (neural AI) in a 3-layer architecture, where each layer is implemented as a decentralized network.&#x20;
+OriginTrail synergizes blockchains, knowledge graphs (symbolic AI), and LLMs (neural AI) in a 3-layer architecture, where each layer is implemented as a decentralized network.
 
 The **trust layer leverages blockchains as trust networks,** established to enable reliable computation through **decentralized consensus**, operating as a global, dependable computer. It is used to track the origin of knowledge, its provenance, and integrity, and enable decentralized economic interactions in the system.
 

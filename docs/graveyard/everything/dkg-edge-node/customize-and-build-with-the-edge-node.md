@@ -14,10 +14,9 @@ Users can add custom variables to the `UserConfig` table, making them accessible
 
 ## Local environment setup with forked services
 
-To begin customizing and building your own solution using the OriginTrail Edge Node stack, we recommend the following local development setup:\
+To begin customizing and building your own solution using the OriginTrail Edge Node stack, we recommend the following local development setup:\\
 
-
-1.  ### Fork Core Edge Node Repositories
+1.  #### Fork Core Edge Node Repositories
 
     In order to fully tailor the Edge Node to your specific use case, it is recommended that you **fork the following components** into your own GitHub account:
 
@@ -32,20 +31,16 @@ To begin customizing and building your own solution using the OriginTrail Edge N
        👉 Fork this if you want to modify business logic, expose new routes, or integrate additional microservices.
     4. **Edge Node UI**\
        The user-facing interface of the Edge Node.\
-       👉 Fork this to customize branding, UX, workflows, or connect it with your own backend services.\
-
-2. ### Authentication Service (Optional Fork)
-   1.  **Edge Node Authentication Service**\
-       This handles user sessions and tokens.\
-       Recommended to use as-is for most cases to keep things simple and aligned with best practices.\
-       🛠️ Optional: You may fork this if you need:
-
-       1. Custom authentication methods (e.g., biometric login, enterprise SSO)
-       2. Integration with external identity providers
-       3. Custom logic for Verifiable Credential issuance or DID resolution
-
-
-3.  ### Forked Repositories Setup
+       👉 Fork this to customize branding, UX, workflows, or connect it with your own backend services.\\
+2. #### Authentication Service (Optional Fork)
+   1. **Edge Node Authentication Service**\
+      This handles user sessions and tokens.\
+      Recommended to use as-is for most cases to keep things simple and aligned with best practices.\
+      🛠️ Optional: You may fork this if you need:
+      1. Custom authentication methods (e.g., biometric login, enterprise SSO)
+      2. Integration with external identity providers
+      3. Custom logic for Verifiable Credential issuance or DID resolution
+3.  #### Forked Repositories Setup
 
     Once you’ve successfully forked the core Edge Node repositories and tested the default setup using the official public repos, you’ll need to **clean your local environment** before installing your customized versions.
 
@@ -58,12 +53,10 @@ To begin customizing and building your own solution using the OriginTrail Edge N
         After pruning the default Edge Node setup, your environment will be reset:
 
         1. All previously cloned **Edge Node service repositories** will be deleted
-        2. All **Edge Node databases** will be dropped\
-
+        2. All **Edge Node databases** will be dropped\\
     2. **Switch to Your Forked Repositories**
        1. **Open your `.env` file** located at the root of the project.
-       2. Replace the official repository URLs with the links to your **forked repositories.**\
-
+       2. Replace the official repository URLs with the links to your **forked repositories.**\\
     3. **Install Your Custom Edge Node**
        1. Run Edge node installer script which will install services based on your forked repos.
        2. If your Edge node is set on MacOS, execute following script to run your services:\
@@ -108,7 +101,7 @@ A **DAG** defines the execution order of tasks within a **pipeline**, while a **
     * optionally: If _airflow webserver_ is used, it should also be restarted
   * **Unpause** your pipeline\
     `airflow dags unpause ${YOUR_DAG_NAME}`\
-    &#xNAN;_&#x65;.g. If your pipeline filename is xlsx\_to\_jsonld.py, unpause command should be "airflow dags unpause xlsx\_to\_jsonld"_\
+    \&#xNAN;_e.g. If your pipeline filename is xlsx\_to\_jsonld.py, unpause command should be "airflow dags unpause xlsx\_to\_jsonld"_\
     \
     **NOTE:** If you are using Airflow webserver, you should be able to see your pipeline on http://localhost:8080 (or any other port you selected for the service) inside of "unpaused DAGS"
 * **Registering the pipeline**
@@ -121,11 +114,11 @@ A **DAG** defines the execution order of tasks within a **pipeline**, while a **
     * **Convert science paper PDFs to JSON-LD using a bibliographic ontology**\
       Extract metadata from science paper PDFs, such as title, authors, publication date, and references, and convert the data into JSON-LD following a bibliographic ontology like BIBO. This allows for structured, machine-readable representation of academic papers for easier citation management and searchability.
     * **Convert supply chain Excel documents to JSON-LD using GS1 standard ontology**\
-      Parse supply chain-related data from Excel files (e.g., product lists, inventory records) and convert it into JSON-LD using the GS1 standard ontology.&#x20;
+      Parse supply chain-related data from Excel files (e.g., product lists, inventory records) and convert it into JSON-LD using the GS1 standard ontology.
     * **Convert images to JSON-LD using OCR**\
-      Use Optical Character Recognition (OCR) to extract text and metadata from image files and represent it as JSON-LD.&#x20;
+      Use Optical Character Recognition (OCR) to extract text and metadata from image files and represent it as JSON-LD.
     * **Convert videos to Knowledge Assets by transcribing the audio and extracting key points**\
-      Transcribe the audio from videos and extract key points or insights, then represent this information as JSON-LD knowledge assets.&#x20;
+      Transcribe the audio from videos and extract key points or insights, then represent this information as JSON-LD knowledge assets.
   * If you need to support a different file type:
     * Create a new variable for the file type, e.g., `kmining_xlsx_pipeline_id`
     * adapt the code in [Edge Node API - kMiningService](https://github.com/OriginTrail/edge-node-api/blob/main/services/kMiningService.js) to handle the new variable based on the input file's MIME type
@@ -153,7 +146,7 @@ The native query language for interacting with the DKG is SPARQL, as we use a tr
       ```
 * **Creating your dRAG**
   * The app currently contains two dRAGs as a demonstration of how natural language questions can be understood, processed, and answered using SPARQL and vector similarity search
-  * Creating a new dRAG is basically creating a new API route in the app, and those steps are recommended but not mandatory: \
+  * Creating a new dRAG is basically creating a new API route in the app, and those steps are recommended but not mandatory:\
     NOTE: (_you can create your own path as long as they are compatible with Edge Node interface, which also can be customized by your needs_)
     * Create a new Controller in the controllers directory
     * Create your dRAG method in Controller
@@ -176,8 +169,7 @@ The native query language for interacting with the DKG is SPARQL, as we use a tr
   * **Feedback-loop-based SPARQL refinement:** Combine the LLM's natural language to SPARQL conversion with a feedback loop, in which the AI iteratively enhances the generated SPARQL queries, ensuring they align with the ontology and avoid errors.
   * **Hybrid search — Combine vector and symbolic search:** Use a hybrid approach in which vector search (for semantic similarity) and symbolic search (e.g., SPARQL) work in tandem. Balancing structured queries with open-ended search results in this way can help ensure both accuracy and broad coverage.
   * **Ontology-aware LLM fine-tuning:** Create a system to fine-tune a large language model (LLM) specifically on a given ontology. This approach involves providing the LLM with structured data from the ontology, including relationships, entities, and definitions, so it can learn to generate responses that align with the specific concepts and rules of the ontology. Then, use the trained model to formulate SPARQL queries based on the natural language.
-* You should now be ready to test your setup. Visit the Edge Node interface, go to the "AI Assistant" page, ask a question, and verify that your dRAG can answer it based on your custom logic.\
-
+* You should now be ready to test your setup. Visit the Edge Node interface, go to the "AI Assistant" page, ask a question, and verify that your dRAG can answer it based on your custom logic.\\
 
 | Feature           | dRAG                                                                                      | Pipeline                                                                                       |
 | ----------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |

@@ -16,6 +16,7 @@ The **DKG Node Essentials Plugin** ships preinstalled with every DKG Node. It pr
 
 * **DKG Knowledge Asset create tool** - basic too to publish Knowledge assets from a JSON-LD object with `public` or `private` visibility
 * **DKG Knowledge Asset get** tool - retrieve a Knowledge asset by it's **UAL**.
+* **DKG SPARQL query tool** - execute SPARQL SELECT and CONSTRUCT queries on the DKG to search and retrieve knowledge.
 
 Publishing Knowledge assets with the "public" visibility, will replicate their content to the entirety of the DKG - making it **publicly visible**. When creating private knowledge assets, their content never leaves your node - only knowledge asset registration material (such as the cryptographic hash and UALs) will be published publicly.
 
@@ -72,7 +73,7 @@ DKG Explorer link: https://dkg-testnet.origintrail.io/explore?ual=did:dkg:otp:20
 
 ***
 
-#### 2) DKG Knowledge Asset **get**
+#### 2) DKG Knowledge Asset get
 
 **Purpose**\
 Fetch a **KA or KC** by **UAL**.
@@ -126,9 +127,75 @@ did:dkg:otp:20430/0xABCDEF0123456789/12345/67890
 }
 ```
 
+#### 3) **DKG SPARQL query tool**
+
+**Purpose**\
+Execute SPARQL queries on the DKG to search, filter, and retrieve knowledge. Supports both SELECT queries (tabular results) and CONSTRUCT queries (graph/N-triples output).
+
+**Inputs**
+
+* `query` _(string, required)_ — a valid SPARQL SELECT or CONSTRUCT query.
+
+**Returns**
+
+All tools return an **MCP-formatted** payload:
+
+* `content` _(array)_ — one item containing:
+  * For **SELECT** queries: JSON-formatted bindings with the query results.
+  * For **CONSTRUCT** queries: N-triples formatted graph data.
+
+**Example input (SELECT query)**
+
+```
+SELECT ?name ?description
+WHERE {
+  ?s <http://schema.org/name> ?name .
+  ?s <http://schema.org/description> ?description .
+}
+LIMIT 10
+```
+
+**Typical response (SELECT)**
+
+```json
+{
+  "data": [
+    {
+      "name": "\"Hello DKG\"",
+      "description": "\"My first Knowledge Asset on the Decentralized Knowledge Graph!\""
+    },
+    {
+      "name": "\"DKG Example KA\"",
+      "description": "\"The best KA example on the DKG\""
+    }
+  ]
+}
+```
+
+**Example input (CONSTRUCT query)**
+
+```
+CONSTRUCT { ?s <http://schema.org/name> ?name }
+WHERE { ?s <http://schema.org/name> ?name }
+LIMIT 10
+```
+
+**Typical response (CONSTRUCT)**
+
+```
+<uuid:6271829154> <http://schema.org/name> "Jane Doe" .
+<uuid:9650572417> <http://schema.org/name> "John Smith" .
+<uuid:9998372617> <http://schema.org/name> "Alice Wonder" .
+```
+
+**Notes**
+
+* Only **SELECT** and **CONSTRUCT** query types are supported. UPDATE operations (INSERT, DELETE, MODIFY) are not allowed.
+* Invalid SPARQL syntax will return a validation error before execution.
+* Results are automatically formatted based on query type for optimal readability.
+
 ### Coming soon (preview)
 
-* **DKG query & retrieve** - generate/execute Schema.org-based **SPARQL** queries on the DKG.
 * **Document → JSON/Markdown** - convert PDFs/Word/TXT/… into JSON/Markdown for downstream processing.
 * **JSON/Markdown → JSON-LD** - transform structured text into a **schema.org** knowledge graph ready for publishing.
 

@@ -49,6 +49,6 @@ Your node needs **both** to operate — TRAC to publish verifiable data and the 
 
 Now that you understand what a DKG Node is and how it’s powered by $TRAC, you’re ready to take action.
 
-If you’d like to start building right away, jump ahead to the “[Installation](../../../getting-started/decentralized-knowle-dge-graph-dkg.md)” section — where you’ll set up, install, and configure your own DKG Node to connect with AI models.
+If you’d like to start building right away, jump ahead to the “[Installation](../../../getting-started/decentralized-knowledge-graph-dkg.md)” section — where you’ll set up, install, and configure your own DKG Node to connect with AI models.
 
 Or, if you want to learn more about tokenomics first, continue to “[Delegated staking](../../../contribute-to-the-dkg/delegated-staking/)” to explore how staking works across the OriginTrail ecosystem and how it powers trust, security, and participation.

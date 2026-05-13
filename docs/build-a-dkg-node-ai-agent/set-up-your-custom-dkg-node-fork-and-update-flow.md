@@ -75,13 +75,13 @@ Your custom DKG Node repository is now set up with:
 
 ## Configure and start your custom DKG Node project
 
-Once this setup process is complete, you are ready to configure and run your custom DKG Node using the `dkg-cli`. The `dkg-cli` provides automated installation, configuration management, and service control for your DKG Node. Detailed instructions on how to use `dkg-cli` to configure your node, and manage its services are available in the [**Installation**](../getting-started/decentralized-knowle-dge-graph-dkg.md#id-1-install-cli) page under "Getting started" section.
+Once this setup process is complete, you are ready to configure and run your custom DKG Node using the `dkg-cli`. The `dkg-cli` provides automated installation, configuration management, and service control for your DKG Node. Detailed instructions on how to use `dkg-cli` to configure your node, and manage its services are available in the [**Installation**](../getting-started/decentralized-knowledge-graph-dkg.md#id-1-install-cli) page under "Getting started" section.
 
-## Update your custom DKG Node project  <a href="#id-2.-update-your-project" id="id-2.-update-your-project"></a>
+## Update your custom DKG Node project <a href="#id-2.-update-your-project" id="id-2.-update-your-project"></a>
 
 When a new version of DKG Node is released, follow the process steps below to update your custom DKG Node project.
 
-**1. Fetch the latest changes from upstream:**&#x20;
+**1. Fetch the latest changes from upstream:**
 
 ```sh
 git fetch upstream
@@ -103,7 +103,7 @@ Most projects will encounter differences between upstream and local changes. Rev
 git push origin main
 ```
 
-## You’re up to date&#x20;
+## You’re up to date
 
 At this point, your codebase is synced with the latest official [DKG Node](https://github.com/OriginTrail/dkg-node) while keeping your customizations intact.
 

@@ -1,7 +1,23 @@
+---
+description: DKG Edge Node
+---
+
 # Installation
+
+The **DKG Edge Node** is your gateway to verifiable AI. It's an intuitive, app-style node that lets you create and interact with verifiable knowledge effortlessly.&#x20;
+
+With the Edge Node, you can:
+
+* Publish knowledge in the DKG as [Knowledge Assets](../dkg-key-concepts.md#knowledge-assets)
+* Retrieve knowledge from the DKG&#x20;
+* Build reliable AI applications powered by the Decentralized Knowledge Graph (DKG) with ease through the [DKG Node AI Agent](/broken/pages/i91ic9qprIOpVgGjUy0a).
+
+The DKG Edge Node runs on devices at the “edge” (e.g., laptops, phones, IoT, and even servers, if deployed that way). It enables local knowledge processing, private-graph handling, and integration with AI pipelines (via APIs such as dRAG), allowing owners to retain control of their data while still contributing to the global DKG.
 
 {% hint style="info" %}
 If you are new to OriginTrail, DKG, knowledge graphs, or blockchains, we highly recommend becoming familiar with the [DKG—Key concepts](../dkg-key-concepts.md) before proceeding.&#x20;
+
+To understand the difference between the DKG Edge Node and Core Node [check here](../dkg-knowledge-hub/learn-more/introduction/edge-vs.-core-node-rules-and-token-thresholds.md).
 {% endhint %}
 
 ### What are we installing today?
@@ -12,7 +28,7 @@ To install the **DKG Edge Node**, we will be using the DKG CLI (`dkg-cli`) - a s
 
 ### The DKG utilizes blockchain
 
-The DKG Network utilizes blockchains as a trusted environment for incentivisation and securing data exchanges. It's a multichain network, so DKG Nodes support 3 blockchains, but can currently be deployed on a **single blockchain at a time** (multichain deployment support is on the way).&#x20;
+The DKG Network utilizes blockchains as a trusted environment for incentivisation and securing data exchanges. It's a multichain network, so DKG Nodes support 3 blockchains, but can currently be deployed on a **single blockchain at a time** (multichain deployment support is on the way).
 
 If you're not too familiar with blockchain technology, and not sure which blockchain to pick to get started with the DKG Node, which one is better for you etc - don't worry, a default blockchain will be chosen for you and you will be able to learn as you go (the DKG Node abstracts a lot of the complexities of blockchain for you). You shouldn't notice a big difference between blockchains while you are in development — this choice matters most when you are ready for your DKG Node deployment to mainnet.
 
@@ -25,7 +41,7 @@ For now, you need to know the following:
 ### What do you need for the installation?
 
 * A **macOS** or **Linux** machine with at least 8GB RAM and 20GB storage space (Windows version is on the way)
-* Node.js **v22.20.0** or higher installed
+* NVM and Node.js **v22.20.0** or higher installed
 * About 15-30 minutes of your time to complete all the steps
 
 ### OK, let's go! <a href="#installation-steps" id="installation-steps"></a>
@@ -38,7 +54,7 @@ npm install -g dkg-cli
 
 #### 2. Generate the DKG Node Configuration <a href="#id-2-generate-configuration" id="id-2-generate-configuration"></a>
 
-Your DKG Node allows for rich configuration (more on that in the **Configuration** section later), however this setup focuses on a minimal default configuration.&#x20;
+Your DKG Node allows for rich configuration (more on that in the **Configuration** section later), however this setup focuses on a minimal default configuration.
 
 We recommend setting up your project folder and starting with the default development setup on DKG testnet.
 
@@ -65,14 +81,20 @@ All DKG node wallets require native blockchain tokens, while the publishing wall
 
 <figure><img src="../.gitbook/assets/Screenshot 2025-10-31 at 17.02.59.png" alt="" width="563"><figcaption></figcaption></figure>
 
+**MySQL configuration:**
+
+If you have an existing MySQL database already configured on your environment, please make sure to pass your root password to `DB_PASSWORD` parameter in the setup .env file.&#x20;
+
+If you do not have MySQL installed, password passed this parameter will be set as your root password.&#x20;
+
 #### 3. Funding wallets <a href="#id-4-fund-wallets" id="id-4-fund-wallets"></a>
 
-As mentioned previously, your DKG Node requires tokens to be able to create Knowledge Assets. &#x20;
+As mentioned previously, your DKG Node requires tokens to be able to create Knowledge Assets.
 
 **To get tokens for the DKG testnet, use the** [**testnet token faucet**](../dkg-knowledge-hub/useful-resources/test-token-faucet.md)**.** For DKG Mainnet deployments, we suggest visiting the [TRAC token](https://origintrail.io/technology/trac-token) page to check for its availability.
 
 {% hint style="warning" %}
-Make sure to fund your node keys with tokens before running the `dkg-cli install` command; otherwise, your DKG node might not function correctly.  &#x20;
+Make sure to fund your node keys with tokens before running the `dkg-cli install` command; otherwise, your DKG node might not function correctly.
 {% endhint %}
 
 Here's an overview of supported blockchains and the required tokens per key type.
@@ -95,14 +117,14 @@ The installation can take a few minutes. It installs the DKG Node in the same di
 
 #### 5. Configure your DKG Agent <a href="#id-6-configure-agent" id="id-6-configure-agent"></a>
 
-Run the agent setup script to enable LLM features. You'll be prompted for your LLM provider, API key, model name, and DKG environment (must match your setup-config choice: testnet or mainnet). The agent supports multiple providers; examples are listed below.
+Run the agent setup script to enable LLM features. You'll be prompted for your LLM provider, API key, model name, and DKG environment (must match your setup-config choice: testnet or mainnet).&#x20;
 
 ```sh
 cd dkg-node
 dkg-cli agent-setup
 ```
 
-DKG Node supports various LLM providers. Some examples include:
+DKG Agent supports various LLM providers. Some examples include:
 
 | Provider                   | API Key Link                                                                         |
 | -------------------------- | ------------------------------------------------------------------------------------ |
@@ -190,7 +212,7 @@ All commands work from any directory and automatically detect your operating sys
 A `createUser` is also possible via the `dkg-cli` included to simplify the creation of additional user accounts.
 
 ```sh
-cd dkg-node/apps/agent
+cd dkg-node
 dkg-cli create-user
 # Enter: email, password, permissions (e.g., `mcp llm blob scope123`)
 ```
@@ -202,7 +224,7 @@ dkg-cli create-user
 * Contains sensitive data (wallet keys, passwords, API keys)
 * Never commit to version control
 
-**Services and Ports**\
+**Services and ports**\
 The following list provides an overview of which services are running locally and the ports they listen on:
 
 * **8081** — Web UI & API
@@ -214,4 +236,4 @@ The following list provides an overview of which services are running locally an
 
 * 📖 [Documentation](https://docs.origintrail.io/)
 * 🐛 [Report issues](https://github.com/OriginTrail/dkg-node-installer/issues)
-* 💬 [Discord community](https://discord.gg/aNpBjf97)
+* 💬 [Discord community](https://discord.com/invite/xCaY7hvNwD)

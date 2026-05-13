@@ -6,7 +6,7 @@ description: Javascript library for the Decentralized Knowledge Graph.
 
 If you are looking to build applications leveraging [Knowledge Assets](./#create-a-knowledge-asset) on the OriginTrail Decentralized Knowledge Graph (DKG), the dkg.js SDK library is the best place to start!
 
-The DKG SDK is used together with an **OriginTrail gateway node** to build applications that interface with the OriginTrail DKG  (the node is a dependency). Therefore, to use the SDK, you either need to run a gateway node on [your local environment](../setting-up-your-development-environment.md) or a [hosted DKG Node](../../../../getting-started/decentralized-knowle-dge-graph-dkg.md).
+The DKG SDK is used together with an **OriginTrail gateway node** to build applications that interface with the OriginTrail DKG (the node is a dependency). Therefore, to use the SDK, you either need to run a gateway node on [your local environment](../setting-up-your-development-environment.md) or a [hosted DKG Node](../../../../getting-started/decentralized-knowledge-graph-dkg.md).
 
 ## Prerequisites
 
@@ -61,7 +61,7 @@ const DKG = require('dkg.js');
 OriginTrail dev tutorial: SDK walkthrough
 {% endembed %}
 
-To use the DKG library, you need to connect to a running local or remote OT-node.&#x20;
+To use the DKG library, you need to connect to a running local or remote OT-node.
 
 ```javascript
 const dkg = new DKG({
@@ -109,9 +109,9 @@ The system uses default publicly available RPCs for each chain. However, because
 
 ## Create a Knowledge Asset
 
-In this example, let’s create an example Knowledge Asset representing a city. The content contains both public and private assertions. Public assertions will be exposed publicly (replicated to other nodes), while private ones won't (stay on the node you published to only).&#x20;
+In this example, let’s create an example Knowledge Asset representing a city. The content contains both public and private assertions. Public assertions will be exposed publicly (replicated to other nodes), while private ones won't (stay on the node you published to only).
 
-If you have access to the particular node that has the data, when you search for it using get or query, you will see both public and private assertions.&#x20;
+If you have access to the particular node that has the data, when you search for it using get or query, you will see both public and private assertions.
 
 ```javascript
 const content = {
@@ -346,7 +346,7 @@ The response of the get operation will be the assertion graph:
 
 ## Querying Knowledge Asset data with SPARQL
 
-Querying the DKG is done by using the SPARQL query language, which is very similar to SQL applied to graph data.&#x20;
+Querying the DKG is done by using the SPARQL query language, which is very similar to SQL applied to graph data.
 
 _(If you have SQL experience, SPARQL should be relatively easy to get started with. More information_[ _can be found here_](https://www.w3.org/TR/rdf-sparql-query/)_)._
 
@@ -378,7 +378,7 @@ The returned response will contain an array of n-quads:
 }
 </code></pre>
 
-As the OriginTrail node leverages a fully fledged graph database (a triple store supporting RDF), you can run arbitrary SPARQL queries on it.&#x20;
+As the OriginTrail node leverages a fully fledged graph database (a triple store supporting RDF), you can run arbitrary SPARQL queries on it.
 
 To learn more about querying the DKG, go [here](../../querying-the-dkg.md).
 
@@ -390,7 +390,7 @@ We can divide operations done by SDK into 3 types:
 * Smart contract call (non-state-changing interaction)
 * Smart contract transaction (state-changing interaction)
 
-Non-state-changing interactions with smart contracts are free and can be described as contract-getters. They don’t require transactions on the blockchain. This means they do not incur transaction fees.&#x20;
+Non-state-changing interactions with smart contracts are free and can be described as contract-getters. They don’t require transactions on the blockchain. This means they do not incur transaction fees.
 
 Smart contract transactions are state-changing operations. This means they change the state of the smart contract memory, which requires some blockchain-native gas tokens (such as ETH, NEURO, etc.).
 

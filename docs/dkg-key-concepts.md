@@ -9,15 +9,15 @@ description: >-
 
 ## DKG Network & Nodes
 
-OriginTrail Decentralized Knowledge Graph (DKG) is a permissionless, multi-chain infrastructure designed to host and interlink semantically-rich “[Knowledge Assets](dkg-key-concepts.md#knowledge-assets)” - structured containers of machine-readable data (e.g., RDF-based graphs) that are discoverable, verifiable, and owned by their creators.\
+OriginTrail Decentralized Knowledge Graph (DKG) is a permissionless, multi-chain infrastructure designed to host and interlink semantically-rich “[Knowledge Assets](dkg-key-concepts.md#knowledge-assets)” — structured containers of machine-readable data (e.g., RDF-based graphs) that are discoverable, verifiable, and owned by their creators.\
 \
 The DKG enables AI-agents and applications to query, connect, and build upon distributed knowledge while preserving provenance and trust through blockchain-anchored proof systems.
 
-The DKG Network is comprised of network nodes, running on different servers and devices. **There are two primary node types that enable the network’s operation**. The first is **the DKG Core Node**, which hosts the public DKG, persistently stores and serves knowledge assets, participates in random-sampling proofs and token incentives, and requires a minimum stake (e.g., 50,000 TRAC) to participate.\
+The DKG Network is comprised of network nodes, running on different servers and devices. **There are** [**two primary node types**](dkg-knowledge-hub/learn-more/introduction/edge-vs.-core-node-rules-and-token-thresholds.md) **that enable the network’s operation**. The first is **the DKG Core Node**, which hosts the public DKG, persistently stores and serves knowledge assets, participates in random-sampling proofs and token incentives, and requires a minimum stake (e.g., 50,000 TRAC) to participate.\
 \
-The second is the **DKG Edge Node**, which runs on devices at the “edge” (e.g., laptops, phones, IoT, and even servers, if deployed that way) and enables local knowledge processing, private-graph handling, and integration with AI-pipelines (via APIs like dRAG), allowing owners to retain control of their data while still contributing to the global DKG.&#x20;
+The second is the [**DKG Edge Node**](getting-started/decentralized-knowledge-graph-dkg.md), which runs on devices at the “edge” (e.g., laptops, phones, IoT, and even servers, if deployed that way) and enables local knowledge processing, private-graph handling, and integration with AI-pipelines (via APIs like dRAG), allowing owners to retain control of their data while still contributing to the global DKG.
 
-Together, Core and Edge Nodes form the network and exchange knowledge, facilitated by the blockchain. They share the same codebas,e however, so **it is possible to turn a DKG Edge Node into a DKG Core node (more on that later in the docs)**.
+Together, Core and Edge Nodes form the network and exchange knowledge, facilitated by the blockchain. They share the same codebase, however, so **it is possible to turn a DKG Edge Node into a DKG Core Node (more on that** [**here**](dkg-knowledge-hub/learn-more/introduction/edge-vs.-core-node-rules-and-token-thresholds.md)**)**.
 
 ## Knowledge Assets
 
@@ -29,8 +29,6 @@ More precisely, a Knowledge Asset is a web resource identified by a unique Unifo
 * **Cryptographic proofs:** Representing cryptographic digests of the knowledge stored on the blockchain.
 * **Uniform Asset Locator**: Globally unique URI with assigned ownership using blockchain accounts, implemented as a non-fungible token (NFT) on the blockchain.
 * **Derivable vector embeddings**: These facilitate the neuro-symbolic features - such as link prediction, entity prediction, similarity search, and others.
-
-
 
 <figure><img src=".gitbook/assets/Screenshot 2024-06-13 at 22.59.48.png" alt=""><figcaption></figcaption></figure>
 
@@ -48,7 +46,7 @@ Similar to distributed databases, the OriginTrail DKG applies replication mechan
 
 ## What is a UAL?
 
-Uniform Asset Locators (UALs) are ownable identifiers on the DKG, similar to URLs in the traditional web. The UALs follow the DID URL specification and are used to identify and locate a specific Knowledge Asset within the OriginTrail DKG.&#x20;
+Uniform Asset Locators (UALs) are ownable identifiers on the DKG, similar to URLs in the traditional web. The UALs follow the DID URL specification and are used to identify and locate a specific Knowledge Asset within the OriginTrail DKG.
 
 UAL consists of 5 parts:
 
@@ -82,22 +80,22 @@ The Trace token (TRAC) is the utility token that powers the OriginTrail Decentra
 
 ## Decentralized Retrieval Augmented Generation
 
-Patrick Lewis coined the term Retrieval-Augmented Generation (RAG) in a [2020 paper](https://arxiv.org/pdf/2005.11401.pdf). It is a technique for enhancing the accuracy and reliability of GenAI models with facts fetched from external sources. This allows artificial intelligence (AI) solutions to dynamically fetch relevant information before the generation process, enhancing the accuracy of responses by limiting the generation to re-working the retrieved inputs. \
+Patrick Lewis coined the term Retrieval-Augmented Generation (RAG) in a [2020 paper](https://arxiv.org/pdf/2005.11401.pdf). It is a technique for enhancing the accuracy and reliability of GenAI models with facts fetched from external sources. This allows artificial intelligence (AI) solutions to dynamically fetch relevant information before the generation process, enhancing the accuracy of responses by limiting the generation to re-working the retrieved inputs.\
 \
 **Decentralized Retrieval Augmented Generation (dRAG) advances the model by organizing external sources in a DKG with verifiable sources made available for AI models to use.** The framework enables a hybrid AI system that brings together neural (e.g., LLMs) and symbolic (e.g., Knowledge Graph) methodologies. Contrary to using a solely neural AI approach based on vector embedding representations, a symbolic AI approach enhances it with the strength of Knowledge Graphs by introducing a basis in symbolic representations.
 
-dRAG is, therefore, a framework that allows AI solutions to tap into the strengths of both paradigms:&#x20;
+dRAG is, therefore, a framework that allows AI solutions to tap into the strengths of both paradigms:
 
-* The powerful learning and generalization capabilities of neural networks, and&#x20;
-* The precise, rule-based processing of symbolic AI.&#x20;
+* The powerful learning and generalization capabilities of neural networks, and
+* The precise, rule-based processing of symbolic AI.
 
 It operates on two core components:
 
-(1) the DKG paranets and&#x20;
+(1) the DKG paranets and
 
-(2) AI models.&#x20;
+(2) AI models.
 
-The dRAG applications framework is entirely compatible with the existing techniques, tools, and RAG frameworks and supports all major data formats.&#x20;
+The dRAG applications framework is entirely compatible with the existing techniques, tools, and RAG frameworks and supports all major data formats.
 
 ## Knowledge mining
 
@@ -125,6 +123,6 @@ If you are interested in learning more about NFTs, you can find out more [here](
 
 The next building block of the DKG is **AI para-networks** or **paranets**.
 
-**AI para-networks** or **paranets** are autonomously operated structures in the DKG, owned by their community as a paranet operator. In paranets, we find **assemblies of Knowledge Assets** driving use cases with associated **paranet-specific AI services** and an **incentivization model** to reward knowledge miners fueling its growth.&#x20;
+**AI para-networks** or **paranets** are autonomously operated structures in the DKG, owned by their community as a paranet operator. In paranets, we find **assemblies of Knowledge Assets** driving use cases with associated **paranet-specific AI services** and an **incentivization model** to reward knowledge miners fueling its growth.
 
-**To see the DKG in action, continue to the** [**Installation section**](getting-started/decentralized-knowle-dge-graph-dkg.md)**.**
+**To see the DKG in action, continue to the** [**Installation section**](getting-started/decentralized-knowledge-graph-dkg.md)**.**

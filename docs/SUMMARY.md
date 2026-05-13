@@ -3,9 +3,16 @@
 * [Introduction](README.md)
 * [DKG — Key concepts](dkg-key-concepts.md)
 
+## ORIGINTRAIL V9/V10&#x20;
+
+* [Roadmap](origintrail-v9-v10/roadmap.md)
+* [V10 Mainnet Release Timeline](origintrail-v9-v10/v10-mainnet-release-timeline.md)
+* [OriginTrail DKG v10 Bounty Program](origintrail-v9-v10/origintrail-dkg-v10-bounty-program.md)
+* [OriginTrail Decentralized Knowledge Graph DKG V10 - Terms and Conditions](origintrail-v9-v10/origintrail-decentralized-knowledge-graph-dkg-v10-terms-and-conditions.md)
+
 ## Getting Started
 
-* [Installation](getting-started/decentralized-knowle-dge-graph-dkg.md)
+* [Installation — Edge Node](getting-started/decentralized-knowledge-graph-dkg.md)
 * [Interacting with your DKG Agent](getting-started/interacting-with-your-dkg-agent.md)
 * [DKG Node Services](getting-started/dkg-node-services.md)
 * [Basic Knowledge Asset operations](getting-started/basic-knowledge-asset-operations.md)
@@ -16,6 +23,7 @@
 
 * [Architecture](build-a-dkg-node-ai-agent/architecture.md)
 * [Essentials Plugin](build-a-dkg-node-ai-agent/essentials-plugin.md)
+* [Using the DKG client](build-a-dkg-node-ai-agent/using-the-dkg-client.md)
 * [Customizing your DKG agent](build-a-dkg-node-ai-agent/customizing-your-dkg-agent.md)
 * [Evaluating agent responses](build-a-dkg-node-ai-agent/evaluating-agent-responses.md)
 * [Set up your custom DKG Node fork & update flow](build-a-dkg-node-ai-agent/set-up-your-custom-dkg-node-fork-and-update-flow.md)
@@ -43,7 +51,7 @@
   * [EPCIS Plugin](build-a-dkg-node-ai-agent/plugins/epcis-plugin.md)
 * [Contributing a plugin](build-a-dkg-node-ai-agent/contributing-a-plugin.md)
 
-## Contribute to the DKG&#x20;
+## Contribute to the DKG
 
 * [Hackathon: Scaling Trust in the Age of AI](contribute-to-the-dkg/hackathon-scaling-trust-in-the-age-of-ai/README.md)
   * [DKG Social Graph Query Guide](contribute-to-the-dkg/hackathon-scaling-trust-in-the-age-of-ai/dkg-social-graph-query-guide.md)
@@ -70,7 +78,7 @@
 
 * [Learn more](dkg-knowledge-hub/learn-more/README.md)
   * [Understanding OriginTrail](dkg-knowledge-hub/learn-more/readme/README.md)
-    * [OriginTrail Decentralized Knowledge Graph (DKG)](dkg-knowledge-hub/learn-more/readme/decentralized-knowle-dge-graph-dkg.md)
+    * [OriginTrail Decentralized Knowledge Graph (DKG)](dkg-knowledge-hub/learn-more/readme/decentralized-knowledge-graph-dkg.md)
     * [Development principles](dkg-knowledge-hub/learn-more/readme/development-principles.md)
     * [Linked data & knowledge graphs](dkg-knowledge-hub/learn-more/readme/kg.md)
     * [Core DKG concepts](dkg-knowledge-hub/learn-more/readme/dkg-key-concepts.md)
@@ -85,7 +93,7 @@
     * [Random Sampling & proofs explained](dkg-knowledge-hub/learn-more/introduction/random-sampling-dkg-proof-system/README.md)
       * [Random Sampling rollout](dkg-knowledge-hub/learn-more/introduction/random-sampling-dkg-proof-system/random-sampling-rollout.md)
       * [Random Sampling FAQ](dkg-knowledge-hub/learn-more/introduction/random-sampling-dkg-proof-system/random-sampling-faq.md)
-    * [Rules & token thresholds](dkg-knowledge-hub/learn-more/introduction/rules-and-token-thresholds.md)
+    * [Edge Vs. Core Node — Rules & token thresholds](dkg-knowledge-hub/learn-more/introduction/edge-vs.-core-node-rules-and-token-thresholds.md)
   * [Connected blockchains](dkg-knowledge-hub/learn-more/connected-blockchains/README.md)
     * [NeuroWeb Parachain](dkg-knowledge-hub/learn-more/connected-blockchains/neuroweb.md)
     * [Base Network (L2)](dkg-knowledge-hub/learn-more/connected-blockchains/base-blockchain/README.md)
@@ -100,6 +108,7 @@
       * [Protocol updates](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/protocol-updates.md)
       * [Feature roadmap](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/feature-roadmap.md)
       * [How to upgrade to V8?](dkg-knowledge-hub/learn-more/previous-updates/dkg-v8.0-update-guidebook/how-to-upgrade-to-v8.md)
+    * [Staking cap & outstanding network rewards release](dkg-knowledge-hub/learn-more/previous-updates/staking-threshold-update-and-outstanding-network-rewards-release.md)
   * [What is a DKG Node?](dkg-knowledge-hub/learn-more/decentralized-knowle-dge-graph-dkg.md)
 * [How-tos & tutorials](dkg-knowledge-hub/how-tos-and-tutorials/README.md)
   * [Fund your Web3 wallets](dkg-knowledge-hub/how-tos-and-tutorials/fund-your-web3-wallets.md)

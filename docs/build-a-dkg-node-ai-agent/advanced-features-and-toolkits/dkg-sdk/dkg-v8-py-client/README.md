@@ -6,7 +6,7 @@ description: Python library for interacting with the DKG
 
 If you are looking to build applications leveraging [Knowledge Assets](./#create-a-knowledge-collection) on the OriginTrail Decentralized Knowledge Graph (DKG), the dkg.py library is the best place to start!
 
-The DKG SDK is used together with an **OriginTrail gateway node** to build applications that interface with the OriginTrail DKG (the node is a dependency). Therefore, you either need to run a gateway node on [your local environment](../setting-up-your-development-environment.md) or a [hosted DKG Node](../../../../getting-started/decentralized-knowle-dge-graph-dkg.md), in order to use the SDK.
+The DKG SDK is used together with an **OriginTrail gateway node** to build applications that interface with the OriginTrail DKG (the node is a dependency). Therefore, you either need to run a gateway node on [your local environment](../setting-up-your-development-environment.md) or a [hosted DKG Node](../../../../getting-started/decentralized-knowledge-graph-dkg.md), in order to use the SDK.
 
 ## Prerequisites
 
@@ -37,7 +37,7 @@ poetry add dkg==8.0.1
 
 ## :snowboarder: Quickstart
 
-This package includes both synchronous and asynchronous versions of the DKG client.&#x20;
+This package includes both synchronous and asynchronous versions of the DKG client.
 
 The synchronous client is designed for applications that accept blocking calls. It operates sequentially, making it simpler to integrate into existing codebases that do not use asynchronous programming.
 
@@ -45,7 +45,7 @@ The asynchronous client is built for non-blocking operations, making it ideal fo
 
 ### Synchronous DKG client
 
-To use the Synchronous DKG library, you need to connect to a running local or remote OT-node.&#x20;
+To use the Synchronous DKG library, you need to connect to a running local or remote OT-node.
 
 <pre class="language-python"><code class="lang-python">from dkg import DKG
 <strong>from dkg.providers import BlockchainProvider, NodeHTTPProvider
@@ -127,7 +127,7 @@ The system supports multiple blockchain networks, which can be configured using 
 
 ## Create a Knowledge Collection
 
-In this example, let’s create an example Knowledge Collection representing a city. The content contains both public and private assertions. Public assertions will be exposed publicly (replicated to other nodes), while private ones won't (stay on the node you published to only). If you have access to the particular node that has the data, when you search for it using get or query, you will see both public and private assertions.&#x20;
+In this example, let’s create an example Knowledge Collection representing a city. The content contains both public and private assertions. Public assertions will be exposed publicly (replicated to other nodes), while private ones won't (stay on the node you published to only). If you have access to the particular node that has the data, when you search for it using get or query, you will see both public and private assertions.
 
 ```python
 const content = {
@@ -312,7 +312,7 @@ The response of the get operation will be the assertion graph:
 
 ## Querying Knowledge Asset data with SPARQL
 
-Querying the DKG is done by using the SPARQL query language, which is very similar to SQL applied to graph data.&#x20;
+Querying the DKG is done by using the SPARQL query language, which is very similar to SQL applied to graph data.
 
 _(If you have SQL experience, SPARQL should be relatively easy to get started with. More information_[ _can be found here_](https://www.w3.org/TR/rdf-sparql-query/)_)._
 
@@ -346,7 +346,7 @@ The returned response will contain an array of n-quads:
 }
 ```
 
-As the OriginTrail node leverages a fully fledged graph database (a triple store supporting RDF), you can run arbitrary SPARQL queries on it.&#x20;
+As the OriginTrail node leverages a fully fledged graph database (a triple store supporting RDF), you can run arbitrary SPARQL queries on it.
 
 To learn more about querying the DKG, go [here](../../querying-the-dkg.md).
 
@@ -358,7 +358,7 @@ We can divide operations done by SDK into 3 types:
 * Smart contract call (non-state-changing interaction)
 * Smart contract transaction (state-changing interaction)
 
-Non-state-changing interactions with smart contracts are free and can be described as contract-getters. They don’t require transactions on the blockchain. This means they do not incur transaction fees.&#x20;
+Non-state-changing interactions with smart contracts are free and can be described as contract-getters. They don’t require transactions on the blockchain. This means they do not incur transaction fees.
 
 Smart contract transactions are state-changing operations. This means they change the state of the smart contract memory, which requires some blockchain-native gas tokens (such as ETH, NEURO, etc.).
 
