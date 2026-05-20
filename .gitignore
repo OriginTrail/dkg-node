@@ -48,3 +48,20 @@ dkg-engine
 apps/agent/tests/ragas/reports/
 tests/ragas/reports/
 docker-compose.knowledge-manager.yml
+
+# Autonomous Revenue OS runtime artifacts
+.venv-revenue-os/
+cursor_audit/*
+!cursor_audit/.gitkeep
+cursor_full_runtime.log
+outputs/done/*
+!outputs/done/.gitkeep
+outputs/failed/*
+!outputs/failed/.gitkeep
+scripts/__pycache__/
+scripts/**/__pycache__/
+*.pyc
+*.bak
+apps/agent/.env.installer
+apps/agent/.env.development.local.bak
+apps/agent/inject_token.js
