@@ -81,9 +81,19 @@ export const defineDkgPlugin = (plugin: DkgPlugin): DkgPluginBuilder =>
     },
   } satisfies DkgPluginBuilderMethods);
 
+/** Expo Router /api/* (except /api/dkg/*) needs an intact req stream for @expo/server. */
+const usesExpressBodyParser = (req: express.Request) =>
+  !(req.path.startsWith("/api/") && !req.path.startsWith("/api/dkg/"));
+
 export const defaultPlugin = defineDkgPlugin((ctx, mcp, api) => {
-  api.use(express.json({ limit: "1gb" }));
-  api.use(express.urlencoded({ limit: "1gb" , extended: true}));
+  api.use((req, res, next) => {
+    if (!usesExpressBodyParser(req)) return next();
+    express.json({ limit: "1gb" })(req, res, next);
+  });
+  api.use((req, res, next) => {
+    if (!usesExpressBodyParser(req)) return next();
+    express.urlencoded({ limit: "1gb", extended: true })(req, res, next);
+  });
   api.use(
     cors({
       allowedHeaders: "*",
