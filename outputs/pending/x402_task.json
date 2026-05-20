@@ -1,0 +1,7 @@
+{
+  "name": "x402_adapter",
+  "params": {
+    "artifact_id": "example-bundle-001",
+    "dry_run": true
+  }
+}

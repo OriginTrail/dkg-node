@@ -1,0 +1,6 @@
+{
+  "name": "verify_and_anchor",
+  "params": {
+    "artifact_id": "example-bundle-001"
+  }
+}

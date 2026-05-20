@@ -1,0 +1,7 @@
+{
+  "name": "nevermined_adapter",
+  "params": {
+    "tier": "enterprise",
+    "policy_id": "placeholder-policy"
+  }
+}

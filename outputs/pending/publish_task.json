@@ -1,0 +1,13 @@
+{
+  "name": "publish_ai_asset",
+  "params": {
+    "source": "autonomous-revenue-os",
+    "source_id": "example-bundle-auto",
+    "name": "Automated Test Asset",
+    "description": "Revenue OS skeleton publish task",
+    "privacy": "private",
+    "priority": 10,
+    "epochs": 1,
+    "maxAttempts": 1
+  }
+}

@@ -1,0 +1,2 @@
+-r requirements-autonomous-revenue-os.txt
+pytest>=8.0.0
