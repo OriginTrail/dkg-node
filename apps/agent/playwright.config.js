@@ -103,7 +103,16 @@ module.exports = defineConfig({
 
   /* Run your local dev server before starting the tests */
   webServer: {
-    command: "turbo dev",
+    // E2E only needs the Expo web app (8081) + the backend server. Start just those
+    // two (skip drizzle:studio — a DB GUI the tests never touch) and give Metro extra
+    // heap, so bundling the heavy web app (1337 modules incl three.js) doesn't
+    // intermittently OOM / "Bundling failed" under CI resource pressure when three
+    // persistent dev processes start at once.
+    command: "turbo run dev:app dev:server",
+    env: {
+      ...process.env,
+      NODE_OPTIONS: `${process.env.NODE_OPTIONS || ""} --max-old-space-size=4096`.trim(),
+    },
     url: "http://localhost:8081",
     reuseExistingServer: false, // Always start fresh - prevents session persistence
     timeout: process.env.CI ? 300 * 1000 : 120 * 1000, // 5 minutes in CI, 2 minutes locally
